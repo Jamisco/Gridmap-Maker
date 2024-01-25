@@ -6,6 +6,7 @@ using System.Reflection;
 using System.Text;
 using System.Threading.Tasks;
 using UnityEngine;
+using static UnityEngine.Rendering.DebugUI;
 using Random = System.Random;
 
 namespace Assets.Scripts.Miscellaneous
@@ -315,5 +316,24 @@ namespace Assets.Scripts.Miscellaneous
             return pos;
         }
 
+
+        /// <summary>
+        /// A more unique hashcode for a vector2Int
+        /// </summary>
+        /// <param name="vector"></param>
+        /// <returns></returns>
+        public static int GetHashCode_Unique(this Vector2Int vector)
+        {
+            unchecked
+            {
+                int hash = 1716777619;
+                int multipler = 486187739;
+                // Suitable nullity checks etc, of course :)
+                hash = hash * multipler + vector.x.GetHashCode();
+                hash = hash * multipler + vector.y.GetHashCode();
+                hash = hash * multipler + vector.magnitude.GetHashCode();
+                return hash;
+            }
+        }
     }
 }

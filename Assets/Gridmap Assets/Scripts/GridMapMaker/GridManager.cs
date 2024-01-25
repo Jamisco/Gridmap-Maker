@@ -2,6 +2,11 @@ using UnityEngine;
 using Assets.Gridmap_Assets.Scripts.GridMapMaker.Shapes;
 using System.Collections;
 using Assets.Scripts.Miscellaneous;
+using System;
+using Random = UnityEngine.Random;
+using static Assets.Gridmap_Assets.Scripts.Mapmaker.LayeredMesh;
+using Assets.Gridmap_Assets.Scripts.Mapmaker;
+using System.Collections.Generic;
 
 #if UNITY_EDITOR
 using UnityEditor;
@@ -16,75 +21,49 @@ namespace Assets.Scripts.GridMapMaker
 
         public HexagonalShape hexShape;
 
-        public HexChunk hexChunk;
+        public LayeredMesh layerMesh;
+
+        public ShapeVisualContainer visualContainer;
+
+        public Texture texture;
+
+        private void Awake()
+        {
+            
+        }
 
         public void GenerateGrid()
         {
-            Mesh defMesh = hexShape.GetBaseShape();
+            layerMesh.Initialize(hexShape);
             
-            hexChunk.Init();
-
             for (int x = 0; x < GridSize.x; x++)
             {
                 for (int y = 0; y < GridSize.y; y++)
                 {
-                    Color rand = new Color(Random.Range(0, 1f), Random.Range(0, 1f), Random.Range(0, 1f));
+                    Vector2Int gridPosition = new Vector2Int(x, y);
 
-                    defMesh.SetFullColor(rand);
-
-                    Vector3 offset = hexShape.GetTesselatedPosition(x, y);
-
-                    hexChunk.AddHex(defMesh, offset);
-                    hexChunk.DrawMesh();
+                    layerMesh.InsertVisualData(visualContainer.GetRandom(), gridPosition);
                 }
             }
 
-            hexChunk.DrawMesh();
+            layerMesh.UpdateMesh();
+        }
+
+        public void print()
+        {
+
+        }
+
+        public void Clear()
+        {
+            layerMesh.Clear();
         }
 
         private void OnValidate()
         {
-            hexChunk.Clear();
 
-            GenerateGrid();
         }
 
-        public float time = 0.5f;
-        private IEnumerator GenerateGridCoroutine()
-        {
-            Mesh defMesh;
-            hexChunk.Init();
-            for (int x = 0; x < GridSize.x; x++)
-            {
-                for (int y = 0; y < GridSize.y; y++)
-                {
-                    defMesh = hexShape.GetBaseShape();
-
-                    Color rand = new Color(Random.Range(0, 1f), Random.Range(0, 1f), Random.Range(0, 1f));
-
-                    defMesh.SetFullColor(rand);
-
-                    Vector3 offset = hexShape.GetTesselatedPosition(x, y);
-
-                    hexChunk.AddHex(defMesh, offset);
-                    hexChunk.DrawMesh();
-                    // Yielding null to wait for the next frame
-                    yield return new WaitForSeconds(time);
-                }
-            }
-        }
-
-        public void StartGenerateGridCoroutine()
-        {
-            StartCoroutine(GenerateGridCoroutine());
-        }
-
-
-        public void ClearGrid()
-        {
-            hexChunk.Clear();
-            StopAllCoroutines();
-        }
     }
 
 #if UNITY_EDITOR
@@ -104,12 +83,12 @@ namespace Assets.Scripts.GridMapMaker
 
             if (GUILayout.Button("Generate Grid Delay"))
             {
-                exampleScript.StartGenerateGridCoroutine();
+                exampleScript.print();
             }
 
             if (GUILayout.Button("Clear Grid"))
             {
-                exampleScript.ClearGrid();
+                exampleScript.Clear();
             }
         }
     }

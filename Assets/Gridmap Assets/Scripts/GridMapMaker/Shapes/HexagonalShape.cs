@@ -11,14 +11,13 @@ namespace Assets.Gridmap_Assets.Scripts.GridMapMaker.Shapes
     [Serializable]
     public class HexagonalShape : GridShape
     {
-        public float width;
-        public float height;
         private List<Vector3> baseVertices;
         private List<Vector2> baseUVs;
         private List<int> baseTriangles;
 
-        public override float Width { get => width; set => width = value; }
-        public override float Height { get => height; set => height = value; }
+        public float Width;
+        
+        public float Height;
         public override List<Vector3> BaseVertices { get => baseVertices; 
                                                      set => baseVertices = value; }
         public override List<Vector2> BaseUV { get => baseUVs; 
@@ -36,13 +35,13 @@ namespace Assets.Gridmap_Assets.Scripts.GridMapMaker.Shapes
         {
             baseVertices = new List<Vector3>
             {
-                new Vector3(0f, 0f, height / 2),
-                new Vector3(width / 2, 0f, 0.25f * height),
-                new Vector3(width / 2, 0f, -0.25f * height),
+                new Vector3(0f, 0f, Height / 2),
+                new Vector3(Width / 2, 0f, 0.25f * Height),
+                new Vector3(Width / 2, 0f, -0.25f * Height),
                 
-                new Vector3(0f, 0f, - (height / 2)),
-                new Vector3(-(width / 2), 0f, -(0.25f * height)),
-                new Vector3(-(width / 2), 0f, (0.25f * height)),
+                new Vector3(0f, 0f, - (Height / 2)),
+                new Vector3(-(Width / 2), 0f, -(0.25f * Height)),
+                new Vector3(-(Width / 2), 0f, (0.25f * Height)),
             };
         }
         private void SetBaseTriangles()
@@ -86,12 +85,16 @@ namespace Assets.Gridmap_Assets.Scripts.GridMapMaker.Shapes
         {
             Vector3 position = new Vector3();
             // Calculate the center of each hexagon
-            position.x = x * width + (y % 2) * (width / 2.0f);
+            position.x = x * Width + (y % 2) * (Width / 2.0f);
             position.y = 0;
-            position.z = y * (height - height / 4.0f);
+            position.z = y * (Height - Height / 4.0f);
 
             return position;
 
+        }
+        public override Vector3 GetTesselatedPosition(Vector2Int gridPosition)
+        {
+            return GetTesselatedPosition(gridPosition.x, gridPosition.y);
         }
     }
 }

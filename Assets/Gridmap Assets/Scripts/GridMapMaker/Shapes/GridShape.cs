@@ -8,12 +8,6 @@ namespace Assets.Gridmap_Assets.Scripts.GridMapMaker.Shapes
 {
     public abstract class GridShape
     {
-        [Tooltip("The Distance from the Left to the Right vertex")]
-        public abstract float Width { get; set; }
-
-        [Tooltip("The Distance from the Top to the Bottom vertex")]
-        public abstract float Height { get; set; }
-
         /// <summary>
         /// The minimum number of vertices required to make a shape
         /// </summary>
@@ -43,6 +37,13 @@ namespace Assets.Gridmap_Assets.Scripts.GridMapMaker.Shapes
         /// <param name="y">Y coordinate on the grid</param>
         /// <returns></returns>
         public abstract Vector3 GetTesselatedPosition(int x, int y);
-            
+
+        /// <summary>
+        /// The method will return the position of a shape on the grid given its coordinates denoted in Vector2Int
+        /// </summary>
+        ///  <param name="gridPosition">The grid position of the shape</param>
+        /// <returns></returns>
+        public abstract Vector3 GetTesselatedPosition(Vector2Int gridPosition);
+
     }
 }

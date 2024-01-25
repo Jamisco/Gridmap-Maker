@@ -9,6 +9,8 @@ namespace Assets.Scripts.GridMapMaker
 {
     public class FusedMesh
     {
+        // A fused mesh is a collection of meshes that are fused together to make one mesh.
+
         private List<int> MeshHashes;
         // vertex and triangle size
         private List<(int vertexCount, int triangleCount)> MeshSizes;
@@ -176,6 +178,7 @@ namespace Assets.Scripts.GridMapMaker
 
             if (index != -1)
             {
+                Debug.Log("Mesh already exists..Replacing. Offset: " + offset);
                 RemoveMesh(hash, index);
             }
 
@@ -270,7 +273,7 @@ namespace Assets.Scripts.GridMapMaker
         }
 
         /// <summary>
-        /// Fused the given mesh into the new one. Be advised that if you are adding a a mesh with a hash that already exists, the old mesh will be removed and the new one will be added
+        /// Fused the given mesh into the current one. Be advised that if you are adding a a mesh with a hash that already exists, the old mesh will be removed and the new one will be added
         /// </summary>
         /// <param name="mesh"></param>
         /// <param name="hash"></param>
@@ -329,19 +332,6 @@ namespace Assets.Scripts.GridMapMaker
             Colors.AddRange(aMesh.colors);
             UVs.AddRange(aMesh.uv);
         }
-
-        public void ClearFusedMesh()
-        {
-            MeshHashes.Clear();
-            MeshSizes.Clear();
-
-            Vertices.Clear();
-            Triangles.Clear();
-            Colors.Clear();
-            UVs.Clear();
-
-            UpdateMesh();
-        }
         /// <summary>
         /// When you modify the triangles, you now also have to recalculate the triangles that came after it, such that the index are proper
         /// </summary>
@@ -361,7 +351,7 @@ namespace Assets.Scripts.GridMapMaker
         }
 
         /// <summary>
-        /// Returns the a NEW mesh with the given hash. Returns null if no mesh was found. Modifying this mesh has no effect on the current fused mesh. If you want to modify the fusedMesh, after you have modified the returned mesh, you must call RemoveMesh and then InsertMesh again. Be advised, depending on the size of the fused mesh, this could be a costly operation.
+        /// Returns the a NEW mesh with the given hash. Returns null if no mesh was found. Modifying this mesh has no effect on the current fused mesh. If you want to modify the BaseFushMesh, after you have modified the returned mesh, you must call RemoveMesh and then InsertMesh again. Be advised, depending on the size of the fused mesh, this could be a costly operation.
         /// </summary>
         /// <param name="hash"></param>
         /// <returns></returns>
@@ -490,6 +480,19 @@ namespace Assets.Scripts.GridMapMaker
             newMesh.CombineMeshes(tempArray);
 
             return newMesh;
+        }
+
+        public void ClearFusedMesh()
+        {
+            MeshHashes.Clear();
+            MeshSizes.Clear();
+
+            Vertices.Clear();
+            Triangles.Clear();
+            Colors.Clear();
+            UVs.Clear();
+
+            UpdateMesh();
         }
 
         // create a struct to hold MeshData
