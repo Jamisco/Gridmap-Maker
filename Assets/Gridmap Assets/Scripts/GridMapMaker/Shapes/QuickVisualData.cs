@@ -105,7 +105,7 @@ namespace Assets.Gridmap_Assets.Scripts.GridMapMaker.Shapes
 
             props.SetColor("_Color", Color);
             
-            return new ShapeVisualData(material, props, uniqueSeed);
+            return new ShapeVisualData(visualName, material, props, uniqueSeed);
         }
     }
 }

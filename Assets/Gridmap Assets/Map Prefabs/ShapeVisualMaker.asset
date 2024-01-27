@@ -12,22 +12,28 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 4b8cb433652739f4893157f4cfc4f586, type: 3}
   m_Name: ShapeVisualMaker
   m_EditorClassIdentifier: 
-  QuickVisualDatas:
+  VisualDatas:
   - visualName: grass
-    material: {fileID: 2100000, guid: 1ce1c2e14903de741ae3026f3330e7bb, type: 2}
-    texture: {fileID: 2800000, guid: 597c788c377099f4cac099e7616ca8f1, type: 3}
-    color: {r: 0, g: 0, b: 0, a: 0}
+    mainTexture: {fileID: 2800000, guid: 597c788c377099f4cac099e7616ca8f1, type: 3}
+    mainColor: {r: 1, g: 1, b: 1, a: 1}
+    sharedMaterial: {fileID: 2100000, guid: 1ce1c2e14903de741ae3026f3330e7bb, type: 2}
     uniqueSeed: 0
-    visualHash: 2108004537
-  - visualName: grass2
-    material: {fileID: 2100000, guid: 1ce1c2e14903de741ae3026f3330e7bb, type: 2}
-    texture: {fileID: 2800000, guid: aa701e5be2dbcd24aad4fb9c3ca284da, type: 3}
-    color: {r: 0, g: 0, b: 0, a: 0}
+    MainTextureInserted: 1
+    MainColorInserted: 1
+    visualHash: 1665472475
+  - visualName: yellow
+    mainTexture: {fileID: 2800000, guid: 01a1610bf7ebdcf4990648a6f54c754f, type: 3}
+    mainColor: {r: 0.956295, g: 1, b: 0, a: 1}
+    sharedMaterial: {fileID: 2100000, guid: 1ce1c2e14903de741ae3026f3330e7bb, type: 2}
     uniqueSeed: 0
-    visualHash: 394809471
-  - visualName: redcolor
-    material: {fileID: 10754, guid: 0000000000000000f000000000000000, type: 0}
-    texture: {fileID: 0}
-    color: {r: 1, g: 0, b: 0, a: 1}
+    MainTextureInserted: 1
+    MainColorInserted: 1
+    visualHash: 344793097
+  - visualName: snow
+    mainTexture: {fileID: 2800000, guid: 34bc1c82251d51d47b35c7d1c56b6486, type: 3}
+    mainColor: {r: 1, g: 1, b: 1, a: 1}
+    sharedMaterial: {fileID: 2100000, guid: 1ce1c2e14903de741ae3026f3330e7bb, type: 2}
     uniqueSeed: 0
-    visualHash: 666472812
+    MainTextureInserted: 1
+    MainColorInserted: 1
+    visualHash: 1774228844

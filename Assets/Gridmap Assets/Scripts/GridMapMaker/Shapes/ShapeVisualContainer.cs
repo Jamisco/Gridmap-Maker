@@ -13,53 +13,44 @@ namespace Assets.Gridmap_Assets.Scripts.GridMapMaker.Shapes
     public class ShapeVisualContainer : ScriptableObject
     {
         [Tooltip("The list of visuals that will be used to create the fused meshes. It is important that they are all unique. Visuals which are not unique will be Ignored. If two visuals will temporarily be the same, use the unique seed to make them unique." +
-          "Only the last visual in the list will be updated when you modify the visual in the inspector. If you want to update all visuals, click the 'Validate Visual Hashes' button.")]
-        [SerializeField]
-        private List<QuickVisualData> QuickVisualDatas = new List<QuickVisualData>();
+          "Only the last visual in the list will be updated when you modify the visual in the inspector. If you want to update all visuals,  click the 'Validate Visual Hashes' button.")]
 
-        private Dictionary<string, ShapeVisualData> ShapeVisuals
-                             = new Dictionary<string, ShapeVisualData>();
+        [SerializeField]
+        private List<ShapeVisualData> VisualDatas = new List<ShapeVisualData>();
+
 
         private void OnValidate()
         {
-            if (QuickVisualDatas.Count > 0)
+            if (VisualDatas.Count > 0)
             {
-                QuickVisualDatas[QuickVisualDatas.Count - 1].ValidateHashCode();
+                VisualDatas[VisualDatas.Count - 1].ValidateHashCode();
             }
         }
 
         private void ValidateVisualHashes()
         {
-            for (int i = 0; i < QuickVisualDatas.Count; i++)
+            for (int i = 0; i < VisualDatas.Count; i++)
             {
-                QuickVisualDatas[i].ValidateHashCode();
+                VisualDatas[i].ValidateHashCode();
             }
-
-            FillDictionary();
         }
 
-        public void FillDictionary()
+        private void UpdateMainMaterialProperties()
         {
-            ShapeVisuals.Clear();
-            QuickVisualData quickData;
-
-            for (int i = 0; i < QuickVisualDatas.Count; i++)
+            for (int i = 0; i < VisualDatas.Count; i++)
             {
-                if (ShapeVisuals.ContainsKey(QuickVisualDatas[i].VisualName))
-                {
-                    continue;
-                }
-
-                quickData = QuickVisualDatas[i];
-                
-                ShapeVisuals.Add(QuickVisualDatas[i].VisualName, 
-                                                 quickData.CreateShapeVisualData());
+                VisualDatas[i].InsertMainIntoMaterialProperty();
             }
         }
 
+        public void ClearAllHashes()
+        {
+            VisualDatas.Clear();
+        }
+        
         public ShapeVisualData GetRandom()
         {
-            return ShapeVisuals.Values.ElementAt(UnityEngine.Random.Range(0, ShapeVisuals.Count));
+            return VisualDatas.ElementAt(UnityEngine.Random.Range(0, VisualDatas.Count));
         }
 
 #if UNITY_EDITOR
@@ -75,6 +66,11 @@ namespace Assets.Gridmap_Assets.Scripts.GridMapMaker.Shapes
                 if (GUILayout.Button("Validate Visual Hashes"))
                 {
                     exampleScript.ValidateVisualHashes();
+                }
+
+                if (GUILayout.Button("Insert Mains Into Material Properties"))
+                {
+                    exampleScript.UpdateMainMaterialProperties();
                 }
             }
         }

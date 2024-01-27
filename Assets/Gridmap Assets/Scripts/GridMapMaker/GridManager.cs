@@ -20,8 +20,11 @@ namespace Assets.Scripts.GridMapMaker
         public Vector2Int GridSize;
 
         public HexagonalShape hexShape;
+        public RectangularShape rectShape;
 
-        public LayeredMesh layerMesh;
+        public LayeredMesh hexLayer;
+
+        public LayeredMesh rectangleLayer;
 
         public ShapeVisualContainer visualContainer;
 
@@ -34,7 +37,8 @@ namespace Assets.Scripts.GridMapMaker
 
         public void GenerateGrid()
         {
-            layerMesh.Initialize(hexShape);
+            hexLayer.Initialize(hexShape);
+            rectangleLayer.Initialize(rectShape);
             
             for (int x = 0; x < GridSize.x; x++)
             {
@@ -42,21 +46,32 @@ namespace Assets.Scripts.GridMapMaker
                 {
                     Vector2Int gridPosition = new Vector2Int(x, y);
 
-                    layerMesh.InsertVisualData(visualContainer.GetRandom(), gridPosition);
+                    hexLayer.InsertVisualData(visualContainer.GetRandom(), gridPosition);
+                    rectangleLayer.InsertVisualData(visualContainer.GetRandom(), gridPosition);
                 }
             }
 
-            layerMesh.UpdateMesh();
+            hexLayer.UpdateMesh();
+            rectangleLayer.UpdateMesh();
         }
 
         public void print()
         {
+            MaterialPropertyBlock block = new MaterialPropertyBlock();
 
+            block.SetTexture("_MainTex", texture);
+
+            Debug.Log("Block: " + block.GetHashCode());
+
+            block.SetColor("_Color", Color.green);
+
+            Debug.Log("Block: " + block.GetHashCode());
         }
 
         public void Clear()
         {
-            layerMesh.Clear();
+            hexLayer.Clear();
+            rectangleLayer.Clear();
         }
 
         private void OnValidate()

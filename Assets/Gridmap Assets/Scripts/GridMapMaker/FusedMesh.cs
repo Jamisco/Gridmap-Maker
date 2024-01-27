@@ -1,6 +1,7 @@
 ﻿using Assets.Scripts.Miscellaneous;
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading.Tasks;
 using UnityEngine;
 using UnityEngine.UIElements;
@@ -42,6 +43,21 @@ namespace Assets.Scripts.GridMapMaker
         public FusedMesh()
         {
             Init();
+        }
+
+        public FusedMesh(SerializedFusedMesh serializedFusedMesh)
+        {
+            MeshHashes = serializedFusedMesh.MeshHashes;
+            MeshSizes = serializedFusedMesh.MeshSizes;
+
+            Vertices = serializedFusedMesh.Vertices;
+            Triangles = serializedFusedMesh.Triangles;
+            Colors = serializedFusedMesh.Colors;
+            UVs = serializedFusedMesh.UVs;
+
+            Mesh = new Mesh();
+            Mesh.MarkDynamic();
+            UpdateMesh();
         }
 
         public FusedMesh(List<Mesh> meshes, List<int> hashes, List<Vector3> offsets)
@@ -171,7 +187,25 @@ namespace Assets.Scripts.GridMapMaker
             UpdateMesh();
         }
 
+        public void CombineFusedMesh(FusedMesh fusedMesh)
+        {
+            if (fusedMesh == null)
+            {
+                throw new Exception("Fused mesh is null");
+            }
 
+            if (fusedMesh.MeshSizes.Count == 0)
+            {
+                throw new Exception("Fused mesh is empty");
+            }
+
+            for (int i = 0; i < fusedMesh.MeshSizes.Count; i++)
+            {
+                AddMesh_NoUpdate(fusedMesh.Mesh, fusedMesh.MeshHashes[i], Vector3.zero);
+            }
+
+            UpdateMesh();
+        }
         private void AddMesh_NoUpdate(Mesh mesh, int hash, Vector3 offset)
         {
             int index = MeshHashes.IndexOf(hash);
@@ -425,10 +459,15 @@ namespace Assets.Scripts.GridMapMaker
         {
             return f.Mesh;
         }
+        public static implicit operator SerializedFusedMesh(FusedMesh f)
+        {
+            return new SerializedFusedMesh(f);
+        }
+
         public static Mesh CombineToSubmesh(List<FusedMesh> subMesh)
         {
             Mesh newMesh = new Mesh();
-
+            
             CombineInstance[] tempArray = new CombineInstance[subMesh.Count];
 
             for (int i = 0; i < subMesh.Count; i++)
@@ -484,8 +523,8 @@ namespace Assets.Scripts.GridMapMaker
 
         public void ClearFusedMesh()
         {
-            MeshHashes.Clear();
-            MeshSizes.Clear();
+            MeshHashes?.Clear();
+            MeshSizes?.Clear();
 
             Vertices.Clear();
             Triangles.Clear();
@@ -518,6 +557,38 @@ namespace Assets.Scripts.GridMapMaker
                 triangles.AddRange(data.triangles);
                 colors.AddRange(data.colors);
                 uvs.AddRange(data.uv);
+            }
+        }
+
+        [Serializable]
+        public struct SerializedFusedMesh
+        {
+            public List<(int vertexCount, int triangleCount)> MeshSizes { get; set; }
+            public List<int> MeshHashes { get; set; }
+
+            public List<Vector3> Vertices { get; set; }
+            public List<int> Triangles { get; set; }
+            public List<Vector2> UVs { get; set; }
+            public List<Color> Colors { get; set; }
+
+            public SerializedFusedMesh(FusedMesh fusedMesh)
+            {
+                MeshHashes = fusedMesh.MeshHashes;
+                MeshSizes = fusedMesh.MeshSizes;
+                Vertices = fusedMesh.Vertices;
+                Triangles = fusedMesh.Triangles;
+                UVs = fusedMesh.UVs;
+                Colors = fusedMesh.Colors;
+                
+            }
+            public FusedMesh Deserialize()
+            {
+                return new FusedMesh(this);
+            }
+
+            public static implicit operator FusedMesh(SerializedFusedMesh f)
+            {
+                return f.Deserialize();
             }
         }
     }
