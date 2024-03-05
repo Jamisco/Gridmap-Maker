@@ -212,7 +212,7 @@ namespace Assets.Scripts.GridMapMaker
 
             if (index != -1)
             {
-                Debug.Log("Mesh already exists..Replacing. Offset: " + offset);
+                //Debug.Log("Mesh already exists..Replacing. Offset: " + offset);
                 RemoveMesh(hash, index);
             }
 

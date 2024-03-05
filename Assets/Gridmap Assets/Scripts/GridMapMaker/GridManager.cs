@@ -1,83 +1,219 @@
 using UnityEngine;
 using Assets.Gridmap_Assets.Scripts.GridMapMaker.Shapes;
-using System.Collections;
-using Assets.Scripts.Miscellaneous;
-using System;
-using Random = UnityEngine.Random;
-using static Assets.Gridmap_Assets.Scripts.Mapmaker.LayeredMesh;
-using Assets.Gridmap_Assets.Scripts.Mapmaker;
 using System.Collections.Generic;
+using Assets.Gridmap_Assets.Scripts.GridMapMaker.Shapes.TestVisualData;
+using Assets.Gridmap_Assets.Scripts.Mapmaker;
+using System;
+using static Assets.Gridmap_Assets.Scripts.Mapmaker.LayeredMesh;
 
 #if UNITY_EDITOR
 using UnityEditor;
 #endif
 
-// Namespace.
 namespace Assets.Scripts.GridMapMaker
 {
+    [Serializable]
     public class GridManager : MonoBehaviour
     {
         public Vector2Int GridSize;
+        
+        private List<GridChunk> gridChunks = new List<GridChunk>();
 
-        public HexagonalShape hexShape;
-        public RectangularShape rectShape;
+        [SerializeReference]
+        List<VisualProperties> visualProperties = new List<VisualProperties>();
 
-        public LayeredMesh hexLayer;
+        [SerializeField]
+        public MapVisualContainer visualContainer;
 
-        public LayeredMesh rectangleLayer;
+        LayeredMesh layer;
 
-        public ShapeVisualContainer visualContainer;
-
-        public Texture texture;
-
-        private void Awake()
+        private void CreateLayer()
         {
-            
+            GameObject obj = new GameObject();
+            obj.transform.parent = transform;
+            obj.name = "Layer";
+            layer = obj.AddComponent<LayeredMesh>();
         }
 
-        public void GenerateGrid()
+        public void GenerateGrid(GridShape shape) 
         {
-            hexLayer.Initialize(hexShape);
-            rectangleLayer.Initialize(rectShape);
+            Clear();
+            CreateLayer();
+
+            if (visualProperties == null)
+            {
+                visualProperties = new List<VisualProperties>();
+            }
+
+            visualProperties.Clear();
+
+            BasicVisual data;
+
+            Material material = visualContainer.GetRandomObject<Material>();
+
+            layer.Initialize(shape);
+
+            for (int x = 0; x < GridSize.x; x++)
+            {
+                MakeRandomData();
+                visualProperties.Add(data);
+                
+                for (int y = 0; y < GridSize.y; y++)
+                {
+                    Vector2Int gridPosition = new Vector2Int(x, y);
+                    layer.InsertVisualData(data, gridPosition);
+                }
+            }
+
+            layer.UpdateMesh();
+
+            void MakeRandomData()
+            {
+                bool texture = UnityEngine.Random.Range(0, 2) == 0 ? true : false;
+
+                if (texture)
+                {
+                    Texture2D T = visualContainer.GetRandomObject<Texture2D>();
+
+                    data = new BasicVisual(material, T, Color.white);
+
+                    visualProperties.Add(data);
+                }
+                else
+                {
+                    Color C = UnityEngine.Random.ColorHSV();
+                    data = new BasicVisual(material, null, C);
+                }
+            }
+        }
+        public void GenerateGrid<T>(GridShape shape, T data) where T : VisualProperties
+        {
+            Clear();
+            CreateLayer();
+
+            if(visualProperties == null)
+            {
+                visualProperties = new List<VisualProperties>();
+            }
+
+            visualProperties.Clear();
+            visualProperties.Add(data);
             
+            layer.Initialize(shape);
+
             for (int x = 0; x < GridSize.x; x++)
             {
                 for (int y = 0; y < GridSize.y; y++)
                 {
                     Vector2Int gridPosition = new Vector2Int(x, y);
-
-                    hexLayer.InsertVisualData(visualContainer.GetRandom(), gridPosition);
-                    rectangleLayer.InsertVisualData(visualContainer.GetRandom(), gridPosition);
+                    layer.InsertVisualData((T)data, gridPosition);
                 }
             }
 
-            hexLayer.UpdateMesh();
-            rectangleLayer.UpdateMesh();
+            layer.UpdateMesh();
         }
-
-        public void print()
+        public void GenerateGrid(GridShape shape, VisualProperties data)
         {
-            MaterialPropertyBlock block = new MaterialPropertyBlock();
+            Clear();
+            CreateLayer();
 
-            block.SetTexture("_MainTex", texture);
+            layer.Initialize(shape);
 
-            Debug.Log("Block: " + block.GetHashCode());
+            for (int x = 0; x < GridSize.x; x++)
+            {
+                for (int y = 0; y < GridSize.y; y++)
+                {
+                    Vector2Int gridPosition = new Vector2Int(x, y);
+                    layer.InsertVisualData(data, gridPosition);
+                }
+            }
 
-            block.SetColor("_Color", Color.green);
-
-            Debug.Log("Block: " + block.GetHashCode());
+            layer.UpdateMesh();
         }
-
         public void Clear()
         {
-            hexLayer.Clear();
-            rectangleLayer.Clear();
+#if UNITY_EDITOR
+            while (transform.childCount > 0)
+            {
+                DestroyImmediate(transform.GetChild(0).gameObject);
+            }
+#else
+            Destroy(transform.GetChild(0).gameObject);
+#endif
+
+            gridChunks.Clear();
+            visualProperties.Clear();
         }
 
-        private void OnValidate()
+        [SerializeField]
+        public string saveLoc;
+        public void SerializeMap()
         {
+            SavedMap savedMap = new SavedMap(GridSize, visualProperties, layer.SerializeLayer());
 
+            savedMap.SerializeVisualProperties(visualContainer);
+
+            string json = JsonUtility.ToJson(savedMap, true);
+            
+            System.IO.File.WriteAllText(saveLoc, json);
+
+            Debug.Log("Map Saved");
         }
+        public void DeserializeMap()
+        {
+            string json = System.IO.File.ReadAllText(saveLoc);
+
+            SavedMap savedMap = JsonUtility.FromJson<SavedMap>(json);
+
+            savedMap.DeserializeVisualProperties(visualContainer);
+            
+            LoadMap(savedMap);
+            
+            Debug.Log("Map Loaded");
+        }
+        void LoadMap(SavedMap savedMap)
+        {
+            Clear();
+            CreateLayer();
+
+            GridSize = savedMap.gridSize;
+            visualProperties = savedMap.visualProperties;
+   
+            layer.Initialize(savedMap.layer, visualProperties);
+        }
+
+        [Serializable]
+        public struct SavedMap
+        {
+            public Vector2Int gridSize;
+            [SerializeReference]
+            public List<VisualProperties> visualProperties;
+            public SerializedLayer layer;
+
+            public SavedMap(Vector2Int gridSize, List<VisualProperties> visualProperties, SerializedLayer layer)
+            {
+                this.gridSize = gridSize;
+                this.visualProperties = visualProperties;
+                this.layer = layer;
+            }
+
+            public void SerializeVisualProperties(MapVisualContainer visualContainer)
+            {
+                foreach (VisualProperties prop in visualProperties)
+                {
+                    prop.SerializeData(visualContainer);
+                }
+            }
+
+            public void DeserializeVisualProperties(MapVisualContainer visualContainer)
+            {
+                foreach (VisualProperties prop in visualProperties)
+                {
+                    prop.DeserializeData(visualContainer);
+                }
+            }
+
+        } 
 
     }
 
@@ -89,22 +225,6 @@ namespace Assets.Scripts.GridMapMaker
         {
             DrawDefaultInspector();
 
-            GridManager exampleScript = (GridManager)target;
-
-            if (GUILayout.Button("Generate Grid"))
-            {
-                exampleScript.GenerateGrid();
-            }
-
-            if (GUILayout.Button("Generate Grid Delay"))
-            {
-                exampleScript.print();
-            }
-
-            if (GUILayout.Button("Clear Grid"))
-            {
-                exampleScript.Clear();
-            }
         }
     }
 #endif

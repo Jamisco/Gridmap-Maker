@@ -9,21 +9,17 @@ using UnityEngine;
 namespace Assets.Gridmap_Assets.Scripts.GridMapMaker.Shapes
 {
     [Serializable]
+    [CreateAssetMenu(fileName = "HexagonalShape", menuName = MenuName + "Hexagon")]
     public class HexagonalShape : GridShape
     {
-        private List<Vector3> baseVertices;
-        private List<Vector2> baseUVs;
-        private List<int> baseTriangles;
-
         public float Width;
         
         public float Height;
-        public override List<Vector3> BaseVertices { get => baseVertices; 
-                                                     set => baseVertices = value; }
-        public override List<Vector2> BaseUV { get => baseUVs; 
-                                               set => baseUVs = value; }
-        public override List<int> BaseTriangles { get => baseTriangles; 
-                                                  set => baseTriangles = value; }
+
+        private void OnValidate()
+        {
+            UpdateShape();
+        }
 
         private void UpdateShape()
         {
@@ -33,7 +29,7 @@ namespace Assets.Gridmap_Assets.Scripts.GridMapMaker.Shapes
         }
         private void SetBaseVertices()
         {
-            baseVertices = new List<Vector3>
+            BaseVertices = new List<Vector3>
             {
                 new Vector3(0f, 0f, Height / 2),
                 new Vector3(Width / 2, 0f, 0.25f * Height),
@@ -47,7 +43,7 @@ namespace Assets.Gridmap_Assets.Scripts.GridMapMaker.Shapes
         private void SetBaseTriangles()
         {
             // this is a base hex with 4 triangles
-            baseTriangles = new List<int>
+            BaseTriangles = new List<int>
             {
                 4, 5, 0,
                 4, 0, 1,
@@ -57,7 +53,7 @@ namespace Assets.Gridmap_Assets.Scripts.GridMapMaker.Shapes
         }
         private void SetBaseUVs()
         {
-            baseUVs = new List<Vector2>
+            BaseUVs = new List<Vector2>
             {
                 new Vector2(0.5f, 1),
                 new Vector2(1, 0.75f),
@@ -73,9 +69,9 @@ namespace Assets.Gridmap_Assets.Scripts.GridMapMaker.Shapes
             
             Mesh baseMesh = new Mesh();
 
-            baseMesh.vertices = baseVertices.ToArray();
-            baseMesh.uv = baseUVs.ToArray();
-            baseMesh.triangles = baseTriangles.ToArray();
+            baseMesh.vertices = BaseVertices.ToArray();
+            baseMesh.uv = BaseUVs.ToArray();
+            baseMesh.triangles = BaseTriangles.ToArray();
 
             ExtensionMethods.SetFullColor(baseMesh, Color.green);
 

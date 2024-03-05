@@ -8,6 +8,7 @@ namespace Assets.Scripts
 {
     public static class UniversalData
     {
-        public static string MapDataSavePath = $"Assets/Map Generation/MapData";
+        public static string MapDataSavePath = $"Assets/Gridmap Assets/Saved Maps";
+
     }
 }

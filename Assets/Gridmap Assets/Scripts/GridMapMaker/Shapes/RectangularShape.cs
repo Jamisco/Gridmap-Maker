@@ -8,30 +8,16 @@ using UnityEngine;
 namespace Assets.Gridmap_Assets.Scripts.GridMapMaker.Shapes
 {
     [Serializable]
+    [CreateAssetMenu(fileName = "RectangularShape", menuName = MenuName + "Rectangle")]
     public class RectangularShape : GridShape
     {
-        private List<Vector3> baseVertices;
-        private List<Vector2> baseUVs;
-        private List<int> baseTriangles;
-
         public float Width;
         public float Height;
-        public override List<Vector3> BaseVertices
-        {
-            get => baseVertices;
-            set => baseVertices = value;
-        }
-        public override List<Vector2> BaseUV
-        {
-            get => baseUVs;
-            set => baseUVs = value;
-        }
-        public override List<int> BaseTriangles
-        {
-            get => baseTriangles;
-            set => baseTriangles = value;
-        }
 
+        private void OnValidate()
+        {
+            UpdateShape();
+        }
         private void UpdateShape()
         {
             SetBaseVertices();
@@ -40,7 +26,7 @@ namespace Assets.Gridmap_Assets.Scripts.GridMapMaker.Shapes
         }
         private void SetBaseVertices()
         {
-            baseVertices = new List<Vector3>
+            BaseVertices = new List<Vector3>
             {
                 new Vector3(- (Width / 2), 0f, (Height / 2)),
                 new Vector3(Width / 2, 0f, Height / 2),
@@ -51,7 +37,7 @@ namespace Assets.Gridmap_Assets.Scripts.GridMapMaker.Shapes
         private void SetBaseTriangles()
         {
             // this is a base hex with 4 triangles
-            baseTriangles = new List<int>
+            BaseTriangles = new List<int>
             {
                 0, 1, 2,
                 0, 2, 3
@@ -59,7 +45,7 @@ namespace Assets.Gridmap_Assets.Scripts.GridMapMaker.Shapes
         }
         private void SetBaseUVs()
         {
-            baseUVs = new List<Vector2>
+            BaseUVs = new List<Vector2>
             {
                 new Vector2(0f, 1f),
                 new Vector2(1f, 1f),
@@ -72,9 +58,9 @@ namespace Assets.Gridmap_Assets.Scripts.GridMapMaker.Shapes
         {
             UpdateShape();
             Mesh mesh = new Mesh();
-            mesh.vertices = baseVertices.ToArray();
-            mesh.uv = baseUVs.ToArray();
-            mesh.triangles = baseTriangles.ToArray();
+            mesh.vertices = BaseVertices.ToArray();
+            mesh.uv = BaseUVs.ToArray();
+            mesh.triangles = BaseTriangles.ToArray();
             mesh.RecalculateNormals();
             return mesh;
         }

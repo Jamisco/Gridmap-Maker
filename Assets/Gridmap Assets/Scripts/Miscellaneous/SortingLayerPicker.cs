@@ -15,7 +15,7 @@ namespace Assets.Gridmap_Assets.Scripts.Miscellaneous
     {
         [SerializeField] private string layerName;
         [SerializeField] private int orderInLayer;
-        [ShowOnlyField] private int layerID;
+        [ShowOnlyField] [SerializeField] private int layerID;
 
         public string LayerName
         {
@@ -46,7 +46,7 @@ namespace Assets.Gridmap_Assets.Scripts.Miscellaneous
 
             if (layerID == 0)
             {
-                layerID = SortingLayer.NameToID("Default");
+                LayerName = "Default";
             }
         }
     }

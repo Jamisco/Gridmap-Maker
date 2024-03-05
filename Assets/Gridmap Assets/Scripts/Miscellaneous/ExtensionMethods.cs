@@ -6,6 +6,7 @@ using System.Reflection;
 using System.Text;
 using System.Threading.Tasks;
 using UnityEngine;
+using UnityEngine.UIElements;
 using static UnityEngine.Rendering.DebugUI;
 using Random = System.Random;
 
@@ -213,7 +214,7 @@ namespace Assets.Scripts.Miscellaneous
         public static int FindIndex(this List<int> list, int[] subArray)
         {
             int[] mainArray = list.ToArray();
-            
+
             return mainArray.FindIndex(subArray);
         }
 
@@ -315,6 +316,18 @@ namespace Assets.Scripts.Miscellaneous
 
             return pos;
         }
+        public class GridPositionComparer : IEqualityComparer<Vector2Int>
+        {
+            public bool Equals(Vector2Int x, Vector2Int y)
+            {
+                return x.x == y.x && x.y == y.y;
+            }
+
+            public int GetHashCode(Vector2Int obj)
+            {
+                return obj.GetHashCode_Unique();
+            }
+        }
 
 
         /// <summary>
@@ -334,6 +347,74 @@ namespace Assets.Scripts.Miscellaneous
                 hash = hash * multipler + vector.magnitude.GetHashCode();
                 return hash;
             }
+        }
+        /// <summary>
+        /// Compares grid positions. Smallest to Largest is from Bottom left to top right.
+        /// Thus, the more left and the more down a position is, the smaller it is. 
+        /// </summary>
+        /// <param name="a"></param>
+        /// <param name="b"></param>
+        /// <returns></returns>
+        public static int CompareGridPosition(Vector2Int a, Vector2Int b)
+        {
+            if (a.y == b.y)
+            {
+                return a.x.CompareTo(b.x);
+            }
+            return a.y.CompareTo(b.y);
+        }
+
+        /// <summary>
+        /// Overloading the '<' operatorCompares grid positions. Smallest to Largest is from Bottom left to top right.
+        /// </summary>
+        /// <param name="a"></param>
+        /// <param name="b"></param>
+        /// <returns></returns>
+        public static bool IsLessThan(this Vector2Int a, Vector2Int b)
+        {
+            int compare = CompareGridPosition(a, b);
+
+            if (compare < 0)
+            {
+                return true;
+            }
+
+            return false;
+        }
+
+        /// <summary>
+        /// Overloading the '>' operatorCompares grid positions. Smallest to Largest is from Bottom left to top right.
+        /// </summary>
+        /// <param name="a"></param>
+        /// <param name="b"></param>
+        /// <returns></returns>
+        public static bool IsGreaterThan(this Vector2Int a, Vector2Int b)
+        {
+            int compare = CompareGridPosition(a, b);
+
+            if (compare > 0)
+            {
+                return true;
+            }
+
+            return false;
+        }
+        /// <summary>
+        /// Overloading the '==' operatorCompares grid positions. Smallest to Largest is from Bottom left to top right.
+        /// </summary>
+        /// <param name="a"></param>
+        /// <param name="b"></param>
+        /// <returns></returns>
+        public static bool IsThesameAs(this Vector2Int a, Vector2Int b)
+        {
+            int compare = CompareGridPosition(a, b);
+
+            if (compare == 0)
+            {
+                return true;
+            }
+
+            return false;
         }
     }
 }
