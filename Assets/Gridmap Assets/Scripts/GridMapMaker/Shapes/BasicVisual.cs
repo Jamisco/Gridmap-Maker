@@ -15,9 +15,6 @@ namespace Assets.Gridmap_Assets.Scripts.GridMapMaker.Shapes
     [Serializable]
     public class BasicVisual : VisualProperties
     {
-        [SerializeField]
-        private Material sharedMaterial;
-        private MaterialPropertyBlock propertyBlock;
         
         [SerializeField]
         public Texture2D mainTexture;
@@ -27,17 +24,13 @@ namespace Assets.Gridmap_Assets.Scripts.GridMapMaker.Shapes
         [SerializeField]
         [HideInInspector]
         private SerializedBasicVisual serializedData;
-
-        [ShowOnlyField]
-        [SerializeField]
-        private int visualId;
         
         static string textName = "_MainTex";
         static string colorName = "_Color";
 
-        public BasicVisual(Material sharedMateiral, Texture2D texture, Color color)
+        public BasicVisual(Material material, Texture2D texture, Color color)
         {
-            sharedMaterial = sharedMateiral;
+            sharedMaterial = material;
             mainTexture = texture;
             mainColor = color;
 
@@ -45,11 +38,8 @@ namespace Assets.Gridmap_Assets.Scripts.GridMapMaker.Shapes
             propertyBlock = new MaterialPropertyBlock();
         }
         public Material SharedMaterial => sharedMaterial;
-
         public MaterialPropertyBlock PropertyBlock => propertyBlock;
-        private SerializedVisual SerializedData => serializedData;
-        public override int VisualId => visualId;
-
+        protected override ISerializedVisual SerializedData => serializedData;
         public override void SetMaterialProperties()
         {
             if (propertyBlock == null)
@@ -57,32 +47,14 @@ namespace Assets.Gridmap_Assets.Scripts.GridMapMaker.Shapes
                 propertyBlock = new MaterialPropertyBlock();
             }
 
-            // remember that setting the properties does not in any way change the hash of the propertyBlock reference
+            propertyBlock.Clear();
 
-            if(mainTexture != null)
+            if (mainTexture != null)
             {
                 propertyBlock.SetTexture(textName, mainTexture);
             }
 
             propertyBlock.SetColor(colorName, mainColor);
-        }
-
-        public override void VisualHashChanged()
-        {
-            int oldHash = visualId;
-            int newHash = GenerateVisualId();
-
-            if (oldHash != newHash)
-            {
-                visualId = newHash;
-
-                OnVisualHashChanged(oldHash);
-            }
-        }
-        public override ShapeVisualData GetShapeVisualData()
-        {
-            SetMaterialProperties();
-            return new ShapeVisualData(sharedMaterial, propertyBlock, visualId);
         }
         public override int GenerateVisualId()
         {
@@ -92,16 +64,10 @@ namespace Assets.Gridmap_Assets.Scripts.GridMapMaker.Shapes
 
             return id1 ^ id2 ^ id3;
         }
-        public override int GetVisualId()
-        {
-            return visualId;
-        }
-
-        public override void SerializeData(MapVisualContainer container)
+        public override void SetSerializeData(MapVisualContainer container)
         {
             serializedData = new SerializedBasicVisual(this, container);
         }
-
         public override void DeserializeData(MapVisualContainer container)
         {
             Guid mt = Guid.Parse(serializedData.mainTexture);
@@ -115,8 +81,15 @@ namespace Assets.Gridmap_Assets.Scripts.GridMapMaker.Shapes
             visualId = serializedData.visualId;
         }
 
+        //public override T ShallowCopy<T>()
+        //{
+        //    BasicVisual clone = new BasicVisual(sharedMaterial, mainTexture, mainColor);
+        //    clone.visualId = visualId;
+        //    return clone as T; 
+        //}
+
         [Serializable]
-        public struct SerializedBasicVisual : SerializedVisual
+        public struct SerializedBasicVisual : ISerializedVisual
         {
             public string mainTexture;
             public string sharedMaterial;

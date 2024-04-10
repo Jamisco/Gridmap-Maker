@@ -5,6 +5,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using UnityEngine;
+using UnityEngine.TextCore.Text;
 
 namespace Assets.Gridmap_Assets.Scripts.GridMapMaker.Shapes
 {
@@ -12,15 +13,16 @@ namespace Assets.Gridmap_Assets.Scripts.GridMapMaker.Shapes
     [CreateAssetMenu(fileName = "HexagonalShape", menuName = MenuName + "Hexagon")]
     public class HexagonalShape : GridShape
     {
+        [SerializeField]
         public float Width;
         
-        public float Height;
+        [SerializeField]
+        public float Depth;
 
         private void OnValidate()
         {
             UpdateShape();
         }
-
         private void UpdateShape()
         {
             SetBaseVertices();
@@ -31,13 +33,13 @@ namespace Assets.Gridmap_Assets.Scripts.GridMapMaker.Shapes
         {
             BaseVertices = new List<Vector3>
             {
-                new Vector3(0f, 0f, Height / 2),
-                new Vector3(Width / 2, 0f, 0.25f * Height),
-                new Vector3(Width / 2, 0f, -0.25f * Height),
+                new Vector3(0f, 0f, Depth / 2),
+                new Vector3(Width / 2, 0f, 0.25f * Depth),
+                new Vector3(Width / 2, 0f, -0.25f * Depth),
                 
-                new Vector3(0f, 0f, - (Height / 2)),
-                new Vector3(-(Width / 2), 0f, -(0.25f * Height)),
-                new Vector3(-(Width / 2), 0f, (0.25f * Height)),
+                new Vector3(0f, 0f, - (Depth / 2)),
+                new Vector3(-(Width / 2), 0f, -(0.25f * Depth)),
+                new Vector3(-(Width / 2), 0f, (0.25f * Depth)),
             };
         }
         private void SetBaseTriangles()
@@ -63,7 +65,7 @@ namespace Assets.Gridmap_Assets.Scripts.GridMapMaker.Shapes
                 new Vector2(0, 0.75f)
             };   
         }
-        public override Mesh GetBaseShape()
+        public override Mesh GetShapeMesh()
         {
             UpdateShape();
             
@@ -83,14 +85,55 @@ namespace Assets.Gridmap_Assets.Scripts.GridMapMaker.Shapes
             // Calculate the center of each hexagon
             position.x = x * Width + (y % 2) * (Width / 2.0f);
             position.y = 0;
-            position.z = y * (Height - Height / 4.0f);
+            position.z = y * (Depth - Depth / 4.0f);
 
             return position;
-
         }
         public override Vector3 GetTesselatedPosition(Vector2Int gridPosition)
         {
             return GetTesselatedPosition(gridPosition.x, gridPosition.y);
+        }
+        public override Vector2Int GetGridCoordinate(Vector3 localPosition)
+        {
+            localPosition.y = 0;
+
+            float x = localPosition.x / Width;
+            float z = localPosition.z / Depth;
+
+            int x1 = Mathf.CeilToInt(x);
+            int z1 = Mathf.CeilToInt(z);
+
+            return GetClosestGrid(x1, z1);
+
+            Vector2Int GetClosestGrid(int maxX, int maxZ)
+            {
+                Vector2Int closest = Vector2Int.left;
+                float prevDistance = float.MaxValue;
+                float distance = -1;
+
+                int count = 2;
+
+                int xMin = Mathf.Max(0, maxX - count);
+                int zMin = Mathf.Max(0, maxZ - count);
+
+                for (int x = maxX; x >= xMin; x--)
+                {
+                    for (int z = maxZ; z >= zMin; z--)
+                    {
+                        Vector3 pos = GetTesselatedPosition(x, z);
+                        distance = Vector3.Distance(pos, localPosition);
+
+                        if (distance < prevDistance)
+                        {
+                            prevDistance = distance;
+                            closest = new Vector2Int(x, z);
+                        }
+                    }
+                }
+
+                // this should never run
+                return closest;
+            }
         }
     }
 }

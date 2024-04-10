@@ -4,6 +4,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using UnityEngine;
+using static Assets.Gridmap_Assets.Scripts.GridMapMaker.Shapes.HexagonalShape;
 
 namespace Assets.Gridmap_Assets.Scripts.GridMapMaker.Shapes
 {
@@ -54,7 +55,7 @@ namespace Assets.Gridmap_Assets.Scripts.GridMapMaker.Shapes
             };
         }
 
-        public override Mesh GetBaseShape()
+        public override Mesh GetShapeMesh()
         {
             UpdateShape();
             Mesh mesh = new Mesh();
@@ -72,6 +73,12 @@ namespace Assets.Gridmap_Assets.Scripts.GridMapMaker.Shapes
         public override Vector3 GetTesselatedPosition(Vector2Int gridPosition)
         {
             return GetTesselatedPosition(gridPosition.x, gridPosition.y);
+        }
+
+        public override Vector2Int GetGridCoordinate(Vector3 localPosition)
+        {
+            return new Vector2Int(Mathf.CeilToInt(localPosition.x / Width), 
+                Mathf.CeilToInt(localPosition.z / Height));
         }
     }
 }

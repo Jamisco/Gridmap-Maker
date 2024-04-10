@@ -6,7 +6,7 @@ using System.Threading.Tasks;
 
 namespace Assets.Gridmap_Assets.Scripts.GridMapMaker.Shapes
 {
-    public interface SerializedVisual
+    public interface ISerializedVisual
     {
         
     }

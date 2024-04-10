@@ -1,4 +1,5 @@
-﻿using System;
+﻿using Assets.Gridmap_Assets.Scripts.GridMapMaker.Shapes.TestVisualData;
+using System;
 using System.Collections.Generic;
 using UnityEditor;
 using UnityEngine;
@@ -9,11 +10,12 @@ namespace Assets.Gridmap_Assets.Scripts.GridMapMaker.Shapes
     [Serializable]
     /// This simple contains a material and a property block used to render the shape
     /// Contains a visual hash to identify other structs with the same visual data (material and property block)
-    public struct ShapeVisualData : IEqualityComparer<ShapeVisualData>
+    public struct ShapeVisualData : IEquatable<ShapeVisualData>
     {
         [ShowOnlyField]
         private Material sharedMaterial;
-        
+
+        [SerializeField]
         [ShowOnlyField]
         private int visualId;      
         
@@ -27,24 +29,15 @@ namespace Assets.Gridmap_Assets.Scripts.GridMapMaker.Shapes
             }
         }
         public MaterialPropertyBlock PropertyBlock { get => propertyBlock; }
-        public int VisualHash { get => visualId; }
+
+        public int VisualId { get => visualId; }
 
         public ShapeVisualData(Material material, 
-                            MaterialPropertyBlock propertyBlock, int visualHash)
+                               MaterialPropertyBlock propertyBlock, int visualId)
         {
             sharedMaterial = material;
             this.propertyBlock = propertyBlock;
-            this.visualId = visualHash;
-        }
-
-        public bool Equals(ShapeVisualData x, ShapeVisualData y)
-        {
-            return x.visualId == y.visualId;
-        }
-
-        public int GetHashCode(ShapeVisualData obj)
-        {
-            return obj.visualId;   
+            this.visualId = visualId;
         }
 
         public bool IsNullOrEmpty()
@@ -55,6 +48,15 @@ namespace Assets.Gridmap_Assets.Scripts.GridMapMaker.Shapes
             }
 
             return false;
+        }
+        public bool Equals(ShapeVisualData other)
+        {
+            return visualId == other.visualId;
+        }
+
+        public override int GetHashCode()
+        {
+            return visualId;
         }
     }
 }

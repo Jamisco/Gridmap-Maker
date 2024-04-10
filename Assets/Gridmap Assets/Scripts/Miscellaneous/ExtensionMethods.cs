@@ -48,6 +48,7 @@ namespace Assets.Scripts.Miscellaneous
             return bounds;
         }
 
+
         public static T GetComponentByName<T>(this GameObject gameObject, string componentName, bool includeActive = true) where T : Component
         {
             return gameObject.GetComponentsInChildren<T>(includeActive)
@@ -291,7 +292,7 @@ namespace Assets.Scripts.Miscellaneous
         /// </summary>
         /// <param name="gridPosiotion"></param>
         /// <returns></returns>
-        public static Vector3Int ToBoundsGridPos(this Vector2Int vector)
+        public static Vector3Int ToBoundsPos(this Vector2Int vector)
         {
             Vector3Int pos = new Vector3Int();
 
@@ -316,17 +317,103 @@ namespace Assets.Scripts.Miscellaneous
 
             return pos;
         }
-        public class GridPositionComparer : IEqualityComparer<Vector2Int>
+        public class GridPositionComparer : IComparer<Vector2Int>
         {
-            public bool Equals(Vector2Int x, Vector2Int y)
+            public int Compare(Vector2Int chunk1, Vector2Int chunk2)
             {
-                return x.x == y.x && x.y == y.y;
+                // First, compare by the Y-coordinate in descending order (bottom to top)
+                int compareY = chunk1.y.CompareTo(chunk2.y);
+
+                if (compareY != 0)
+                {
+                    return compareY;
+                }
+
+                // If Y-coordinates are the same, compare by X-coordinate in ascending order (left to right)
+                int com = chunk1.x.CompareTo(chunk2.x);
+
+                return com;
+            }
+        }
+
+        public static GridComparer gridComparer = new GridComparer();
+
+        public static bool GreaterOrEqualTo(this Vector3 pos1, Vector3 pos2)
+        {
+            int com = gridComparer.Compare(pos1, pos2);
+
+            return com >= 0;
+        }
+
+        public static bool LessOrEqualTo(this Vector3 pos1, Vector3 pos2)
+        {
+            int com = gridComparer.Compare(pos1, pos2);
+
+            return com <= 0;
+        }
+
+        public static bool GreaterOrEqualTo(this Vector2Int pos1, Vector2Int pos2)
+        {
+            int com = gridComparer.Compare(pos1, pos2);
+
+            return com >= 0;
+        }
+
+        public static bool LessOrEqualTo(this Vector2Int pos1, Vector2Int pos2)
+        {
+            int com = gridComparer.Compare(pos1, pos2);
+
+            return com <= 0;
+        }
+
+        public static bool Contains(this Bounds bounds, Bounds other)
+        {
+            return bounds.Contains(other.min) && bounds.Contains(other.max);
+        }
+
+
+        public class GridComparer : IComparer<Vector2Int>, IComparer<Vector3>
+        {
+            /// <summary>
+            /// Compares two Vector2Int start positions. Used for sorting the chunks.
+            /// </summary>
+            /// <param name="x"></param>
+            /// <param name="y"></param>
+            /// <returns></returns>
+            /// <exception cref="ArgumentNullException"></exception>
+            /// <exception cref="ArgumentException"></exception>
+            public int Compare(Vector2Int pos1, Vector2Int pos2)
+            {
+                // First, compare by the Y-coordinate in descending order (bottom to top)
+                int compareY = pos1.y.CompareTo(pos2.y);
+
+                if (compareY != 0)
+                {
+                    return compareY;
+                }
+
+                // If Y-coordinates are the same, compare by X-coordinate in ascending order (left to right)
+                int com = pos1.x.CompareTo(pos2.x);
+
+                return com;
             }
 
-            public int GetHashCode(Vector2Int obj)
+            public int Compare(Vector3 pos1, Vector3 pos2)
             {
-                return obj.GetHashCode_Unique();
+                // First, compare by the Y-coordinate in descending order (bottom to top)
+                int compareY = pos1.y.CompareTo(pos2.y);
+
+                if (compareY != 0)
+                {
+                    return compareY;
+                }
+
+                // If Y-coordinates are the same, compare by X-coordinate in ascending order (left to right)
+                int com = pos1.x.CompareTo(pos2.x);
+
+                return com;
             }
+
         }
 
 

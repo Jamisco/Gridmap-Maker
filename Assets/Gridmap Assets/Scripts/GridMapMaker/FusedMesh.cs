@@ -294,7 +294,7 @@ namespace Assets.Scripts.GridMapMaker
                     UVs.TryRemoveElementsInRange(indices.vert, size.vertexCount, out e);
                 }
             }
-            catch (Exception ex)
+            catch (Exception)
             {
                 return false;
             }

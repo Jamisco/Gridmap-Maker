@@ -4,8 +4,11 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using Unity.VisualScripting;
 using UnityEditor;
 using UnityEngine;
+using UnityEngine.InputSystem;
+using static UnityEditor.Experimental.GraphView.GraphView;
 using static UnityEngine.GraphicsBuffer;
 
 namespace Assets.Gridmap_Assets.Scripts.GridMapMaker.Shapes.TestVisualData
@@ -21,17 +24,25 @@ namespace Assets.Gridmap_Assets.Scripts.GridMapMaker.Shapes.TestVisualData
 
         [SerializeField]
         BasicVisual basicVisual;
-
-
+        
         private void OnValidate()
         {
-            basicVisual.VisualHashChanged();
+            basicVisual.CheckVisualHashChanged();
+        }
+
+        private void Update()
+        {
+            if (Mouse.current.leftButton.wasPressedThisFrame)
+            {
+                HighlightShape();
+            }
         }
 
         public void GenerateGrid()
         {
-            //gridManager.GenerateGrid(aShape, basicVisual);
-            gridManager.GenerateGrid(aShape);
+            string layerId = "Base Layer";
+
+            gridManager.GenerateGrid(aShape, layerId);
         }
         public void ClearGrid()
         {
@@ -46,6 +57,63 @@ namespace Assets.Gridmap_Assets.Scripts.GridMapMaker.Shapes.TestVisualData
         public void LoadMap()
         {
             gridManager.DeserializeMap();
+        }
+
+        [SerializeField]
+        public Vector2Int InputHex;
+
+        public void HighlightShape()
+        {
+            //Vector3 pos = GetMousePosition();
+
+            //Debug.Log("Clicked Position: " + pos);
+
+            Vector2Int gridPos = InputHex;
+
+            BasicVisual basic = gridManager
+                .GetVisualProperties_Clone<BasicVisual>(gridPos);
+
+            basic.mainColor = Color.red;
+            basic.CheckVisualHashChanged();
+            
+            gridManager.InsertVisualData(gridPos, basic);
+            gridManager.UpdateChunkLayer(gridPos);
+
+            Debug.Log("Highligted: " + gridPos);
+
+        }
+
+        public void RemoveVisualData()
+        {
+            //Vector3 pos = GetMousePosition();
+
+            //Debug.Log("Clicked Position: " + pos);
+
+            Vector2Int gridPos = InputHex;
+
+            
+            gridManager.RemoveVisualData(gridPos);
+            gridManager.UpdateChunkLayer(gridPos);
+            
+            Debug.Log("Remove Visual: " + gridPos);
+
+        }
+
+
+        private Vector3 GetMousePosition()
+        {
+            Ray ray = Camera.main.ScreenPointToRay(Mouse.current.position.ReadValue());
+
+            if (Physics.Raycast(ray, out RaycastHit hit))
+            {
+                // The ray hit something, return the point in world space
+                return hit.point;
+            }
+            else
+            {
+                // The ray didn't hit anything, you might return a default position or handle it as needed
+                return Vector3.negativeInfinity;
+            }
         }
 
 
@@ -64,7 +132,18 @@ namespace Assets.Gridmap_Assets.Scripts.GridMapMaker.Shapes.TestVisualData
                     exampleScript.GenerateGrid();
                 }
 
-                if (GUILayout.Button("Clear Grid"))
+                if (GUILayout.Button("Highlight Hex"))
+                {
+                    exampleScript.HighlightShape();
+                }
+
+                if (GUILayout.Button("Remove Visual Hex"))
+                {
+                    exampleScript.RemoveVisualData();
+                }
+
+
+                    if (GUILayout.Button("Clear Grid"))
                 {
                     exampleScript.ClearGrid();
                 }
