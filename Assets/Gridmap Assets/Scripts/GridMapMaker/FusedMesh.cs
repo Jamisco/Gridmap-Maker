@@ -1,10 +1,12 @@
-﻿using Assets.Scripts.Miscellaneous;
+﻿using Assets.Gridmap_Assets.Scripts.Miscellaneous;
+using Assets.Scripts.Miscellaneous;
 using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using UnityEngine;
 using UnityEngine.UIElements;
+using static UnityEditor.Searcher.SearcherWindow.Alignment;
 
 namespace Assets.Scripts.GridMapMaker
 {
@@ -26,6 +28,7 @@ namespace Assets.Scripts.GridMapMaker
 
         public Mesh Mesh;
 
+        public bool IsEmpty { get { return MeshHashes.Count == 0; } }
 
         private void Init()
         {
@@ -80,11 +83,11 @@ namespace Assets.Scripts.GridMapMaker
         /// <summary>
         /// This constructors uses multithreading to fuse the meshes. This is faster but can cause problems when the meshes are not properly indexed. Make sure your arrays are in order
         /// </summary>
-        /// <param name="meshes"></param>
-        /// <param name="hashes"></param>
-        /// <param name="offsets"></param>
-        /// <param name="vertTriIndex"></param>
-        /// <param name="totalCounts"></param>
+        /// <param timerName="meshes"></param>
+        /// <param timerName="hashes"></param>
+        /// <param timerName="offsets"></param>
+        /// <param timerName="vertTriIndex"></param>
+        /// <param timerName="totalCounts"></param>
         /// <exception cref="Exception"></exception>
         public FusedMesh(List<MeshData> meshes, List<int> hashes, List<Vector3> offsets,
                          List<(int vertCount, int triStart)> vertTriIndex,
@@ -220,11 +223,10 @@ namespace Assets.Scripts.GridMapMaker
 
             AddMeshAtEnd(mesh, offset);
         }
-
         /// <summary>
         /// Gets the start location of the vertices and triangles of a particular mesh. The index will be the index of the hex hash
         /// </summary>
-        /// <param name="index">ndex of the hex hash</param>
+        /// <param timerName="index">ndex of the hex hash</param>
         /// <returns></returns>
         private (int vertIndex, int triIndex) GetMeshIndices(int index)
         {
@@ -250,8 +252,8 @@ namespace Assets.Scripts.GridMapMaker
         /// <summary>
         /// Returns true or false if mesh was successfully removed
         /// </summary>
-        /// <param name="hash"></param>
-        /// <param name="position"></param>
+        /// <param timerName="hash"></param>
+        /// <param timerName="position"></param>
         /// <returns></returns>
         private bool RemoveMesh_NoUpdate(int hash, int position = -1)
         {
@@ -309,31 +311,22 @@ namespace Assets.Scripts.GridMapMaker
         /// <summary>
         /// Fused the given mesh into the current one. Be advised that if you are adding a a mesh with a hash that already exists, the old mesh will be removed and the new one will be added
         /// </summary>
-        /// <param name="mesh"></param>
-        /// <param name="hash"></param>
-        /// <param name="offset"></param>
+        /// <param timerName="mesh"></param>
+        /// <param timerName="hash"></param>
+        /// <param timerName="offset"></param>
         public void InsertMesh(Mesh mesh, int hash, Vector3 offset)
         {
             AddMesh_NoUpdate(mesh, hash, offset);
-
-            UpdateMesh();
         }
         /// <summary>
         /// Returns true or false if mesh was successfully removed
         /// </summary>
-        /// <param name="hash"></param>
-        /// <param name="position">The position you want to StartPosition searching from </param>
+        /// <param timerName="hash"></param>
+        /// <param timerName="position">The position you want to StartPosition searching from </param>
         /// <returns></returns>
-        public bool RemoveMesh(int hash, int position = -1)
+        public void RemoveMesh(int hash, int position = -1)
         {
-            bool removed = RemoveMesh_NoUpdate(hash, position);
-
-            if (removed)
-            {
-                UpdateMesh();
-            }
-
-            return removed;
+            RemoveMesh_NoUpdate(hash, position);
         }
 
         private void AddToList(int hash, int vertexCount, int triangleCount)
@@ -345,32 +338,29 @@ namespace Assets.Scripts.GridMapMaker
         {
             MeshHashes.RemoveAt(index);
             MeshSizes.RemoveAt(index);
-        }
+        }  
         private void AddMeshAtEnd(Mesh aMesh, Vector3 offset)
         {
-            List<Vector3> hexVertices = new List<Vector3>();
-            List<int> hexTris = new List<int>();
+            int vc = Vertices.Count;
 
             foreach (Vector3 v in aMesh.vertices)
             {
-                hexVertices.Add(v + offset);
+                Vertices.Add(v + offset);
             }
-
+            
             foreach (int tri in aMesh.triangles)
             {
-                hexTris.Add(tri + Vertices.Count);
+                Triangles.Add(tri + vc);
             }
-
-            Vertices.AddRange(hexVertices);
-            Triangles.AddRange(hexTris);
+            // use range
             Colors.AddRange(aMesh.colors);
             UVs.AddRange(aMesh.uv);
         }
         /// <summary>
         /// When you modify the triangles, you now also have to recalculate the triangles that came after it, such that the index are proper
         /// </summary>
-        /// <param name="offset"></param>
-        /// <param name="startIndex"></param>
+        /// <param timerName="offset"></param>
+        /// <param timerName="startIndex"></param>
         private void RecalculateTriangles(int offset, int startIndex = 0)
         {
             for (int i = startIndex; i < Triangles.Count; i++)
@@ -387,7 +377,7 @@ namespace Assets.Scripts.GridMapMaker
         /// <summary>
         /// Returns the a NEW mesh with the given hash. Returns null if no mesh was found. Modifying this mesh has no effect on the current fused mesh. If you want to modify the BaseFushMesh, after you have modified the returned mesh, you must call RemoveMesh and then InsertMesh again. Be advised, depending on the size of the fused mesh, this could be a costly operation.
         /// </summary>
-        /// <param name="hash"></param>
+        /// <param timerName="hash"></param>
         /// <returns></returns>
         public Mesh GetMesh(int hash)
         {
@@ -443,10 +433,12 @@ namespace Assets.Scripts.GridMapMaker
             return mesh;
         }
 
-        private void UpdateMesh()
+        public void UpdateMesh()
         {
             //It is important to call Clear before assigning new vertices or triangles. Unity always checks the supplied triangle indices whether they don't reference out of bounds vertices. Calling Clear then assigning vertices then triangles makes sure you never have out of bounds data.
 
+            // it is recommended not to call this often to save on performance.
+            // if you are adding multiple meshes, add them all first, then call update
             Mesh.Clear();
 
             Mesh.vertices = Vertices.ToArray();

@@ -67,7 +67,8 @@ namespace Assets.Gridmap_Assets.Scripts.GridMapMaker.Shapes
         }
         public override Vector3 GetTesselatedPosition(int x, int y)
         {
-            return new Vector3(x * Width, 0f, y * Height);
+            return new Vector3(x * Width + (x * cellGap.x), 0f,
+                               y * Height + (y * cellGap.y));
         }
 
         public override Vector3 GetTesselatedPosition(Vector2Int gridPosition)

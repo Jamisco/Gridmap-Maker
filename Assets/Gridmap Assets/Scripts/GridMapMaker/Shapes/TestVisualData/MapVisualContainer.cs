@@ -22,7 +22,7 @@ namespace Assets.Gridmap_Assets.Scripts.GridMapMaker.Shapes.TestVisualData
 
         public GridShape GetGridShape(string shapeId)
         {
-            return GridShapes.Where(x => x.UniqueShapeId == shapeId).FirstOrDefault();
+            return GridShapes.Where(x => x.UniqueShapeName == shapeId).FirstOrDefault();
         }
 
         public T GetRandomObject<T>() where T : Object

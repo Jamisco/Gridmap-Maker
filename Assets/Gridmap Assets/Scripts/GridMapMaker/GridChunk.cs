@@ -1,4 +1,5 @@
-﻿using Assets.Gridmap_Assets.Scripts.GridMapMaker.Shapes;
+﻿using Assets.Gridmap_Assets.Scripts.GridMapMaker;
+using Assets.Gridmap_Assets.Scripts.GridMapMaker.Shapes;
 using Assets.Gridmap_Assets.Scripts.GridMapMaker.Shapes.TestVisualData;
 using Assets.Gridmap_Assets.Scripts.Mapmaker;
 using Assets.Scripts.Miscellaneous;
@@ -11,6 +12,8 @@ using static Assets.Gridmap_Assets.Scripts.Mapmaker.LayeredMesh;
 
 namespace Assets.Scripts.GridMapMaker
 {
+
+    [RequireComponent(typeof(SpriteLayer))]
     public class GridChunk : MonoBehaviour
     {
         // A grid chunk is a collection of layered meshes.
@@ -18,6 +21,8 @@ namespace Assets.Scripts.GridMapMaker
         GridManager gridManager;
 
         Dictionary<string, LayeredMesh> ChunkLayers = new Dictionary<string, LayeredMesh>();
+
+        SpriteLayer spriteLayer;
 
         [SerializeField]
         private Vector2Int startPosition;
@@ -28,9 +33,6 @@ namespace Assets.Scripts.GridMapMaker
         [SerializeField]
         private BoundsInt chunkGridBounds;
 
-        [SerializeField]
-        private Bounds chunkBounds;
-
         /// <summary>
         /// Start grid position of the chunk gridBounds
         /// </summary>
@@ -40,8 +42,6 @@ namespace Assets.Scripts.GridMapMaker
         public Vector2Int EndPosition { get { return endPosition; } }
 
         public BoundsInt ChunkGridBounds { get { return chunkGridBounds; } }
-
-        public Bounds ChunkBounds { get { return chunkBounds; } }
 
         //public void ValidateChunkLayers()
         //{
@@ -59,20 +59,20 @@ namespace Assets.Scripts.GridMapMaker
         //        }
         //    }
         //}
-        //public void AddLayer(string uniqueID, GridShape shape)
+        //public void CreateLayer(string uniqueID, GridShape shape)
         //{         
         //    if (!ChunkLayers.ContainsKey(uniqueID))
         //    {
-        //        LayeredMesh newLayer = new GameObject(name).AddComponent<LayeredMesh>();
+        //        LayeredMesh newLayer = new GameObject(timerName).AddComponent<LayeredMesh>();
         //        newLayer.transform.parent = transform;
-        //        newLayer.gameObject.name = $"Layer {ChunkLayers.Count}";
+        //        newLayer.gameObject.timerName = $"Layer {ChunkLayers.Count}";
         //        newLayer.Deserialize(uniqueID, shape);
         //        ChunkLayers.Add(uniqueID, newLayer);
         //    }
         //}
 
         //public void InsertVisualData(string uniqueID, Vector2Int gridPosition, 
-        //                                    ShapeVisualData visualProp)
+        //                                    ShapeRenderData visualProp)
         //{
         //    if (ChunkLayers.ContainsKey(uniqueID))
         //    {
@@ -94,7 +94,7 @@ namespace Assets.Scripts.GridMapMaker
         //}
 
         //public void RemoveShape(string uniqueID, Vector2Int gridPosition,
-        //                                         ShapeVisualData visualProp)
+        //                                         ShapeRenderData visualProp)
         //{
         //    //if (ChunkLayers.ContainsKey(uniqueID))
         //    //{
@@ -140,7 +140,7 @@ namespace Assets.Scripts.GridMapMaker
             chunkGridBounds.yMin = 0;
             chunkGridBounds.yMax = 1;
 
-            chunkBounds = gridManager.BaseShape.GetGridBounds(startPosition, EndPosition);
+            spriteLayer = GetComponent<SpriteLayer>();
         }
 
         private static LayeredMesh CreateLayer(Transform parent = null)
@@ -152,24 +152,20 @@ namespace Assets.Scripts.GridMapMaker
             return newLayer;
         }
 
-        public void AddLayer(string uniqueID, GridShape shape, VisualProperties defaultVisual)
+        public void AddLayer(string uniqueID, GridShape shape, ShapeVisualData defaultVisual, bool useVisualEquality = false)
         {
-            // all shapes added to the next MUST be within the bounds of the base shape
-            if(!gridManager.BaseShape.WithinShapeBounds(shape))
-            {
-                return;
-            }
-
             if (!ChunkLayers.ContainsKey(uniqueID))
             {
                 LayeredMesh newLayer = CreateLayer(transform);
 
-                newLayer.Initialize(uniqueID, shape, defaultVisual);
+                newLayer.Initialize(uniqueID, shape, defaultVisual, useVisualEquality);
 
                 ChunkLayers.Add(uniqueID, newLayer);
+
+
+                spriteLayer.Initialize("Sprite Layer", shape);
             }
         }
-
         private LayeredMesh AddLayer(LayeredMesh layer)
         {
             if (!ChunkLayers.ContainsKey(layer.LayerId))
@@ -182,7 +178,7 @@ namespace Assets.Scripts.GridMapMaker
             return null;
         }
 
-        public void InsertVisualData(string layerId, Vector2Int gridPosition, VisualProperties visualProp)
+        public void InsertVisualData(string layerId, Vector2Int gridPosition, ShapeVisualData visualProp)
         {
             if (ChunkLayers.ContainsKey(layerId))
             {
@@ -190,7 +186,7 @@ namespace Assets.Scripts.GridMapMaker
             }
         }
 
-        public void RemoveVisualData(string layerId, Vector2Int gridPosition)
+        public void RemoveVisualData(Vector2Int gridPosition, string layerId)
         {
             if (ChunkLayers.ContainsKey(layerId))
             {
@@ -198,16 +194,53 @@ namespace Assets.Scripts.GridMapMaker
             }
         }
 
-
+        /// <summary>
+        /// Delete the cell at the given grid position from all layers
+        /// </summary>
+        /// <param name="gridPosition"></param>
+        public void DeletePosition(Vector2Int gridPosition)
+        {
+            foreach (LayeredMesh layer in ChunkLayers.Values)
+            {
+                layer.DeleteShape(gridPosition);
+            }
+        }
+ /// <summary>
+        /// Deletes the cell at the given grid position from the given layer 
+        /// </summary>
+        /// <param name="gridPosition"></param>
+        /// <param name="layerId"></param>
+        public void DeletePosition(Vector2Int gridPosition, string layerId)
+        {
+            if (ChunkLayers.ContainsKey(layerId))
+            {
+                ChunkLayers[layerId].DeleteShape(gridPosition);
+            }
+        }
         /// <summary>
         /// Removes all visual data from all layers at the specified grid position
         /// </summary>
-        /// <param name="gridPosition"></param>
-        public void RemoveVisualData_AL(Vector2Int gridPosition)
+        /// <param timerName="gridPosition"></param>
+        public void RemoveVisualData(Vector2Int gridPosition)
         {
             foreach (LayeredMesh layer in ChunkLayers.Values)
             {
                 layer.RemoveVisualData(gridPosition);
+            }
+        }
+
+        public void SetVisualEquality(string layerId, bool useVisualEquality)
+        {
+            if (ChunkLayers.ContainsKey(layerId))
+            {
+                ChunkLayers[layerId].UseVisualEquality = useVisualEquality;
+            }
+        }
+        public void SetVisualEquality(bool useVisualEquality)
+        {
+            foreach (LayeredMesh layer in ChunkLayers.Values)
+            {
+                layer.UseVisualEquality = useVisualEquality;
             }
         }
 
@@ -222,9 +255,11 @@ namespace Assets.Scripts.GridMapMaker
 
             return false;
         }
-        public bool ContainsPosition(Vector3 localPosition)
+        public bool ContainsPosition(Vector3 localPosition, string layerId)
         {
-            if(chunkBounds.Contains(localPosition))
+            Bounds bounds = GetLayerBounds(layerId);
+
+            if (bounds.Contains(localPosition))
             {
                 return true;
             }
@@ -233,10 +268,57 @@ namespace Assets.Scripts.GridMapMaker
         }
 
         /// <summary>
+        /// Will check if the given bounds are within the chunk
+        /// Used the bounds of the base layer
+        /// </summary>
+        /// <param name="bounds"></param>
+        /// <returns></returns>
+        public bool Contains_BaseLayer(Bounds bounds)
+        {
+            Bounds b = GetLayerBounds(gridManager.BaseLayer);
+            
+            if (bounds.Intersects(b))
+            {
+                return true;
+            }
+
+            return false;
+        }
+        /// <summary>
+        /// Will give the bounds the layer is confined too within the chunk
+        /// </summary>
+        /// <param timerName="layerId"></param>
+        /// <returns></returns>
+        public Bounds GetLayerBounds(string layerId)
+        {
+            if (ChunkLayers.ContainsKey(layerId))
+            {
+                return ChunkLayers[layerId].LayerGridShape.GetGridBounds(startPosition, endPosition);
+            }
+
+            return new Bounds();
+        }
+
+        /// <summary>
+        /// Will give the bounds the layer is confined too within the chunk
+        /// </summary>
+        /// <param timerName="layerId"></param>
+        /// <returns></returns>
+        public Bounds GetLayerMeshBounds(string layerId)
+        {
+            if (ChunkLayers.ContainsKey(layerId))
+            {
+                return ChunkLayers[layerId].MeshBounds;
+            }
+
+            return new Bounds();
+        }
+
+        /// <summary>
         /// Will Find the first layer with the given Id, and return its shape
         /// </summary>
-        /// <param name="shape"></param>
-        /// <param name="layerId"></param>
+        /// <param timerName="shape"></param>
+        /// <param timerName="layerId"></param>
         /// <returns></returns>
         public bool TryGetLayerShape(string layerId, out GridShape shape)
         {
@@ -251,19 +333,18 @@ namespace Assets.Scripts.GridMapMaker
 
             return false;
         }
-
         /// <summary>
         /// Will verify that the position is within the chunk first, and then find the layer with the given id
         /// </summary>
-        /// <param name="localPosition"></param>
-        /// <param name="layerId"></param>
+        /// <param timerName="localPosition"></param>
+        /// <param timerName="layerId"></param>
         /// <returns></returns>
         public bool TryGetLayerShape(Vector3 localPosition,
                                     string layerId, out GridShape shape)
         {
             // we would simply need to confirm that the localposition is within the bounds of this grid chunk, then find the layer.
 
-            if(ContainsPosition(localPosition))
+            if(ContainsPosition(localPosition, layerId))
             {
                 return TryGetLayerShape(layerId, out shape);
             }
@@ -272,13 +353,12 @@ namespace Assets.Scripts.GridMapMaker
             return false;
         }
 
-
         public bool TryGetGridPosition(Vector3 localPosition,
                                        out Vector2Int gridPosition)
         {
             GridShape shape;
   
-            if (TryGetLayerShape(localPosition, gridManager.BaseLayer,
+            if (TryGetLayerShape(gridManager.BaseLayer,
                                                 out shape))
             {
                 gridPosition = shape.GetGridCoordinate(localPosition);
@@ -304,8 +384,7 @@ namespace Assets.Scripts.GridMapMaker
             return false;
         }
 
-
-        public VisualProperties GetVisualProperties(Vector2Int gridPosition, string layerId)
+        public ShapeVisualData GetVisualProperties(Vector2Int gridPosition, string layerId)
         {
             if (!ContainsPosition(gridPosition))
             {
@@ -333,6 +412,24 @@ namespace Assets.Scripts.GridMapMaker
             ChunkLayers[layerId].UpdateMesh();
         }
 
+        public void RedrawLayer(string layerId)
+        {
+            ChunkLayers[layerId].RedrawLayer();
+        }
+
+        public void RedrawChunk()
+        {
+            foreach (LayeredMesh layer in ChunkLayers.Values)
+            {
+                layer.RedrawLayer();
+            }
+        }
+
+        public void SpawnSprite(Vector2Int position, Sprite sprite)
+        {
+            spriteLayer.InsertSprite(position, sprite);
+        }
+
         public void Clear()
         {
             try
@@ -340,10 +437,10 @@ namespace Assets.Scripts.GridMapMaker
                 foreach (KeyValuePair<string, LayeredMesh> layer in ChunkLayers)
                 {
                     layer.Value.Clear();
-                    DestroyImmediate(layer.Value.gameObject);
                 }
 
                 ChunkLayers.Clear();
+                spriteLayer.Clear();
             }
             catch (Exception)
             {
@@ -357,7 +454,7 @@ namespace Assets.Scripts.GridMapMaker
             return serializedChunk;
         }
 
-        public static GridChunk DeserializeData(SerializedGridChunk data, MapVisualContainer visualContainer, List<VisualProperties> visualProps)
+        public static GridChunk DeserializeData(SerializedGridChunk data, MapVisualContainer visualContainer, List<ShapeVisualData> visualProps)
         {
             GridChunk chunk = new GameObject(data.name).AddComponent<GridChunk>();
 

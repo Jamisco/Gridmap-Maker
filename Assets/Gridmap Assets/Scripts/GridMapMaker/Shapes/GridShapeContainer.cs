@@ -44,14 +44,14 @@ namespace Assets.Gridmap_Assets.Scripts.GridMapMaker.Shapes
             
             foreach (GridShape shape in ShapesList)
             {
-                if (tempDict.ContainsKey(shape.UniqueShapeId))
+                if (tempDict.ContainsKey(shape.UniqueShapeName))
                 {
                     hasDuplicate = true;
-                    Debug.Log($"Shape ID: {shape.UniqueShapeId} at index {i} Already Exists");
+                    Debug.Log($"Shape ID: {shape.UniqueShapeName} at index {i} Already Exists");
                 }
                 else
                 {
-                    tempDict.Add(shape.UniqueShapeId, shape);
+                    tempDict.Add(shape.UniqueShapeName, shape);
                 }
 
                 i++;
@@ -75,13 +75,13 @@ namespace Assets.Gridmap_Assets.Scripts.GridMapMaker.Shapes
                     continue;
                 }
 
-                if (ShapesDict.ContainsKey(shape.UniqueShapeId))
+                if (ShapesDict.ContainsKey(shape.UniqueShapeName))
                 {
                     continue;
                 }
                 else
                 {
-                    ShapesDict.Add(shape.UniqueShapeId, shape);
+                    ShapesDict.Add(shape.UniqueShapeName, shape);
                 }
             }
         }

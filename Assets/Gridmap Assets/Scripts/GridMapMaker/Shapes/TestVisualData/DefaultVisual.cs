@@ -9,7 +9,7 @@ using static Assets.Gridmap_Assets.Scripts.GridMapMaker.Shapes.BasicVisual;
 
 namespace Assets.Gridmap_Assets.Scripts.GridMapMaker.Shapes.TestVisualData
 {
-    public class DefaultVisual : VisualProperties
+    public class DefaultVisual : ShapeVisualData
     {
         private Color defaultColor;
 
@@ -18,23 +18,15 @@ namespace Assets.Gridmap_Assets.Scripts.GridMapMaker.Shapes.TestVisualData
         private SerializedDefaultVisual serializedData;
         protected override ISerializedVisual SerializedData => serializedData;
 
+        public static Material spritesDefault = new Material(Shader.Find("Sprites/Default"));
+
         public DefaultVisual(Material material, Color color = default)
         {
             sharedMaterial = material;
             propertyBlock = new MaterialPropertyBlock();
 
             defaultColor = color;
-
-            visualId = GenerateVisualId();
         }        
-
-        public override int GenerateVisualId()
-        {
-            int id1 = defaultColor.ToString().GetHashCode();
-            int id2 = sharedMaterial.GetInstanceID();
-
-            return id1 ^ id2;
-        }
 
         public override void SetMaterialProperties()
         {
@@ -58,8 +50,18 @@ namespace Assets.Gridmap_Assets.Scripts.GridMapMaker.Shapes.TestVisualData
             sharedMaterial = (Material)container.GetObject(sm);
 
             defaultColor = serializedData.defaultColor;
+        }
 
-            visualId = serializedData.visualId;
+        public override T DeepCopy<T>()
+        {
+            DefaultVisual copy = new DefaultVisual(sharedMaterial, defaultColor);
+            return copy as T;
+        }
+
+        public static DefaultVisual CreateDefaultVisual
+            (Color color = new Color())
+        {
+            return new DefaultVisual(spritesDefault, color);
         }
 
         [Serializable]
@@ -67,11 +69,10 @@ namespace Assets.Gridmap_Assets.Scripts.GridMapMaker.Shapes.TestVisualData
         {
             public string sharedMaterial;
             public Color defaultColor;
-            public int visualId;
-
+            
+            
             public SerializedDefaultVisual(DefaultVisual defaultVisual, MapVisualContainer container)
             {
-                visualId = defaultVisual.visualId;
                 defaultColor = defaultVisual.defaultColor;
                 sharedMaterial = container
                                 .GetGuid(defaultVisual.sharedMaterial)

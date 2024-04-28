@@ -1,4 +1,5 @@
-﻿using System;
+﻿using Assets.Gridmap_Assets.Scripts.GridMapMaker.Shapes.TestVisualData;
+using System;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.Linq;
@@ -16,11 +17,11 @@ namespace Assets.Scripts.Miscellaneous
     {
         /// <summary>
         /// Will return the first component in all of the objects children of the given type,
-        /// with the given name.Do not recommend for use in performance sensitive scenarios
+        /// with the given timerName.Do not recommend for use in performance sensitive scenarios
         /// </summary>
-        /// <typeparam name="T"></typeparam>
-        /// <param name="gameObject"></param>
-        /// <param name="componentName"></param>
+        /// <typeparam timerName="T"></typeparam>
+        /// <param timerName="gameObject"></param>
+        /// <param timerName="componentName"></param>
         /// <returns></returns>
         /// 
 
@@ -83,7 +84,7 @@ namespace Assets.Scripts.Miscellaneous
         /// <summary>
         /// Gets a Random number being -1 and 1. These functions are ass do not use
         /// </summary>
-        /// <param name="random"></param>
+        /// <param timerName="random"></param>
         /// <returns></returns>
         public static double NextDouble(this Random RandGenerator, double MinValue, double MaxValue)
         {
@@ -103,11 +104,11 @@ namespace Assets.Scripts.Miscellaneous
         /// <summary>
         /// 
         /// </summary>
-        /// <param name="value"></param>
-        /// <param name="minValue"></param>
-        /// <param name="maxValue"></param>
-        /// <param name="minRange">min range of new value</param>
-        /// <param name="maxRange">max range of new value</param>
+        /// <param timerName="value"></param>
+        /// <param timerName="minValue"></param>
+        /// <param timerName="maxValue"></param>
+        /// <param timerName="minRange">min range of new value</param>
+        /// <param timerName="maxRange">max range of new value</param>
         /// <returns></returns>
         public static float Normalize(float value, float minValue, float maxValue, float minRange, float maxRange)
         {
@@ -124,8 +125,8 @@ namespace Assets.Scripts.Miscellaneous
         /// <summary>
         /// Will log the given milliseconds in a readable format. 
         /// </summary>
-        /// <param name="message"></param>
-        /// <param name="timeInMilliseconds"></param>
+        /// <param timerName="message"></param>
+        /// <param timerName="timeInMilliseconds"></param>
         public static void LogTimer(string message, float timeInMilliseconds)
         {
             Debug.Log(ParseLogTimer(message, timeInMilliseconds));
@@ -244,8 +245,8 @@ namespace Assets.Scripts.Miscellaneous
         /// <summary>
         /// Will set all the vertices of a mesh to the given color
         /// </summary>
-        /// <param name="mesh"></param>
-        /// <param name="color"></param>
+        /// <param timerName="mesh"></param>
+        /// <param timerName="color"></param>
         public static void SetFullColor(this Mesh mesh, Color color)
         {
             Color[] colors = new Color[mesh.vertexCount];
@@ -261,9 +262,9 @@ namespace Assets.Scripts.Miscellaneous
         /// <summary>
         /// Will set the color of a mesh in groups. All the groups must be of equal size. Ex, if the mesh has 12 vertices, and the group size is 4, then the color list must be of size 12.
         /// </summary>
-        /// <param name="aMesh"></param>
-        /// <param name="colors">The colors for each respective group</param>
-        /// <param name="groupCount"> The number of vertices in one group</param>
+        /// <param timerName="aMesh"></param>
+        /// <param timerName="colors">The colors for each respective group</param>
+        /// <param timerName="groupCount"> The number of vertices in one group</param>
         public static void SetGroupColors(this Mesh aMesh, Color[] colors,
             int groupCount)
         {
@@ -290,7 +291,7 @@ namespace Assets.Scripts.Miscellaneous
         /// <summary>
         /// Makes the y property of the vector2Int the z property of a vector3int. The vector3Int y position is said to zero. 
         /// </summary>
-        /// <param name="gridPosiotion"></param>
+        /// <param timerName="gridPosiotion"></param>
         /// <returns></returns>
         public static Vector3Int ToBoundsPos(this Vector2Int vector)
         {
@@ -306,7 +307,7 @@ namespace Assets.Scripts.Miscellaneous
         /// <summary>
         /// Makes the Z property of the vector3Int the y property of a vector3int.
         /// </summary>
-        /// <param name="vector"></param>
+        /// <param timerName="vector"></param>
         /// <returns></returns>
         public static Vector2Int ToGridPos(this Vector3Int vector)
         {
@@ -377,8 +378,8 @@ namespace Assets.Scripts.Miscellaneous
             /// <summary>
             /// Compares two Vector2Int start positions. Used for sorting the chunks.
             /// </summary>
-            /// <param name="x"></param>
-            /// <param name="y"></param>
+            /// <param timerName="x"></param>
+            /// <param timerName="y"></param>
             /// <returns></returns>
             /// <exception cref="ArgumentNullException"></exception>
             /// <exception cref="ArgumentException"></exception>
@@ -420,7 +421,7 @@ namespace Assets.Scripts.Miscellaneous
         /// <summary>
         /// A more unique hashcode for a vector2Int
         /// </summary>
-        /// <param name="vector"></param>
+        /// <param timerName="vector"></param>
         /// <returns></returns>
         public static int GetHashCode_Unique(this Vector2Int vector)
         {
@@ -439,8 +440,8 @@ namespace Assets.Scripts.Miscellaneous
         /// Compares grid positions. Smallest to Largest is from Bottom left to top right.
         /// Thus, the more left and the more down a position is, the smaller it is. 
         /// </summary>
-        /// <param name="a"></param>
-        /// <param name="b"></param>
+        /// <param timerName="a"></param>
+        /// <param timerName="b"></param>
         /// <returns></returns>
         public static int CompareGridPosition(Vector2Int a, Vector2Int b)
         {
@@ -454,8 +455,8 @@ namespace Assets.Scripts.Miscellaneous
         /// <summary>
         /// Overloading the '<' operatorCompares grid positions. Smallest to Largest is from Bottom left to top right.
         /// </summary>
-        /// <param name="a"></param>
-        /// <param name="b"></param>
+        /// <param timerName="a"></param>
+        /// <param timerName="b"></param>
         /// <returns></returns>
         public static bool IsLessThan(this Vector2Int a, Vector2Int b)
         {
@@ -472,8 +473,8 @@ namespace Assets.Scripts.Miscellaneous
         /// <summary>
         /// Overloading the '>' operatorCompares grid positions. Smallest to Largest is from Bottom left to top right.
         /// </summary>
-        /// <param name="a"></param>
-        /// <param name="b"></param>
+        /// <param timerName="a"></param>
+        /// <param timerName="b"></param>
         /// <returns></returns>
         public static bool IsGreaterThan(this Vector2Int a, Vector2Int b)
         {
@@ -489,8 +490,8 @@ namespace Assets.Scripts.Miscellaneous
         /// <summary>
         /// Overloading the '==' operatorCompares grid positions. Smallest to Largest is from Bottom left to top right.
         /// </summary>
-        /// <param name="a"></param>
-        /// <param name="b"></param>
+        /// <param timerName="a"></param>
+        /// <param timerName="b"></param>
         /// <returns></returns>
         public static bool IsThesameAs(this Vector2Int a, Vector2Int b)
         {
@@ -502,6 +503,153 @@ namespace Assets.Scripts.Miscellaneous
             }
 
             return false;
+        }
+
+        private static BindingFlags reflectionFlags = System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Public;
+        
+        /// <summary>
+        /// This will use reflection to compare the fields and properties of two objects. If all fields and properties are the same, only then will return true.
+        /// </summary>
+        /// <param timerName="obj1"></param>
+        /// <param timerName="obj2"></param>
+        /// <returns></returns>
+        public static bool IsIdentical(object obj1, object obj2, List<Type> ignoreTypes = null)
+        {
+            if (obj1 == null && obj2 == null)
+            {
+                return true;
+            }
+            
+            if (obj1 == null || obj2 == null)
+            {
+                return false;
+            }
+
+            if (obj1 == obj2)
+            {
+                return true;
+            }
+
+            // compare fields and property
+            Type type1 = obj1.GetType();
+            Type type2 = obj2.GetType();
+
+            if (type1 != type2)
+            {
+                return false;
+            }
+
+            foreach (PropertyInfo property in obj1.GetType()
+                                    .GetProperties(reflectionFlags))
+            {
+                object value1 = property.GetValue(obj1, null);
+                object value2 = property.GetValue(obj2, null);
+
+                if (IsIgnoredType(value1))
+                {
+                    continue;
+                }
+
+                if (!SameValue(value1, value2))
+                {
+                    return false;
+                }
+            }
+
+            FieldInfo[] fields = type1.GetFields(reflectionFlags);
+
+            foreach (FieldInfo field in fields)
+            {
+                object value1 = field.GetValue(obj1);
+                object value2 = field.GetValue(obj2);
+
+                if (ignoreTypes != null && value1 != null)
+                {
+                    ignoreTypes.Contains(value1.GetType());
+                    continue;
+                }
+
+                if (!SameValue(value1, value2))
+                {
+                    return false;
+                }
+            }
+
+            return true;
+
+            bool SameValue(object value1, object value2)
+            {
+                if (value1 == null && value2 == null)
+                {
+                    return true;
+                }
+
+                if (value1 == null || value2 == null)
+                {
+                    return false;
+                }
+
+                return value1.Equals(value2);
+            }
+
+            bool IsIgnoredType(object obj)
+            {
+                if (ignoreTypes == null)
+                {
+                    return false;
+                }
+
+                return ignoreTypes.Contains(obj.GetType());
+            }
+        }
+
+        public static List<object> GetFieldAndPropertyValues(object obj)
+        {
+            List<object> values = new List<object>();
+
+            foreach (PropertyInfo property in obj.GetType().GetProperties(reflectionFlags))
+            {
+                object value = property.GetValue(obj, null);
+                values.Add(value);
+            }
+
+            FieldInfo[] fields = obj.GetType().GetFields();
+
+            foreach (FieldInfo field in fields)
+            {
+                object value = field.GetValue(obj);
+                values.Add(value);
+            }
+
+            return values;
+        }   
+
+        public static object GetValue(this MaterialPropertyBlock propBlock, string propertyName, MaterialPropertyType propertyType)
+        {
+            switch (propertyType)
+            {
+                case MaterialPropertyType.Float:
+
+                    return propBlock.GetFloat(propertyName);
+
+                case MaterialPropertyType.Int:
+
+                    return propBlock.GetInt(propertyName);
+                    
+                case MaterialPropertyType.Vector:
+
+                    return propBlock.GetVector(propertyName);
+                    
+                case MaterialPropertyType.Matrix:
+
+                    return propBlock.GetMatrix(propertyName);
+                case MaterialPropertyType.Texture:
+
+                    return propBlock.GetTexture(propertyName);                
+                    
+                default:
+                    return null;
+            }
         }
     }
 }

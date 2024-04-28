@@ -12,6 +12,11 @@ using Unity.IO.LowLevel.Unsafe;
 using static Assets.Scripts.Miscellaneous.HexFunctions;
 using UnityEngine.TextCore.Text;
 using static Assets.Scripts.Miscellaneous.ExtensionMethods;
+using static UnityEditor.Experimental.GraphView.GraphView;
+using System.Diagnostics;
+using Debug = UnityEngine.Debug;
+using Assets.Gridmap_Assets.Scripts.Miscellaneous;
+using static UnityEngine.Rendering.VolumeComponent;
 
 #if UNITY_EDITOR
 using UnityEditor;
@@ -22,21 +27,34 @@ namespace Assets.Scripts.GridMapMaker
     [Serializable]
     public class GridManager : MonoBehaviour
     {
-        public const string USE_BASE_LAYER = "Base Layer";
+        /// <summary>
+        /// String is merely used as a place holder
+        /// </summary>
+        public const string USE_BASE_LAYER = "12345USE_BASE_LAYER12345";
 
-        public Vector2Int GridSize;
-        public Vector2Int ChunkSize;
+        [SerializeField]
+        private Vector2Int gridSize;
 
-        private GridShape baseShape;
-        public GridShape BaseShape { get { return baseShape; } }
+        [SerializeField]
+        private Vector2Int chunkSize;
 
-        private string baseLayer;
-        public string BaseLayer { get { return baseLayer; } }
+        private string baseLayerId;
+        public string BaseLayer { get { return baseLayerId; } }
+
+        public Vector2 CellGap;
 
         [SerializeReference]
         private MapVisualContainer visualContainer;
 
-        public HashSet<VisualProperties> visualProps = new HashSet<VisualProperties>();
+        private HashSet<ShapeVisualData> visualProps = new HashSet<ShapeVisualData>();
+
+        [SerializeField]
+        private HashSet<GridShape> gridShapes = new HashSet<GridShape>();
+
+        [SerializeField]
+        private HashSet<string> layerIds = new HashSet<string>();
+
+
 
         private void OnValidate()
         {
@@ -59,6 +77,9 @@ namespace Assets.Scripts.GridMapMaker
             }
         }
 
+        public Vector2Int GridSize { get => gridSize; set => gridSize = value; }
+        public Vector2Int ChunkSize { get => chunkSize; set => chunkSize = value; }
+
         private GridComparer chunkComparer = new GridComparer();
         /// <summary>
         /// Sorts chunks based on their start position.
@@ -68,7 +89,7 @@ namespace Assets.Scripts.GridMapMaker
         /// <summary>
         /// Given a grid gridPosition, gets the start gridPosition of the chunk said grid will be in
         /// </summary>
-        /// <param name="gridPosition"></param>
+        /// <param timerName="gridPosition"></param>
         /// <returns></returns>
         private Vector2Int GetChunkStartPosition(Vector2Int gridPosition)
         {
@@ -109,13 +130,13 @@ namespace Assets.Scripts.GridMapMaker
 
             return chunk;
         }
-
-        private GridChunk GetHexChunk(Vector3 localPosition)
+        private GridChunk GetHexChunk(Vector3 localPosition, string layerId = USE_BASE_LAYER)
         {
+            ValidateLayerId(ref layerId);
             // see if a chunk contains a gridposition at that local position
             foreach (GridChunk chunk in sortedChunks.Values)
             {
-                if (chunk.ContainsPosition(localPosition))
+                if (chunk.ContainsPosition(localPosition, layerId))
                 {
                     return chunk;
                 }
@@ -123,7 +144,15 @@ namespace Assets.Scripts.GridMapMaker
 
             return null;
         }
+      
+        private void ValidateChunkSize()
+        {
+            // If the chunk size is less than or equal to 0, then the chunk size is the same as the grid size, else if the chunk size is greater than the grid size, then the chunk size is the grid size
+            int x = (chunkSize.x <= 0) ? gridSize.x : (chunkSize.x > gridSize.x) ? gridSize.x : chunkSize.x;
+            int y = (chunkSize.y <= 0) ? gridSize.y : (chunkSize.y > gridSize.y) ? gridSize.y : chunkSize.y;
 
+            chunkSize = new Vector2Int(x, y);
+        }
         private void CreateGridChunks()
         {
             Clear();
@@ -158,19 +187,24 @@ namespace Assets.Scripts.GridMapMaker
 
             Debug.Log("Chunks Created: " + count);
         }
-        private void AddLayerToAllGridChunks(string layerId, GridShape shape, VisualProperties defaultVisual)
+        private void AddLayerToAllGridChunks(string layerId, GridShape shape,
+                                ShapeVisualData defaultVisual, bool useVisualEquality = false)
         {
             foreach (GridChunk chunk in sortedChunks.Values)
             {
-                chunk.AddLayer(layerId, shape, defaultVisual);
+                chunk.AddLayer(layerId, shape, defaultVisual, useVisualEquality);
             }
-        } 
-        private void FillGridChunks(string layerId)
+        }
+        public void FillGridChunks_TestMethod(string layerId = USE_BASE_LAYER)
         {
+            ValidateLayerId(ref layerId);
+            
             BasicVisual data;
 
             Material material = visualContainer.GetRandomObject<Material>();
 
+            MakeRandomData();
+            
             foreach (GridChunk chunk in sortedChunks.Values)
             {
                 int startX = chunk.StartPosition.x;
@@ -183,26 +217,23 @@ namespace Assets.Scripts.GridMapMaker
 
                 for (int x = startX; x < xCount; x++)
                 {
-                    MakeRandomData();
                     visualProps.Add(data);
 
                     for (int y = startY; y < yCount; y++)
                     {
+                        MakeRandomData();
                         gridPosition = new Vector2Int(x, y);
 
                         chunk.InsertVisualData(layerId, gridPosition, data);                      
                     }
                 }
-
-                chunk.UpdateLayers();
             }
 
-            Debug.Log("Total Unique Visuals: " + visualProps.Count);
+            UpdateGrid();
 
             void MakeRandomData()
             {
-                bool texture = UnityEngine.Random.Range(0, 2) == 0 ? true : false;
-                texture = true;
+                bool texture = UnityEngine.Random.Range(0, 2) == 0 ? true : true;
                 
                 if (texture)
                 {
@@ -220,181 +251,62 @@ namespace Assets.Scripts.GridMapMaker
 
 
         #endregion
-
-        #region Hex Data
-
-        /// <summary>
-        /// If the layerId is the Base layer id, we simply set the layerID to the actual base layer id
-        /// </summary>
-        /// <param name="layerId"></param>
-        private void ValidateLayerId(ref string layerId)
+        
+        #region Grid Manipulation
+        public void SetVisualContainer(MapVisualContainer container)
         {
-            if (layerId.Equals(USE_BASE_LAYER))
-            {
-                layerId = BaseLayer;
-            }
+            visualContainer = container;
         }
-        /// <summary>
-        /// Loops through all the chunks and returns the shape of the first layer found with the given ID.
-        /// </summary>
-        /// <param name="layerId"></param>
-        /// <returns></returns>
-        public GridShape GetLayerShape(string layerId = USE_BASE_LAYER)
+        public void Initialize()
         {
-            ValidateLayerId(ref layerId);
-
-            GridShape shape = null;
-
-            foreach (GridChunk chunk in sortedChunks.Values)
-            {
-                chunk.TryGetLayerShape(layerId, out shape);
-            }
-
-            return shape;
-        }
-
-        /// <summary>
-        /// Returns the shape of the layer at the given grid position.
-        /// </summary>
-        /// <param name="layerId"></param>
-        /// <param name="gridPosition"></param>
-        /// <returns></returns>
-        public GridShape GetLayerShape(Vector2Int gridPosition, 
-                                        string layerId = USE_BASE_LAYER)
-        {
-            ValidateLayerId(ref layerId);
-            
-            GridShape shape = null;
-
-            GridChunk chunk = GetHexChunk(gridPosition);
-
-            if (chunk != null)
-            {
-                chunk.TryGetLayerShape(layerId, out shape);
-            }
-
-            return shape;
-        }
-
-        public GridShape GetLayerShape(Vector3 localPosition, 
-                            string layerId = USE_BASE_LAYER)
-        {
-            ValidateLayerId(ref layerId);
-
-            GridChunk chunk = GetHexChunk(localPosition);
-
-            GridShape shape = null;
-
-            if (chunk != null)
-            {
-                chunk.TryGetLayerShape(layerId, out shape);
-            }
-            
-            return shape;
-        }
-
-        public Vector2Int LocalToGridPosition(Vector3 localPosition)
-        {
-            GridChunk chunk = GetHexChunk(localPosition);
-
-            Vector2Int gridPosition = Vector2Int.left;
-
-            if (chunk != null)
-            {
-               chunk.TryGetGridPosition(localPosition, out gridPosition);
-            }
-
-            return gridPosition;
-        }
-        public Vector2Int WorldToGridPosition(Vector3 worldPosition)
-        {
-            Vector3 localPosition = transform.InverseTransformPoint(worldPosition);
-
-            return LocalToGridPosition(localPosition);
-        }
-
-        public Vector3 WorldToLocalPosition(Vector3 worldPosition)
-        {
-            return transform.InverseTransformPoint(worldPosition);
-        }
-
-        public Vector3 LocalToWorldPosition(Vector3 localPosition)
-        {
-            return transform.TransformPoint(localPosition);
-        }
-
-        public Vector3 GetLocalPosition(Vector2Int gridPosition)
-        {
-            GridShape shape = GetLayerShape(gridPosition);
-
-            return shape.GetTesselatedPosition(gridPosition);
-        }
-
-        /// <summary>
-        /// Will get the visualdata at the given layer and gridPosition and return a CLONE of it.
-        /// This is to allow you to modify the visual data without modifying other shapes with thesame visual data
-        /// </summary>
-        /// <typeparam name="T"></typeparam>
-        /// <param name="gridPosition"></param>
-        /// <param name="layerId"></param>
-        /// <returns></returns>
-        public T GetVisualProperties_Clone<T>(Vector2Int gridPosition,
-                                    string layerId = USE_BASE_LAYER) where T : VisualProperties
-        {
-            ValidateLayerId(ref layerId);
-
-            GridChunk chunk = GetHexChunk(gridPosition);
-
-            if (chunk != null)
-            {
-                return chunk.GetVisualProperties(gridPosition, layerId).ShallowCopy<T>();
-            }
-
-            return null;
-        }
-
-        /// <summary>
-        /// Will get the visualdata at the given layer and gridPosition.
-        /// Modifying and Updating said visualData will consequently modify all shapes that used said visualData...use with care
-        /// </summary>
-        /// <param name="gridPosition"></param>
-        /// <param name="layerId"></param>
-        /// <returns></returns>
-        public VisualProperties GetVisualProperties(Vector2Int gridPosition,
-                                                    string layerId = USE_BASE_LAYER)
-        {
-            ValidateLayerId(ref layerId);
-            
-            GridChunk chunk = GetHexChunk(gridPosition);
-
-            if (chunk != null)
-            {
-                return chunk.GetVisualProperties(gridPosition, layerId);
-            }
-
-            return null;
-        }
-
-        #endregion
-
-        public void SetBaseData(GridShape baseShape, string baseLayer)
-        {
-
-        }
-        public void GenerateGrid(GridShape shape, string layerId) 
-        {
-            baseShape = shape;
-            baseLayer = layerId;
-
-            Material mat = visualContainer.GetRandomObject<Material>();
-
-            DefaultVisual def = new DefaultVisual(mat, Color.green);
-
+            ValidateChunkSize();
             CreateGridChunks();
-            AddLayerToAllGridChunks(layerId, shape, def);
-            FillGridChunks(layerId);
         }
-        public void InsertVisualData(Vector2Int gridPosition, BasicVisual data, 
+        public bool CreateLayer(LayerCreator data)
+        {
+            return CreateLayer(data.layerId, data.shape, data.defaultVData, data.setBaselayer, data.useVisualEquality);
+        }
+        
+        public bool CreateLayer(string layerId, GridShape shape, ShapeVisualData defaultVData, bool setBaselayer = false, bool useVisualEquality = false)
+        {
+            if (layerIds.Contains(layerId))
+            {
+                return false;
+            }
+
+            gridShapes.TryGetValue(shape, out GridShape gridShape);
+
+            if (gridShape == null)
+            {
+                gridShape = shape.Init(shape, CellGap);
+
+                gridShapes.Add(gridShape);
+            }
+
+            layerIds.Add(layerId);
+
+            AddLayerToAllGridChunks(layerId, gridShape, defaultVData, useVisualEquality);
+
+            if (setBaselayer)
+            {
+                baseLayerId = layerId;
+            }
+
+            if(layerIds.Count == 1)
+            {
+                baseLayerId = layerId;
+            }
+
+            return true;
+        }
+        
+        /// <summary>
+        /// Insert a visual data at a given position. If said position already has a visual data, it is replaced with the given data
+        /// </summary>
+        /// <param timerName="gridPosition"></param>
+        /// <param timerName="data"></param>
+        /// <param timerName="layerId"></param>
+        public void InsertVisualData(Vector2Int gridPosition, ShapeVisualData data, 
                             string layerId = USE_BASE_LAYER)
         {
 
@@ -409,35 +321,131 @@ namespace Assets.Scripts.GridMapMaker
             }
         }
 
+        public void InsertVisualData_Block(List<Vector2Int> positions, List<ShapeVisualData> data, string layerId = USE_BASE_LAYER)
+        {
+            for(int i = 0; i < positions.Count; i++)
+            {
+                InsertVisualData(positions[i], data[i], layerId);
+            }
+        }
+
         /// <summary>
         /// Removes the visual data at the given grid position from the given layer
         /// </summary>
-        /// <param name="gridPosition"></param>
-        /// <param name="layerId"></param>
+        /// <param timerName="gridPosition"></param>
+        /// <param timerName="layerId"></param>
         public void RemoveVisualData(Vector2Int gridPosition, string layerId = USE_BASE_LAYER)
         {
             GridChunk chunk = GetHexChunk(gridPosition);
 
             if (chunk != null)
             {
-                chunk.RemoveVisualData(layerId, gridPosition);
+                chunk.RemoveVisualData(gridPosition, layerId);
             }
         }
         
-        /// <summary>
+    /// <summary>
         /// Removes the visual data at the given grid position from all layers
         /// </summary>
-        /// <param name="gridPosition"></param>
-        public void RemoveVisualData_AL(Vector2Int gridPosition)
+        /// <param timerName="gridPosition"></param>
+        public void RemoveVisualData(Vector2Int gridPosition)
         {
             GridChunk chunk = GetHexChunk(gridPosition);
 
             if (chunk != null)
             {
-                chunk.RemoveVisualData_AL(gridPosition);
+                chunk.RemoveVisualData(gridPosition);
             }
         }
-        public void UpdateWholeChunk(Vector2Int gridPosition)
+
+        public void DeletePosition(Vector2Int gridPosition)
+        {
+            ValidateLayerId(ref baseLayerId);
+
+            foreach (GridChunk chunk in sortedChunks.Values)
+            {
+                chunk.DeletePosition(gridPosition);
+            }
+        }
+
+        public void DeletePosition(Vector2Int gridPosition, string layerId = USE_BASE_LAYER)
+        {
+            ValidateLayerId(ref layerId);
+
+            GridChunk chunk = GetHexChunk(gridPosition);
+
+            if (chunk != null)
+            {
+                chunk.DeletePosition(gridPosition, layerId);
+            }
+        }
+
+        /// <summary>
+        /// Set whether to use visual equality at the given layer. Note, that you will have to reinsert the visual data so that the changes take effect. It is not enough to call UpdateGrid()
+        /// </summary>
+        /// <param name="useEquality"></param>
+        public void SetVisualEquality(bool useEquality, string layerId = USE_BASE_LAYER)
+        {
+            ValidateLayerId(ref layerId);
+
+            foreach (GridChunk c in sortedChunks.Values)
+            {
+                c.SetVisualEquality(layerId, useEquality);
+            }
+        }
+
+        /// <summary>
+        /// Set whether to use visual equality at the given layer
+        /// </summary>
+        /// <param name="useEquality"></param>
+        public void SetVisualEquality(bool useEquality)
+        {
+            GridChunk c = sortedChunks.Values.First();
+
+            c.SetVisualEquality(useEquality);
+        }
+
+        public void SetStatusIfChunkIsInBounds(Bounds bounds, bool status, bool invert = false)
+        {
+            foreach (GridChunk chunk in sortedChunks.Values)
+            {
+                if (chunk.Contains_BaseLayer(bounds))
+                {
+                    chunk.gameObject.SetActive(status);
+                }
+                else
+                {
+                    if (invert)
+                    {
+                        chunk.gameObject.SetActive(!status);
+                    }
+                }
+            }
+        }
+        public void SetStatusIfChunkIsNotInBounds(Bounds bounds, bool status,
+                                                  bool invert = false)
+        {
+            foreach (GridChunk chunk in sortedChunks.Values)
+            {
+                if (!chunk.Contains_BaseLayer(bounds))
+                {
+                    chunk.gameObject.SetActive(status);
+                }
+                else
+                {
+                    if (invert)
+                    {
+                        chunk.gameObject.SetActive(!status);
+                    }
+                }
+            }
+        }
+
+        /// <summary>
+        /// Update all layers in a given position
+        /// </summary>
+        /// <param timerName="gridPosition"></param>
+        public void UpdatePosition(Vector2Int gridPosition)
         {
             GridChunk chunk = GetHexChunk(gridPosition);
 
@@ -446,7 +454,9 @@ namespace Assets.Scripts.GridMapMaker
                 chunk.UpdateLayers();
             }
         }
-        public void UpdateChunkLayer(Vector2Int gridPosition, string layerId = USE_BASE_LAYER)
+
+        // Update a specific layer at a given position
+        public void UpdatePosition(Vector2Int gridPosition, string layerId = USE_BASE_LAYER)
         {
             GridChunk chunk = GetHexChunk(gridPosition);
 
@@ -455,13 +465,32 @@ namespace Assets.Scripts.GridMapMaker
                 chunk.UpdateLayer(layerId);
             }
         }
-        public void UpdateWholeGrid()
+        public void UpdateGrid()
         {
             foreach (GridChunk chunk in sortedChunks.Values)
             {
                 chunk.UpdateLayers();
             }
         }
+
+        public void RedrawLayer(string layerId = USE_BASE_LAYER)
+        {
+            ValidateLayerId(ref layerId);
+
+            foreach (GridChunk chunk in sortedChunks.Values)
+            {
+                chunk.RedrawLayer(layerId);
+            }
+        }
+
+        public void RedrawGrid()
+        {
+            foreach (GridChunk chunk in sortedChunks.Values)
+            {
+                chunk.RedrawChunk();
+            }
+        }
+
         public void Clear()
         {
             
@@ -482,8 +511,183 @@ namespace Assets.Scripts.GridMapMaker
 
             sortedChunks.Clear();
             visualProps.Clear();
+            layerIds.Clear();
+            gridShapes.Clear();
+        }
+        #endregion
+
+        #region Grid Positioning
+
+        /// <summary>
+        /// If the layerId is the Base layer id, we simply set the layerID to the actual base layer id
+        /// </summary>
+        /// <param timerName="layerId"></param>
+        private void ValidateLayerId(ref string layerId)
+        {
+            if (layerId.Equals(USE_BASE_LAYER))
+            {
+                layerId = BaseLayer;
+            }
+        }
+        /// <summary>
+        /// Loops through all the chunks and returns the shape of the first layer found with the given ID.
+        /// </summary>
+        /// <param timerName="layerId"></param>
+        /// <returns></returns>
+        public GridShape GetShape(string layerId = USE_BASE_LAYER)
+        {
+            ValidateLayerId(ref layerId);
+
+            GridShape shape = null;
+
+            foreach (GridChunk chunk in sortedChunks.Values)
+            {
+                chunk.TryGetLayerShape(layerId, out shape);
+            }
+
+            return shape;
         }
 
+        /// <summary>
+        /// Returns the shape of the layer at the given grid position.
+        /// </summary>
+        /// <param timerName="layerId"></param>
+        /// <param timerName="gridPosition"></param>
+        /// <returns></returns>
+        public GridShape GetShape(Vector2Int gridPosition, 
+                                        string layerId = USE_BASE_LAYER)
+        {
+            ValidateLayerId(ref layerId);
+            
+            GridShape shape = null;
+
+            GridChunk chunk = GetHexChunk(gridPosition);
+
+            if (chunk != null)
+            {
+                chunk.TryGetLayerShape(layerId, out shape);
+            }
+
+            return shape;
+        }
+        public GridShape GetShape(Vector3 localPosition, 
+                            string layerId = USE_BASE_LAYER)
+        {
+            ValidateLayerId(ref layerId);
+
+            GridChunk chunk = GetHexChunk(localPosition, layerId);
+
+            GridShape shape = null;
+
+            if (chunk != null)
+            {
+                chunk.TryGetLayerShape(layerId, out shape);
+            }
+            
+            return shape;
+        }
+
+        // use base layer for these positions
+        public Vector2Int LocalToGridPosition(Vector3 localPosition, string layerId = USE_BASE_LAYER)
+        {
+            GridChunk chunk = GetHexChunk(localPosition, layerId);
+
+            Vector2Int gridPosition = Vector2Int.left;
+
+            if (chunk != null)
+            {
+               chunk.TryGetGridPosition(localPosition, out gridPosition);
+            }
+
+            return gridPosition;
+        }
+        public Vector2Int WorldToGridPosition(Vector3 worldPosition)
+        {
+            Vector3 localPosition = transform.InverseTransformPoint(worldPosition);
+
+            return LocalToGridPosition(localPosition);
+        }
+        public Vector3 WorldToLocalPosition(Vector3 worldPosition)
+        {
+            return transform.InverseTransformPoint(worldPosition);
+        }
+        public Vector3 LocalToWorldPosition(Vector3 localPosition)
+        {
+            return transform.TransformPoint(localPosition);
+        }
+        public Vector3 GetLocalPosition(Vector2Int gridPosition)
+        {
+            GridShape shape = GetShape(gridPosition);
+
+            return shape.GetTesselatedPosition(gridPosition);
+        }
+
+        /// <summary>
+        /// Will get the visualdata at the given layer and gridPosition and return a CLONE of it.
+        /// This is to allow you to modify the visual data without modifying other shapes with thesame visual data
+        /// </summary>
+        /// <typeparam timerName="T"></typeparam>
+        /// <param timerName="gridPosition"></param>
+        /// <param timerName="layerId"></param>
+        /// <returns></returns>
+        public T GetVisualProperties<T>(Vector2Int gridPosition,
+                                    string layerId = USE_BASE_LAYER) where T : ShapeVisualData
+        {
+            ValidateLayerId(ref layerId);
+
+            GridChunk chunk = GetHexChunk(gridPosition);
+
+            if (chunk != null)
+            {
+                return chunk.GetVisualProperties(gridPosition, layerId) as T;
+            }
+
+            return null;
+        }
+
+        /// <summary>
+        /// Will get the visualdata at the given layer and gridPosition.
+        /// Modifying and Updating said visualData will consequently modify all shapes that used said visualData...use with care
+        /// </summary>
+        /// <param timerName="gridPosition"></param>
+        /// <param timerName="layerId"></param>
+        /// <returns></returns>
+        public ShapeVisualData GetVisualProperties(Vector2Int gridPosition,
+                                                    string layerId = USE_BASE_LAYER)
+        {
+            ValidateLayerId(ref layerId);
+            
+            GridChunk chunk = GetHexChunk(gridPosition);
+
+            if (chunk != null)
+            {
+                return chunk.GetVisualProperties(gridPosition, layerId);
+            }
+
+            return null;
+        }
+        public void VisualIdChanged()
+        {
+            foreach (ShapeVisualData vp in visualProps)
+            {
+                vp.VisualIdChanged();
+            }
+        }
+
+        #endregion
+
+        #region Sprite Spawning
+
+        public void SpawnSprite(Vector2Int gridPosition, Sprite sprite)
+        {
+            GridChunk chunk = GetHexChunk(gridPosition);
+
+            if (chunk != null)
+            {
+                chunk.SpawnSprite(gridPosition, sprite);
+            }
+        }
+        #endregion
 
         #region Saving and Loading Map
 
@@ -529,13 +733,9 @@ namespace Assets.Scripts.GridMapMaker
                 sortedChunks.Add(grid.StartPosition, grid);
             }
         }
-
-        public void CheckVisualHashChanged()
+        public List<ShapeVisualData> GetUniqueVisuals()
         {
-            foreach (VisualProperties vp in visualProps)
-            {
-                vp.CheckVisualHashChanged();
-            }
+            return visualProps.ToList();
         }
 
             [Serializable]
@@ -547,7 +747,7 @@ namespace Assets.Scripts.GridMapMaker
             public List<SerializedGridChunk> serializedChunk;
 
             [SerializeReference]
-            public List<VisualProperties> visualProps;
+            public List<ShapeVisualData> visualProps;
 
             public SavedMap(GridManager gridManager)
             {
@@ -567,7 +767,7 @@ namespace Assets.Scripts.GridMapMaker
 
             public void SerializeVisualProps(MapVisualContainer container)
             {
-                foreach (VisualProperties visual in visualProps)
+                foreach (ShapeVisualData visual in visualProps)
                 {
                     visual.SetSerializeData(container);
                 }
@@ -575,7 +775,7 @@ namespace Assets.Scripts.GridMapMaker
 
             public void DeserializeVisualProps(MapVisualContainer container)
             {
-                foreach (VisualProperties visual in visualProps)
+                foreach (ShapeVisualData visual in visualProps)
                 {
                     visual.DeserializeData(container);
                 }

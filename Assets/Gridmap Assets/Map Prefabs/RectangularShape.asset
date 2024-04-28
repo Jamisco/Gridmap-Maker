@@ -12,7 +12,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: f86e30f1945262d42a07cbe42775c595, type: 3}
   m_Name: RectangularShape
   m_EditorClassIdentifier: 
-  uniqueShapeId: rect
+  uniqueShapeName: Rectangle
   baseVertices:
   - {x: -0.5, y: 0, z: 0.5}
   - {x: 0.5, y: 0, z: 0.5}

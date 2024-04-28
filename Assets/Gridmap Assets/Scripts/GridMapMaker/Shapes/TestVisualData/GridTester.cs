@@ -1,4 +1,5 @@
 ﻿using Assets.Scripts.GridMapMaker;
+using Assets.Scripts.Miscellaneous;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -8,6 +9,7 @@ using Unity.VisualScripting;
 using UnityEditor;
 using UnityEngine;
 using UnityEngine.InputSystem;
+using UnityEngine.Rendering;
 using static UnityEditor.Experimental.GraphView.GraphView;
 using static UnityEngine.GraphicsBuffer;
 
@@ -19,6 +21,9 @@ namespace Assets.Gridmap_Assets.Scripts.GridMapMaker.Shapes.TestVisualData
         [SerializeField]
         GridManager gridManager;
 
+        [SerializeReference]
+        private MapVisualContainer visualContainer;
+
         [SerializeField]
         GridShape aShape;
 
@@ -27,79 +32,89 @@ namespace Assets.Gridmap_Assets.Scripts.GridMapMaker.Shapes.TestVisualData
         
         private void OnValidate()
         {
-            basicVisual.CheckVisualHashChanged();
+           // basicVisual.CheckVisualDataChanged();
         }
 
         private void Update()
         {
-            if (Mouse.current.leftButton.wasPressedThisFrame)
-            {
-                HighlightShape();
-            }
+            DisableUnseenChunks();
         }
 
+        string layerId = "Base Layer";
+
+        [SerializeField]
+        bool useVe = false;
         public void GenerateGrid()
         {
-            string layerId = "Base Layer";
 
-            gridManager.GenerateGrid(aShape, layerId);
+            DefaultVisual def
+                    = DefaultVisual.CreateDefaultVisual(Color.blue);
+
+            gridManager.Initialize();
+            
+            gridManager.CreateLayer(layerId, aShape, def, useVisualEquality: useVe);
+
+            gridManager.SetVisualContainer(visualContainer);
+
+            gridManager.FillGridChunks_TestMethod();
         }
+        public void UpdateMap()
+        {
+            gridManager.SetVisualEquality(useVe, layerId);
+            gridManager.RedrawLayer(layerId);
+            gridManager.UpdateGrid();
+        }
+
         public void ClearGrid()
         {
             gridManager.Clear();
         }
-
         public void SaveMap()
         {
             gridManager.SerializeMap();
         }
-
         public void LoadMap()
         {
             gridManager.DeserializeMap();
         }
 
+        public void DisableUnseenChunks()
+        {
+            Bounds bounds = Camera.main.OrthographicBounds3D();
+
+            gridManager.SetStatusIfChunkIsInBounds(bounds, true, true);
+        }
+
         [SerializeField]
         public Vector2Int InputHex;
 
+        [SerializeField]
+        public Sprite sprite;
+
         public void HighlightShape()
         {
-            //Vector3 pos = GetMousePosition();
-
-            //Debug.Log("Clicked Position: " + pos);
-
-            Vector2Int gridPos = InputHex;
-
-            BasicVisual basic = gridManager
-                .GetVisualProperties_Clone<BasicVisual>(gridPos);
-
-            basic.mainColor = Color.red;
-            basic.CheckVisualHashChanged();
             
-            gridManager.InsertVisualData(gridPos, basic);
-            gridManager.UpdateChunkLayer(gridPos);
 
-            Debug.Log("Highligted: " + gridPos);
+        }
 
+        public void SetSprite()
+        {
+            gridManager.SpawnSprite(InputHex, sprite);
         }
 
         public void RemoveVisualData()
         {
-            //Vector3 pos = GetMousePosition();
+            Vector3 pos = GetMousePosition();
 
-            //Debug.Log("Clicked Position: " + pos);
+            Debug.Log("Clicked Position: " + pos);
 
             Vector2Int gridPos = InputHex;
 
-            
             gridManager.RemoveVisualData(gridPos);
-            gridManager.UpdateChunkLayer(gridPos);
-            
-            Debug.Log("Remove Visual: " + gridPos);
+            gridManager.UpdatePosition(gridPos);
 
+            Debug.Log("Removed Visual: " + gridPos);
         }
-
-
         private Vector3 GetMousePosition()
         {
             Ray ray = Camera.main.ScreenPointToRay(Mouse.current.position.ReadValue());
@@ -142,8 +157,17 @@ namespace Assets.Gridmap_Assets.Scripts.GridMapMaker.Shapes.TestVisualData
                     exampleScript.RemoveVisualData();
                 }
 
+                if (GUILayout.Button("Spawn Sprite"))
+                {
+                    exampleScript.SetSprite();
+                }
 
-                    if (GUILayout.Button("Clear Grid"))
+                if (GUILayout.Button("Update Map"))
+                {
+                    exampleScript.UpdateMap();
+                }
+
+                if (GUILayout.Button("Clear Grid"))
                 {
                     exampleScript.ClearGrid();
                 }

@@ -83,9 +83,9 @@ namespace Assets.Gridmap_Assets.Scripts.GridMapMaker.Shapes
         {
             Vector3 position = new Vector3();
             // Calculate the center of each hexagon
-            position.x = x * Width + (y % 2) * (Width / 2.0f);
+            position.x = x * Width + (y % 2) * (Width / 2.0f) + (x * cellGap.x);
             position.y = 0;
-            position.z = y * (Depth - Depth / 4.0f);
+            position.z = y * (Depth - Depth / 4.0f) + (y * cellGap.y); ;
 
             return position;
         }

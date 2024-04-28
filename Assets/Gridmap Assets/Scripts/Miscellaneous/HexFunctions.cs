@@ -72,8 +72,8 @@ namespace Assets.Scripts.Miscellaneous
             /// <summary>
             /// Converts a position (X, Y) to axial coordinates. Returns Axial Struct
             /// </summary>
-            /// <param name="x"></param>
-            /// <param name="y"></param>
+            /// <param timerName="x"></param>
+            /// <param timerName="y"></param>
             /// <returns>A new Axial Class</returns>
             public static Axial AxialFromOffset(int x, int y)
             {
@@ -86,7 +86,7 @@ namespace Assets.Scripts.Miscellaneous
             /// <summary>
             /// Converts a position to axial coordinates. Returns Axial Struct
             /// </summary>
-            /// <param name="pos">Non Axial Coordinate to convert</param>
+            /// <param timerName="pos">Non Axial Coordinate to convert</param>
             /// <returns>returns a new Axial Class</returns>
             public static Axial AxialFromOffset(Vector3Int pos)
             {
@@ -99,8 +99,8 @@ namespace Assets.Scripts.Miscellaneous
             /// <summary>
             /// Converts a position (X, Y) to axial coordinates
             /// </summary>
-            /// <param name="x"></param>
-            /// <param name="y"></param>
+            /// <param timerName="x"></param>
+            /// <param timerName="y"></param>
             /// <returns>The Vector3Int containing the new Axial position</returns>
             public static Vector3Int AxialOffsetPosition(int x, int y)
             {
@@ -114,8 +114,8 @@ namespace Assets.Scripts.Miscellaneous
             /// <summary>
             /// Converts a position (X, Y) to axial coordinates
             /// </summary>
-            /// <param name="x"></param>
-            /// <param name="y"></param>
+            /// <param timerName="x"></param>
+            /// <param timerName="y"></param>
             /// <returns>The Vector3Int containing the new Axial position</returns>
             public static Vector3Int AxialOffsetPosition(Vector3Int pos)
             {
@@ -125,7 +125,7 @@ namespace Assets.Scripts.Miscellaneous
             /// <summary>
             /// Converts an Axial position to a Non Axial position
             /// </summary>
-            /// <param name="axialOffset"></param>
+            /// <param timerName="axialOffset"></param>
             /// <returns></returns>
             public static Vector3Int NonAxialOffset(Vector3Int axialOffset)
             {
@@ -142,8 +142,8 @@ namespace Assets.Scripts.Miscellaneous
         /// <summary>
         /// Finds path from given StartPosition point to EndPosition point. Returns an empty list if the path couldn't be found.
         /// </summary>
-        /// <param name="startPoint">Start tile.Non Axial LocalPosition</param>
-        /// <param name="endPoint">Destination tile. Non Axial LocalPosition</param>
+        /// <param timerName="startPoint">Start tile.Non Axial LocalPosition</param>
+        /// <param timerName="endPoint">Destination tile. Non Axial LocalPosition</param>
         /// Credits: https://blog.theknightsofunity.com/pathfinding-on-a-hexagonal-grid-a-algorithm/
         public static List<HexTile> FindPath(Vector3Int start, Vector3Int stop, Vector3Int maxSize)
         {
@@ -278,9 +278,9 @@ namespace Assets.Scripts.Miscellaneous
         /// <summary>
         /// Returns estimated path cost from given StartPosition position to target position of hex tile using Manhattan distance.
         /// </summary>
-        /// <param name="startPosition">Start position.</param>
-        /// <param name="targetPosition">Destination position.</param>
-        /// <param name="isAxial">Default is true, set to false if the parameters are non axial coordinates.</param>
+        /// <param timerName="startPosition">Start position.</param>
+        /// <param timerName="targetPosition">Destination position.</param>
+        /// <param timerName="isAxial">Default is true, set to false if the parameters are non axial coordinates.</param>
         /// 
         private static int GetEstimatedPathCost(Vector3Int startPosition, Vector3Int targetPosition, Vector3Int maxSize, bool isAxial = true)
         {
