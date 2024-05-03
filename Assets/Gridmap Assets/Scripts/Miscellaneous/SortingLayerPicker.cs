@@ -10,7 +10,7 @@ namespace Assets.Gridmap_Assets.Scripts.Miscellaneous
     [Serializable]
 
     /// The reason for this class is that the SortingLayer class is not serializable.
-    /// This is a workaround. Allowing us to serialize the sorting meshLayer.
+    /// This is a workaround. Allowing us to serialize the sorting meshSortLayer.
     public struct SortingLayerPicker
     {
         [SerializeField] private string layerName;

@@ -31,6 +31,12 @@ namespace Assets.Gridmap_Assets.Scripts.GridMapMaker.Shapes
 
         protected Vector2 cellGap;
 
+        /// <summary>
+        /// This will contain the edge/bounds position of the shape.
+        /// It is used to find/calculate the bounds and tesselated position of a shape
+        /// </summary>
+        protected ShapeVertexBounds svb;
+
         public Vector2 CellGap
         {
             get { return cellGap; }
@@ -101,27 +107,7 @@ namespace Assets.Gridmap_Assets.Scripts.GridMapMaker.Shapes
         /// <param timerName="localPosition"></param>
         /// <returns></returns>
         public abstract Vector2Int GetGridCoordinate(Vector3 localPosition);
-
-        /// <summary>
-        /// Will return just the float of the respective bounds
-        /// </summary>
-        /// <param timerName="top"></param>
-        /// <param timerName="bot"></param>
-        /// <param timerName="left"></param>
-        /// <param timerName="right"></param>
-        private void GetVertexBounds(out float top, out float bot, out float left, out float right)
-        {
-            Vector3 top1, bot1, left1, right1;
-
-            GetVertexBounds(out top1, out bot1, out left1, out right1);
-            
-            top = top1.z;
-            bot = bot1.z;
-
-            left = left1.x;
-            right = right1.x;
-        }
-
+       
         /// <summary>
         /// Will return a Vector with the respective bounds
         /// </summary>
@@ -129,12 +115,12 @@ namespace Assets.Gridmap_Assets.Scripts.GridMapMaker.Shapes
         /// <param timerName="bot"></param>
         /// <param timerName="left"></param>
         /// <param timerName="right"></param>
-        private void GetVertexBounds(out Vector3 top, out Vector3 bot, out Vector3 left, out Vector3 right)
+        protected virtual void SetBounds()
         {
-             top = baseVertices[0];
-             bot = baseVertices[0];
-             left = baseVertices[0];
-             right = baseVertices[0];
+             Vector3 top = baseVertices[0];
+             Vector3 bot = baseVertices[0];
+             Vector3 left = baseVertices[0];
+             Vector3 right = baseVertices[0];
 
             foreach (Vector3 vertex in baseVertices)
             {
@@ -158,66 +144,33 @@ namespace Assets.Gridmap_Assets.Scripts.GridMapMaker.Shapes
                     right = vertex;
                 }
             }
+
+            svb = new ShapeVertexBounds();
+
+            svb.left = left;
+            svb.right = right;
+            svb.top = top;
+            svb.bot = bot;
+
+            svb.leftF = left.x;
+            svb.rightF = right.x;
+            svb.topF = top.z;
+            svb.botF = bot.z;
+
+            SetShapeBounds();
         }
-
-        /// <summary>
-        /// Gets the vertex whose bounds are respective the the vertex bounds.
-        /// For example, if the vertex bounds is set to top, the method will return the vertex with the highest cy value vice versa for the other bot etc..
-        /// </summary>
-        /// <param timerName="bounds"></param>
-        /// <returns></returns>
-        private Vector3 GetVertexBoundsPosition(VertexBounds bounds)
+     
+        protected virtual void SetShapeBounds()
         {
-            Vector3 top, bot, left, right;
+            // we then gridOffset the tesselated positions by the vertex positions to give us the bounds/edges
+            Vector3 min = new Vector3(svb.leftF, 0, svb.botF);
+            Vector3 max = new Vector3(svb.rightF, 0, svb.topF);
 
-            GetVertexBounds(out top, out bot, out left, out right);
-
-            switch (bounds)
-            {
-                case VertexBounds.Top:
-                    return top;
-                case VertexBounds.Bottom:
-                    return bot;
-                case VertexBounds.Left:
-                    return left;
-                case VertexBounds.Right:
-                    return right;
-                default:
-                    return Vector3.zero;
-            }
-
-        }
-
-        /// <summary>
-        /// Get the Vertex bounds position of a particular gridPosition
-        /// </summary>
-        /// <param timerName="gridPosition"></param>
-        /// <param timerName="vertexBounds"></param>
-        /// <returns></returns>
-        public virtual Vector3 GetVertexBoundsOffset(Vector2Int gridPosition, VertexBounds vertexBounds)
-        {
-            Vector3 vertexOffset = GetVertexBoundsPosition(vertexBounds);
-
-            Vector3 position = GetTesselatedPosition(gridPosition);
-
-            return position + vertexOffset;
-        }
-        public virtual Bounds GetShapeBounds()
-        {
-            float top, bot, left, right;
-
-            // First, we get the topmost, leftmost etc... vertex positions
-            GetVertexBounds(out top, out bot, out left, out right);
-
-            // we then offset the tesselated positions by the vertex positions to give us the bounds/edges
-            Vector3 min = new Vector3(left, 0, bot);
-            Vector3 max = new Vector3(right, 0, top);
-
-            return new Bounds((min + max) / 2, max - min);
+            shapeBounds = new Bounds((min + max) / 2, max - min);
         }
         
         /// <summary>
-        /// If tesselation is unition, such as it is with rectangles, we can simply multiple the gridPosition offset directly to the shape bounds without having to get the tesselated position of each cell. THIS WILL NOT WORK FOR UN-UNIFORM TESSELATION SUCH AS HEXES
+        /// If tesselation is Uniform, such as it is with rectangles, we can simply multiple the gridPosition gridOffset directly to the shape bounds without having to get the tesselated position of each cell. THIS WILL NOT WORK FOR UN-UNIFORM TESSELATION SUCH AS HEXES
         /// </summary>
         /// <param name="minGridPosition"></param>
         /// <param name="maxGridPosition"></param>
@@ -256,29 +209,29 @@ namespace Assets.Gridmap_Assets.Scripts.GridMapMaker.Shapes
         //}
 
         public virtual Bounds GetGridBounds(Vector2Int minGridPosition,
-                                        Vector2Int maxGridPosition)
+                                Vector2Int maxGridPosition, Vector3 gridOffset = new())
         {
-            float top, bot, left, right;
+            // secondly we have to get the tesselatedPosition on the map,
+            // we must also account for the gridOffset, that is the current position of the grid. A cell at 0,0 will have a tesselated position of 0,0, but if the entire grid is shifted 5 units to the right, then the tesselated position of the cell at 0,0 will be 5,0
+            
+            Vector3 botTes = GetTesselatedPosition(minGridPosition) + gridOffset;
+            Vector3 topTes = GetTesselatedPosition(maxGridPosition) + gridOffset;
 
-            // First, we get the topmost, leftmost etc... vertex positions
-            GetVertexBounds(out top, out bot, out left, out right);
+            // we then offset the tesselated positions by the shape edge positions to give us the precise positions of the edge
+            Vector3 min = new Vector3(botTes.x + svb.leftF, 0,
+                                      botTes.z + svb.botF);
 
-            // secondly we have to get the tesselatedPosition on the map
-            Vector3 botTes = GetTesselatedPosition(minGridPosition);
-            Vector3 topTes = GetTesselatedPosition(maxGridPosition);
+            Vector3 max = new Vector3(topTes.x + svb.rightF, 0,
+                                      topTes.z + svb.topF);
 
-            // we then offset the tesselated positions by the vertex positions to give us the bounds/edges
-            Vector3 min = new Vector3(botTes.x + left, 0, botTes.z + bot);
-            Vector3 max = new Vector3(topTes.x + right, 0, topTes.z + top);
-
-            return new Bounds((min + max) / 2, max - min);
+            Bounds b1 = new Bounds((min + max) / 2, max - min);
+            return b1;
         }
-
         public virtual bool WithinShapeBounds(GridShape anotherShape)
         {
             Bounds currentShape = GetGridBounds(Vector2Int.zero, Vector2Int.zero);
 
-            Bounds otherShape = anotherShape.GetShapeBounds();
+            Bounds otherShape = anotherShape.ShapeBounds;
 
             return currentShape.Contains(otherShape);
         }
@@ -289,7 +242,7 @@ namespace Assets.Gridmap_Assets.Scripts.GridMapMaker.Shapes
 
             s.cellGap = cellGap;
 
-            s.shapeBounds = GetShapeBounds();
+            s.SetBounds();
 
             return s;
         }
@@ -301,13 +254,17 @@ namespace Assets.Gridmap_Assets.Scripts.GridMapMaker.Shapes
             return uniqueShapeName.Equals(other);
         }
 
-        public enum VertexBounds
+        public struct ShapeVertexBounds
         {
-            Top,
-            Bottom,
-            Left,
-            Right
-        }
+            public Vector3 top;
+            public Vector3 bot;
+            public Vector3 left;
+            public Vector3 right;
 
+            public float topF;
+            public float botF;
+            public float leftF;
+            public float rightF;
+        }
     }
 }

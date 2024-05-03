@@ -24,8 +24,6 @@ namespace Assets.Gridmap_Assets.Scripts.GridMapMaker
         {
             this.layerName = name;
             this.LayerGridShape = gridShape;
-            gameObject.name = name;
-
         }
 
         private GameObject InstatiateSprite(Sprite sprite)

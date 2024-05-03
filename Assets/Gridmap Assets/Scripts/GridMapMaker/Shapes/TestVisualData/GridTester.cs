@@ -46,7 +46,6 @@ namespace Assets.Gridmap_Assets.Scripts.GridMapMaker.Shapes.TestVisualData
         bool useVe = false;
         public void GenerateGrid()
         {
-
             DefaultVisual def
                     = DefaultVisual.CreateDefaultVisual(Color.blue);
 
@@ -78,11 +77,14 @@ namespace Assets.Gridmap_Assets.Scripts.GridMapMaker.Shapes.TestVisualData
             gridManager.DeserializeMap();
         }
 
+        
+        public bool status;
+        public bool invert;
         public void DisableUnseenChunks()
         {
             Bounds bounds = Camera.main.OrthographicBounds3D();
 
-            gridManager.SetStatusIfChunkIsInBounds(bounds, true, true);
+            gridManager.SetStatusIfChunkIsInBounds(bounds, status, invert);
         }
 
         [SerializeField]

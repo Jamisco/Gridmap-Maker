@@ -12,7 +12,9 @@ namespace Assets.Scripts.GridMapMaker
 {
     public class FusedMesh
     {
-        // A fused mesh is a collection of meshes that are fused together to make one mesh.
+        // A fused meshData is a collection of meshData that are fused together to make one meshData.
+
+        const int MAX_VERTICES = 65534;
 
         private List<int> MeshHashes;
         // vertex and triangle size
@@ -80,16 +82,31 @@ namespace Assets.Scripts.GridMapMaker
             UpdateMesh();
         }
 
+        public void AddMeshList(Mesh mesh, List<int> hashes, List<Vector3> offsets)
+        {
+            Init();
+
+            if (hashes.Count != offsets.Count)
+            {
+                throw new Exception("All Lists must be thesame size");
+            }
+
+            for (int i = 0; i < hashes.Count; i++)
+            {
+                AddMesh_NoUpdate(mesh, hashes[i], offsets[i]);
+            }
+        }
+
         /// <summary>
-        /// This constructors uses multithreading to fuse the meshes. This is faster but can cause problems when the meshes are not properly indexed. Make sure your arrays are in order
+        /// This constructors uses multithreading to fuse the meshData. This is faster but can cause problems when the meshData are not properly indexed. Make sure your arrays are in order
         /// </summary>
-        /// <param timerName="meshes"></param>
+        /// <param timerName="meshData"></param>
         /// <param timerName="hashes"></param>
         /// <param timerName="offsets"></param>
         /// <param timerName="vertTriIndex"></param>
         /// <param timerName="totalCounts"></param>
         /// <exception cref="Exception"></exception>
-        public FusedMesh(List<MeshData> meshes, List<int> hashes, List<Vector3> offsets,
+        public FusedMesh(List<Mesh> meshes, List<int> hashes, List<Vector3> offsets,
                          List<(int vertCount, int triStart)> vertTriIndex,
                             (int totalVerts, int triStart) totalCounts)
         {
@@ -105,10 +122,17 @@ namespace Assets.Scripts.GridMapMaker
 
 
             bool hasColors = true;
-            
+
+            List<MeshData> meshDatas = new List<MeshData>();
+
+            for (int i = 0; i < meshes.Count; i++)
+            {
+                meshDatas.Add(new MeshData(meshes[i]));
+            }
+
             Parallel.For(0, meshes.Count, i =>
             {
-                InsertMesh_NoUpdate(meshes[i], hashes[i], offsets[i], vertTriIndex[i], i);
+                InsertMesh_NoUpdate(meshDatas[i], hashes[i], offsets[i], vertTriIndex[i], i);
             });
             
             void InsertMesh_NoUpdate(MeshData mesh, int hash, Vector3 offset,
@@ -131,9 +155,9 @@ namespace Assets.Scripts.GridMapMaker
                 }
 
 
-                // we check if the mesh has colors, if it does we add them to the list
+                // we check if the meshData has colors, if it does we add them to the list
                 // since colors and vertex count MUST match, we simply check if the count is the same
-                // The reason we clear the colors array is because if one mesh has colors and the other doesn't the mesh will be invalid because color count and vertex count must match. Thus, ALl meshes must either have a color or not have one
+                // The reason we clear the colors array is because if one meshData has colors and the other doesn't the meshData will be invalid because color count and vertex count must match. Thus, ALl meshData must either have a color or not have one
                 if (mesh.colors.Count != hexVertices.Count && hasColors == true)
                 {
                     hasColors = false;
@@ -146,7 +170,7 @@ namespace Assets.Scripts.GridMapMaker
                 {
                     Vertices[i] = hexVertices[x];
 
-                    // there might exist an error here if the mesh we are fusing all have colors, but one mesh doesnt have colors. A thread issue my occur where we are tring to access the i index of colors array but it got cleared...this is rare but it might happen
+                    // there might exist an error here if the meshData we are fusing all have colors, but one meshData doesnt have colors. A thread issue my occur where we are tring to access the i index of colors array but it got cleared...this is rare but it might happen
                     if (hasColors)
                     {
                         Colors[i] = mesh.colors[x];
@@ -224,7 +248,7 @@ namespace Assets.Scripts.GridMapMaker
             AddMeshAtEnd(mesh, offset);
         }
         /// <summary>
-        /// Gets the start location of the vertices and triangles of a particular mesh. The index will be the index of the hex hash
+        /// Gets the start location of the vertices and triangles of a particular meshData. The index will be the index of the hex hash
         /// </summary>
         /// <param timerName="index">ndex of the hex hash</param>
         /// <returns></returns>
@@ -250,7 +274,7 @@ namespace Assets.Scripts.GridMapMaker
         }
         
         /// <summary>
-        /// Returns true or false if mesh was successfully removed
+        /// Returns true or false if meshData was successfully removed
         /// </summary>
         /// <param timerName="hash"></param>
         /// <param timerName="position"></param>
@@ -309,17 +333,18 @@ namespace Assets.Scripts.GridMapMaker
         }
 
         /// <summary>
-        /// Fused the given mesh into the current one. Be advised that if you are adding a a mesh with a hash that already exists, the old mesh will be removed and the new one will be added
+        /// Fused the given meshData into the current one. Be advised that if you are adding a a meshData with a hash that already exists, the old meshData will be removed and the new one will be added
         /// </summary>
-        /// <param timerName="mesh"></param>
+        /// <param timerName="meshData"></param>
         /// <param timerName="hash"></param>
         /// <param timerName="offset"></param>
         public void InsertMesh(Mesh mesh, int hash, Vector3 offset)
         {
+
             AddMesh_NoUpdate(mesh, hash, offset);
         }
         /// <summary>
-        /// Returns true or false if mesh was successfully removed
+        /// Returns true or false if meshData was successfully removed
         /// </summary>
         /// <param timerName="hash"></param>
         /// <param timerName="position">The position you want to StartPosition searching from </param>
@@ -375,7 +400,7 @@ namespace Assets.Scripts.GridMapMaker
         }
 
         /// <summary>
-        /// Returns the a NEW mesh with the given hash. Returns null if no mesh was found. Modifying this mesh has no effect on the current fused mesh. If you want to modify the BaseFushMesh, after you have modified the returned mesh, you must call RemoveMesh and then InsertMesh again. Be advised, depending on the size of the fused mesh, this could be a costly operation.
+        /// Returns the a NEW meshData with the given hash. Returns null if no meshData was found. Modifying this meshData has no effect on the current fused meshData. If you want to modify the BaseFushMesh, after you have modified the returned meshData, you must call RemoveMesh and then InsertMesh again. Be advised, depending on the size of the fused meshData, this could be a costly operation.
         /// </summary>
         /// <param timerName="hash"></param>
         /// <returns></returns>
@@ -433,18 +458,76 @@ namespace Assets.Scripts.GridMapMaker
             return mesh;
         }
 
+        private Mesh CreateMeshWithSubmeshes()
+        {
+            Mesh mesh = new Mesh();
+
+            // Splitting vertices into multiple submeshes
+            // Maximum vertices per meshData in Unity
+            int maxVerticesPerMesh = 65534; 
+            int numVertices = Vertices.Count;
+
+            // Calculate how many submeshes we need
+            int numSubmeshes = Mathf.CeilToInt((float)numVertices / maxVerticesPerMesh);
+
+            // Prepare lists to hold subdivided data
+            List<Vector3[]> subdividedVertices = new List<Vector3[]>();
+            List<int[]> subdividedTriangles = new List<int[]>();
+            List<Color[]> subdividedColors = new List<Color[]>();
+            List<Vector2[]> subdividedUVs = new List<Vector2[]>();
+
+            // Subdivide the data
+            for (int i = 0; i < numSubmeshes; i++)
+            {
+                int startIndex = i * maxVerticesPerMesh;
+                int length = Mathf.Min(maxVerticesPerMesh, numVertices - startIndex);
+
+                subdividedVertices.Add(Vertices.GetRange(startIndex, length).ToArray());
+                subdividedTriangles.Add(Triangles.GetRange(startIndex * 3, length * 3).ToArray());
+                subdividedColors.Add(Colors.GetRange(startIndex, length).ToArray());
+                subdividedUVs.Add(UVs.GetRange(startIndex, length).ToArray());
+            }
+
+            // Assign submesh data to meshData
+            mesh.subMeshCount = numSubmeshes;
+
+            for (int i = 0; i < numSubmeshes; i++)
+            {
+                mesh.SetVertices(subdividedVertices[i]);
+                mesh.SetTriangles(subdividedTriangles[i], i);
+                mesh.SetColors(subdividedColors[i]);
+                mesh.SetUVs(0, subdividedUVs[i]);
+
+                // Recalculate normals and bounds for each submesh
+                mesh.RecalculateNormals();
+                mesh.RecalculateBounds();
+            }
+
+            // Optionally, optimize the meshData
+            mesh.Optimize();
+
+            return mesh;
+        }
+
         public void UpdateMesh()
         {
             //It is important to call Clear before assigning new vertices or triangles. Unity always checks the supplied triangle indices whether they don't reference out of bounds vertices. Calling Clear then assigning vertices then triangles makes sure you never have out of bounds data.
 
             // it is recommended not to call this often to save on performance.
-            // if you are adding multiple meshes, add them all first, then call update
+            // if you are adding multiple meshData, add them all first, then call update
             Mesh.Clear();
 
-            Mesh.vertices = Vertices.ToArray();
-            Mesh.triangles = Triangles.ToArray();
-            Mesh.colors = Colors.ToArray();
-            Mesh.uv = UVs.ToArray();
+            if (Vertices.Count > MAX_VERTICES)
+            {
+                Mesh = CreateMeshWithSubmeshes();
+            }
+            else
+            {
+                Mesh.vertices = Vertices.ToArray();
+                Mesh.triangles = Triangles.ToArray();
+                Mesh.colors = Colors.ToArray();
+                Mesh.uv = UVs.ToArray();
+            }
         }
 
         public static implicit operator Mesh(FusedMesh f)

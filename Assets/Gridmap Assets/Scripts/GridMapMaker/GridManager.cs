@@ -4,7 +4,7 @@ using System.Collections.Generic;
 using Assets.Gridmap_Assets.Scripts.GridMapMaker.Shapes.TestVisualData;
 using Assets.Gridmap_Assets.Scripts.Mapmaker;
 using System;
-using static Assets.Gridmap_Assets.Scripts.Mapmaker.LayeredMesh;
+using static Assets.Gridmap_Assets.Scripts.Mapmaker.MeshLayer;
 using System.Linq;
 using static Assets.Scripts.GridMapMaker.GridChunk;
 using Assets.Scripts.Miscellaneous;
@@ -30,7 +30,7 @@ namespace Assets.Scripts.GridMapMaker
         /// <summary>
         /// String is merely used as a place holder
         /// </summary>
-        public const string USE_BASE_LAYER = "12345USE_BASE_LAYER12345";
+        public const string USE_DEFAULT_LAYER = "12345USE_DEFAULT_LAYER12345";
 
         [SerializeField]
         private Vector2Int gridSize;
@@ -38,8 +38,8 @@ namespace Assets.Scripts.GridMapMaker
         [SerializeField]
         private Vector2Int chunkSize;
 
-        private string baseLayerId;
-        public string BaseLayer { get { return baseLayerId; } }
+        private string defaultLayerId;
+        public string DefaultLayer { get { return defaultLayerId; } }
 
         public Vector2 CellGap;
 
@@ -54,7 +54,13 @@ namespace Assets.Scripts.GridMapMaker
         [SerializeField]
         private HashSet<string> layerIds = new HashSet<string>();
 
-
+        public Vector3 WorldPosition
+        {
+            get
+            {
+                return transform.position;
+            }
+        }
 
         private void OnValidate()
         {
@@ -116,6 +122,9 @@ namespace Assets.Scripts.GridMapMaker
             BoundsInt chunkBounds = GetChunkBounds(gridPosition);
             
             chunk = Instantiate(prefab, transform);
+
+            // the transform is always relative to the parent such that if the parent is moved, the child moves with it
+
             chunk.Initialize(this, chunkBounds);
 
             return chunk;
@@ -130,7 +139,7 @@ namespace Assets.Scripts.GridMapMaker
 
             return chunk;
         }
-        private GridChunk GetHexChunk(Vector3 localPosition, string layerId = USE_BASE_LAYER)
+        private GridChunk GetHexChunk(Vector3 localPosition, string layerId = USE_DEFAULT_LAYER)
         {
             ValidateLayerId(ref layerId);
             // see if a chunk contains a gridposition at that local position
@@ -195,7 +204,7 @@ namespace Assets.Scripts.GridMapMaker
                 chunk.AddLayer(layerId, shape, defaultVisual, useVisualEquality);
             }
         }
-        public void FillGridChunks_TestMethod(string layerId = USE_BASE_LAYER)
+        public void FillGridChunks_TestMethod(string layerId = USE_DEFAULT_LAYER)
         {
             ValidateLayerId(ref layerId);
             
@@ -287,14 +296,11 @@ namespace Assets.Scripts.GridMapMaker
 
             AddLayerToAllGridChunks(layerId, gridShape, defaultVData, useVisualEquality);
 
-            if (setBaselayer)
+            if (setBaselayer || layerIds.Count == 1)
             {
-                baseLayerId = layerId;
-            }
+                defaultLayerId = layerId;
 
-            if(layerIds.Count == 1)
-            {
-                baseLayerId = layerId;
+                UpdateChunkLocalPosition();
             }
 
             return true;
@@ -307,7 +313,7 @@ namespace Assets.Scripts.GridMapMaker
         /// <param timerName="data"></param>
         /// <param timerName="layerId"></param>
         public void InsertVisualData(Vector2Int gridPosition, ShapeVisualData data, 
-                            string layerId = USE_BASE_LAYER)
+                            string layerId = USE_DEFAULT_LAYER)
         {
 
             ValidateLayerId(ref layerId);
@@ -321,7 +327,7 @@ namespace Assets.Scripts.GridMapMaker
             }
         }
 
-        public void InsertVisualData_Block(List<Vector2Int> positions, List<ShapeVisualData> data, string layerId = USE_BASE_LAYER)
+        public void InsertVisualData_Block(List<Vector2Int> positions, List<ShapeVisualData> data, string layerId = USE_DEFAULT_LAYER)
         {
             for(int i = 0; i < positions.Count; i++)
             {
@@ -334,7 +340,7 @@ namespace Assets.Scripts.GridMapMaker
         /// </summary>
         /// <param timerName="gridPosition"></param>
         /// <param timerName="layerId"></param>
-        public void RemoveVisualData(Vector2Int gridPosition, string layerId = USE_BASE_LAYER)
+        public void RemoveVisualData(Vector2Int gridPosition, string layerId = USE_DEFAULT_LAYER)
         {
             GridChunk chunk = GetHexChunk(gridPosition);
 
@@ -360,7 +366,7 @@ namespace Assets.Scripts.GridMapMaker
 
         public void DeletePosition(Vector2Int gridPosition)
         {
-            ValidateLayerId(ref baseLayerId);
+            ValidateLayerId(ref defaultLayerId);
 
             foreach (GridChunk chunk in sortedChunks.Values)
             {
@@ -368,7 +374,7 @@ namespace Assets.Scripts.GridMapMaker
             }
         }
 
-        public void DeletePosition(Vector2Int gridPosition, string layerId = USE_BASE_LAYER)
+        public void DeletePosition(Vector2Int gridPosition, string layerId = USE_DEFAULT_LAYER)
         {
             ValidateLayerId(ref layerId);
 
@@ -384,7 +390,7 @@ namespace Assets.Scripts.GridMapMaker
         /// Set whether to use visual equality at the given layer. Note, that you will have to reinsert the visual data so that the changes take effect. It is not enough to call UpdateGrid()
         /// </summary>
         /// <param name="useEquality"></param>
-        public void SetVisualEquality(bool useEquality, string layerId = USE_BASE_LAYER)
+        public void SetVisualEquality(bool useEquality, string layerId = USE_DEFAULT_LAYER)
         {
             ValidateLayerId(ref layerId);
 
@@ -405,11 +411,19 @@ namespace Assets.Scripts.GridMapMaker
             c.SetVisualEquality(useEquality);
         }
 
+        /// <summary>
+        /// Enable or disable a chunk if the chunk is contained within the given bounds. If invert is true, the status of chunks not in the bounds will be set to the opposite of the given status
+        /// </summary>
+        /// <param name="bounds"></param>
+        /// <param name="status"></param>
+        /// <param name="invert"></param>
         public void SetStatusIfChunkIsInBounds(Bounds bounds, bool status, bool invert = false)
         {
             foreach (GridChunk chunk in sortedChunks.Values)
             {
-                if (chunk.Contains_BaseLayer(bounds))
+                Bounds chunkBounds = chunk.GetDefaultLayerBounds();
+                
+                if (bounds.Intersects(chunkBounds))
                 {
                     chunk.gameObject.SetActive(status);
                 }
@@ -422,12 +436,21 @@ namespace Assets.Scripts.GridMapMaker
                 }
             }
         }
+
+        /// <summary>
+        /// Enable or disable a chunk if the chunk is not contained within the given bounds. If invert is true, the status of chunks that are in the bounds will be set to the opposite of the given status
+        /// </summary>
+        /// <param name="bounds"></param>
+        /// <param name="status"></param>
+        /// <param name="invert"></param>
         public void SetStatusIfChunkIsNotInBounds(Bounds bounds, bool status,
                                                   bool invert = false)
         {
             foreach (GridChunk chunk in sortedChunks.Values)
             {
-                if (!chunk.Contains_BaseLayer(bounds))
+                Bounds chunkBounds = chunk.GetDefaultLayerBounds();
+
+                if (!bounds.Intersects(chunkBounds))
                 {
                     chunk.gameObject.SetActive(status);
                 }
@@ -456,7 +479,7 @@ namespace Assets.Scripts.GridMapMaker
         }
 
         // Update a specific layer at a given position
-        public void UpdatePosition(Vector2Int gridPosition, string layerId = USE_BASE_LAYER)
+        public void UpdatePosition(Vector2Int gridPosition, string layerId = USE_DEFAULT_LAYER)
         {
             GridChunk chunk = GetHexChunk(gridPosition);
 
@@ -465,6 +488,18 @@ namespace Assets.Scripts.GridMapMaker
                 chunk.UpdateLayer(layerId);
             }
         }
+
+        /// <summary>
+        /// Update the local position of all chunks. Call this when you have set or changed the defaultLayer
+        /// </summary>
+        private void UpdateChunkLocalPosition()
+        {
+            foreach (GridChunk chunk in sortedChunks.Values)
+            {
+                chunk.UpdateLocalPosition();
+            }
+        }
+
         public void UpdateGrid()
         {
             foreach (GridChunk chunk in sortedChunks.Values)
@@ -473,7 +508,7 @@ namespace Assets.Scripts.GridMapMaker
             }
         }
 
-        public void RedrawLayer(string layerId = USE_BASE_LAYER)
+        public void RedrawLayer(string layerId = USE_DEFAULT_LAYER)
         {
             ValidateLayerId(ref layerId);
 
@@ -524,9 +559,9 @@ namespace Assets.Scripts.GridMapMaker
         /// <param timerName="layerId"></param>
         private void ValidateLayerId(ref string layerId)
         {
-            if (layerId.Equals(USE_BASE_LAYER))
+            if (layerId.Equals(USE_DEFAULT_LAYER))
             {
-                layerId = BaseLayer;
+                layerId = DefaultLayer;
             }
         }
         /// <summary>
@@ -534,7 +569,7 @@ namespace Assets.Scripts.GridMapMaker
         /// </summary>
         /// <param timerName="layerId"></param>
         /// <returns></returns>
-        public GridShape GetShape(string layerId = USE_BASE_LAYER)
+        public GridShape GetShape(string layerId = USE_DEFAULT_LAYER)
         {
             ValidateLayerId(ref layerId);
 
@@ -555,7 +590,7 @@ namespace Assets.Scripts.GridMapMaker
         /// <param timerName="gridPosition"></param>
         /// <returns></returns>
         public GridShape GetShape(Vector2Int gridPosition, 
-                                        string layerId = USE_BASE_LAYER)
+                                        string layerId = USE_DEFAULT_LAYER)
         {
             ValidateLayerId(ref layerId);
             
@@ -571,7 +606,7 @@ namespace Assets.Scripts.GridMapMaker
             return shape;
         }
         public GridShape GetShape(Vector3 localPosition, 
-                            string layerId = USE_BASE_LAYER)
+                            string layerId = USE_DEFAULT_LAYER)
         {
             ValidateLayerId(ref layerId);
 
@@ -588,7 +623,7 @@ namespace Assets.Scripts.GridMapMaker
         }
 
         // use base layer for these positions
-        public Vector2Int LocalToGridPosition(Vector3 localPosition, string layerId = USE_BASE_LAYER)
+        public Vector2Int LocalToGridPosition(Vector3 localPosition, string layerId = USE_DEFAULT_LAYER)
         {
             GridChunk chunk = GetHexChunk(localPosition, layerId);
 
@@ -631,7 +666,7 @@ namespace Assets.Scripts.GridMapMaker
         /// <param timerName="layerId"></param>
         /// <returns></returns>
         public T GetVisualProperties<T>(Vector2Int gridPosition,
-                                    string layerId = USE_BASE_LAYER) where T : ShapeVisualData
+                                    string layerId = USE_DEFAULT_LAYER) where T : ShapeVisualData
         {
             ValidateLayerId(ref layerId);
 
@@ -653,7 +688,7 @@ namespace Assets.Scripts.GridMapMaker
         /// <param timerName="layerId"></param>
         /// <returns></returns>
         public ShapeVisualData GetVisualProperties(Vector2Int gridPosition,
-                                                    string layerId = USE_BASE_LAYER)
+                                                    string layerId = USE_DEFAULT_LAYER)
         {
             ValidateLayerId(ref layerId);
             
