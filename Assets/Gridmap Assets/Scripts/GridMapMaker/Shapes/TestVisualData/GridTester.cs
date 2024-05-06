@@ -1,4 +1,5 @@
-﻿using Assets.Scripts.GridMapMaker;
+﻿using Assets.Gridmap_Assets.Scripts.Miscellaneous;
+using Assets.Scripts.GridMapMaker;
 using Assets.Scripts.Miscellaneous;
 using System;
 using System.Collections.Generic;
@@ -46,16 +47,30 @@ namespace Assets.Gridmap_Assets.Scripts.GridMapMaker.Shapes.TestVisualData
         bool useVe = false;
         public void GenerateGrid()
         {
+            TimeLogger.StartTimer(123, "Generation Time");
+
             DefaultVisual def
                     = DefaultVisual.CreateDefaultVisual(Color.blue);
 
+            TimeLogger.ClearTimers();
+
+            TimeLogger.StartTimer(145, "Initing Grid");
             gridManager.Initialize();
-            
+            TimeLogger.StopTimer(145);
+
+            TimeLogger.StartTimer(233, "Creating Layer");
             gridManager.CreateLayer(layerId, aShape, def, useVisualEquality: useVe);
+            TimeLogger.StopTimer(233);
 
             gridManager.SetVisualContainer(visualContainer);
 
+            TimeLogger.StartTimer(42, "Filling Grid Chunks");
             gridManager.FillGridChunks_TestMethod();
+            TimeLogger.StopTimer(42);
+
+            TimeLogger.StopAllTimers();
+
+            TimeLogger.LogAll();
         }
         public void UpdateMap()
         {

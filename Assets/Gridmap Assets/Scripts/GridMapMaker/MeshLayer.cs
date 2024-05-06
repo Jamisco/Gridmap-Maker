@@ -36,7 +36,9 @@ namespace Assets.Gridmap_Assets.Scripts.Mapmaker
         */
         // A layered mesh is a collection of fused meshes that are then combined together to make one mesh.
         // Each fused mesh is a unique visually, meaning it may have a different texture, color, etc. However each fused mesh has thesame shape
-        const int MAXVERTCOUNT = 65534;
+
+
+        const int MAX_VERTICES = 65534;
         GridChunk gridChunk;
 
         [SerializeField]
@@ -63,13 +65,7 @@ namespace Assets.Gridmap_Assets.Scripts.Mapmaker
         // The grouping of visual datas that are used to make a mesh.
         // So cells that have "equal" visualData will be group here and drawn as one
         /// </summary>
-        private Dictionary<ShapeVisualData, List<Vector2Int>> LayerFusedMeshes;
-
-        /// <summary>
-        // The grouping of visual datas that are used to make a mesh.
-        // So cells that have "equal" visualData will be group here and drawn as one
-        /// </summary>
-        private Dictionary<ShapeVisualData, List<Vector2Int>> VisualDataGroup;
+        private Dictionary<ShapeVisualData, ShapeMeshFuser> VisualDataGroup;
         /// <summary>
         /// The original visualData used for each cell. We store this so we can redraw the mesh if need be
         /// </summary>
@@ -164,9 +160,7 @@ namespace Assets.Gridmap_Assets.Scripts.Mapmaker
             this.useVisualEquality = useVisualEquality;
             visualDataComparer.UseVisualEquality = useVisualEquality;
 
-            LayerFusedMeshes = new Dictionary<ShapeVisualData, List<Vector2Int>>(visualDataComparer);
-
-            VisualDataGroup = new Dictionary<ShapeVisualData, List<Vector2Int>>                                                           (visualDataComparer);
+            VisualDataGroup = new Dictionary<ShapeVisualData, ShapeMeshFuser>(visualDataComparer);
 
             chunkOffset = gridShape.GetTesselatedPosition(chunk.StartPosition);
 
@@ -208,6 +202,8 @@ namespace Assets.Gridmap_Assets.Scripts.Mapmaker
 
             // every time we insert a visual vData, we must check if the grid position already has a visual vData, if it does, we must remove it because we might have to assign a new visual Data to it..thus moving said grid mesh to a new fused mesh
 
+            TimeLogger.InsertTimer(12, "InsertPosition");
+
             if (redrawMode == false)
             {
                 DeleteShape(gridPosition);
@@ -215,24 +211,24 @@ namespace Assets.Gridmap_Assets.Scripts.Mapmaker
                 CellVisualDatas.Add(gridPosition, visualProp);
             }
 
-            List<Vector2Int> positions = null;
+            ShapeMeshFuser meshFuser = null;
             
-            VisualDataGroup.TryGetValue(visualProp, out positions);
+            VisualDataGroup.TryGetValue(visualProp, out meshFuser);
 
-            if (positions != null)
+            if (meshFuser != null)
             {
-                VisualDataGroup[visualProp].Add(gridPosition);
+                VisualDataGroup[visualProp].InsertPosition(gridPosition);
             }
             else
             {
-                positions = new List<Vector2Int>();
-                positions.Add(gridPosition);
+                ShapeMeshFuser newFuser = new ShapeMeshFuser(LayerGridShape, chunkOffset);
 
-                VisualDataGroup.Add(visualProp, positions);
+                VisualDataGroup.Add(visualProp, newFuser);
 
                 SetEvent(visualProp);
             }
 
+            TimeLogger.StopTimer(12);
         }
         public void RemoveVisualData(Vector2Int gridPosition)
         {
@@ -251,9 +247,9 @@ namespace Assets.Gridmap_Assets.Scripts.Mapmaker
 
             if (existing != null)
             {
-                VisualDataGroup[existing].Remove(gridPosition);
+                VisualDataGroup[existing].RemovePosition(gridPosition);
 
-                if (VisualDataGroup[existing].Count == 0)
+                if (VisualDataGroup[existing].IsEmpty)
                 {
                     VisualDataGroup.Remove(existing);
                     RemoveEvent(existing);
@@ -274,102 +270,152 @@ namespace Assets.Gridmap_Assets.Scripts.Mapmaker
         }
         public void VisualIdChanged(ShapeVisualData sender)
         {
-            ShapeVisualData changedProp = VisualDataGroup.Keys.FirstOrDefault
-                                    (x => x == sender);
+//            ShapeVisualData changedProp = VisualDataGroup.Keys.FirstOrDefault
+//                                    (x => x == sender);
 
-            // make sure the changedProp exists
-            // if it doesn't, it means that the visual vData was never inserted in the first place or has been removed
-            if (changedProp != null)
-            {
-                // When a visual prop has changed, we need to see if there is another visual prop that looks like it
+//            // make sure the changedProp exists
+//            // if it doesn't, it means that the visual vData was never inserted in the first place or has been removed
+//            if (changedProp != null)
+//            {
+//                // When a visual prop has changed, we need to see if there is another visual prop that looks like it
 
-                ShapeVisualData identicalData = VisualDataGroup.Keys.FirstOrDefault
-                            (x => (x != changedProp && x.Equals(changedProp)));
+//                ShapeVisualData identicalData = VisualDataGroup.Keys.FirstOrDefault
+//                            (x => (x != changedProp && x.Equals(changedProp)));
 
-                // if there is a identicalData, combine it with the old vData
-                if (identicalData != null)
-                {
-                    // if there is a identicalData, combine the fused meshes
-                    List<Vector2Int> prePositions = VisualDataGroup[identicalData];
-                    List<Vector2Int> changedPositions = VisualDataGroup[changedProp];
+//                // if there is a identicalData, combine it with the old vData
+//                if (identicalData != null)
+//                {
+//                    // if there is a identicalData, combine the fused meshes
+//                    ShapeMeshFuser prePositions = VisualDataGroup[identicalData];
+//                    List<Vector2Int> changedPositions = VisualDataGroup[changedProp];
 
-                    // remove the old fused mesh
-                    VisualDataGroup.Remove(changedProp);
+//                    // remove the old fused mesh
+//                    VisualDataGroup.Remove(changedProp);
 
-                    prePositions.AddRange(changedPositions);
+//                    prePositions.AddRange(changedPositions);
 
-                    VisualDataGroup[identicalData] = prePositions;
-                }
-                else
-                {
-                    // if there is no identicalData, it means that the visual vData is still unique, nothing more is required
-                }
+//                    VisualDataGroup[identicalData] = prePositions;
+//                }
+//                else
+//                {
+//                    // if there is no identicalData, it means that the visual vData is still unique, nothing more is required
+//                }
 
-#if UNITY_EDITOR
-                // if we are in editor, the event was most likely raised during a serialization process, and we can't update the mesh during serialization. So we wait until the serialization process is done, then update the mesh. 
-                if (UpdateOnVisualChange)
-                {
-                    EditorApplication.delayCall += () =>
-                    {
-                        UpdateMesh();
-                    };
-                }
-#else
-                UpdateMesh();
-#endif
-            }
-            else
-            {
-                // this visualData does not exist in this layer, remove it
-                // this should never occur so as long as we are removing the event whenever we delete a position
-            }
+//#if UNITY_EDITOR
+//                // if we are in editor, the event was most likely raised during a serialization process, and we can't update the mesh during serialization. So we wait until the serialization process is done, then update the mesh. 
+//                if (UpdateOnVisualChange)
+//                {
+//                    EditorApplication.delayCall += () =>
+//                    {
+//                        UpdateMesh();
+//                    };
+//                }
+//#else
+//                UpdateMesh();
+//#endif
+//            }
+//            else
+//            {
+//                // this visualData does not exist in this layer, remove it
+//                // this should never occur so as long as we are removing the event whenever we delete a position
+//            }
 
         }
         public void CreateFusedMeshes()
         {
-            // Performance Test
-            // for 50 x 50: 0 - 0.0001 seconds
-            // for 100 x 100: 0 - 0.0001 seconds
+            TimeLogger.StartTimer(13, "CreateFusedMeshes");
+            
+            List<SmallMesh> smallMeshes = new List<SmallMesh>();
 
-            List<FusedMesh> allMeshes = new List<FusedMesh>();
-            List<int> hashes;
-            List<Vector3> gridPositions;
-            FusedMesh fusedMesh;
-
+            // we need to draw the max meshes in their own mesh object
             foreach (var vData in VisualDataGroup.Keys)
             {
-                fusedMesh = new FusedMesh();
+                ShapeMeshFuser m = VisualDataGroup[vData];
+                m.UpdateMesh();
 
-                gridPositions = VisualDataGroup[vData].Select(x => LayerGridShape.GetTesselatedPosition(x)).ToList();
+                List<Mesh> tempMeshes = m.GetAllMeshes();
 
-                hashes = new List<int>();
-
-                foreach (var gridPosition in VisualDataGroup[vData])
+                for (int i = 0; i < tempMeshes.Count; i++)
                 {
-                    hashes.Add(gridPosition.GetHashCode_Unique());
+                    smallMeshes.Add(new SmallMesh(vData, tempMeshes[i]));
+                }
+            }
+
+            // group meshes that are within the max vert limit, combined them, with sub meshes, use material from visual data
+
+            List<ShapeVisualData> tempDats = new List<ShapeVisualData>();
+
+            for(int i = 0; i < smallMeshes.Count; i++)
+            {
+                ShapeVisualData vData = smallMeshes[i].vData;
+                Mesh mesh = smallMeshes[i].smallMesh;
+
+                if (mesh.vertexCount > )
+                {
+                    // if the mesh is too large, we have to split it up
+                }
+            }
+            
+
+            SetMaterials();
+
+            TimeLogger.StopTimer(13);
+
+            GameObject CreateMeshHolder(ShapeVisualData vData)
+            {
+                GameObject meshHold = new GameObject(name);
+                meshHold.transform.SetParent(transform);
+
+                meshHold.transform.localPosition = Vector3.zero;
+
+                // add mesh components
+
+                MeshFilter meshF = meshHold.AddComponent<MeshFilter>();
+                MeshRenderer meshR = meshHold.AddComponent<MeshRenderer>();
+
+                ShapeRenderData rData = vData.GetShapeRenderData();
+
+                meshR.sharedMaterial = rData.SharedMaterial;
+
+                return meshHold;
+            }
+
+            void GroupMeshes()
+            {
+                smallMeshes.Sort((x, y) => x.VertexCount.CompareTo(y.VertexCount));
+
+                MaxMesh mm = new MaxMesh();
+
+                for(int i = 0; i < smallMeshes.Count; i++)
+                {
+                    if (mm.CanAdd(smallMeshes[i].smallMesh) )
+                    {
+                        mm.Add(smallMeshes[i].vData, smallMeshes[i].smallMesh);
+                    }
+                    else
+                    {
+                        GameObject meshHolder = CreateMeshHolder(mm.vDatas[0]);
+
+                        Mesh mesh = new Mesh();
+
+                        mesh = FusedMesh.CombineToSubmesh(mm.smallMesh);
+
+                        List<Material> sharedMats = new List<Material>();
+
+                        mm.vDatas.ForEach(x => sharedMats.Add(x));
+
+
+                        meshHolder.GetComponent<MeshFilter>().sharedMesh = mesh;
+
+                        mm = new MaxMesh();
+                    }
                 }
 
-                fusedMesh.AddMeshList(shapeMesh, hashes, gridPositions);
             }
-
-            LayerMesh = FusedMesh.CombineToSubmesh(allMeshes);
-            // create new mats for each sub mesh, assign list to renderer
-            SetMaterials();
         }
+
         public void UpdateMesh()
         {
-            //foreach (var vData in VisualDataGroup.Keys)
-            //{
-            //    VisualDataGroup[vData].UpdateMesh();
-            //}
-
-            // convert above to for
-
-            for (int i = 0; i < VisualDataGroup.Count; i++)
-            {
-                //VisualDataGroup.ElementAt(i).Value.UpdateMesh();
-            }
-
             CreateFusedMeshes();
 
             if (LayerMesh != null)
@@ -495,6 +541,61 @@ namespace Assets.Gridmap_Assets.Scripts.Mapmaker
             UpdateMesh();
         }
 
+        private struct MaxMesh
+        {
+            public List<ShapeVisualData> vDatas;
+            public List<Mesh> smallMesh;
+
+            public int VertexCount;
+
+            public MaxMesh(int i = 0)
+            {
+                vDatas = new List<ShapeVisualData>();
+                smallMesh = new List<Mesh>();
+
+                VertexCount = 0;
+            }
+            public void Add(ShapeVisualData vData, Mesh fuser)
+            {
+                vDatas.Add(vData);
+                smallMesh.Add(fuser);
+
+                VertexCount += fuser.vertexCount;
+            }
+
+            public bool CanAdd(Mesh fuser)
+            {
+                if(VertexCount + fuser.vertexCount < MAX_VERTICES)
+                {
+                    return true;
+                }
+                else
+                {
+                    return false;
+                }
+            }   
+
+
+        }
+
+        private struct SmallMesh
+        {
+            public ShapeVisualData vData;
+            public Mesh smallMesh;
+
+            public int VertexCount => smallMesh.vertexCount;
+            public SmallMesh(ShapeVisualData vData, Mesh fuser)
+            {
+                this.vData = vData;
+                this.smallMesh = fuser;
+            }
+            public void Deconstruct(out ShapeVisualData vData, out Mesh fuser)
+            {
+                vData = this.vData;
+                fuser = this.smallMesh;
+            }
+        }
+
         [Serializable]
         public struct SerializedLayer
         {
@@ -543,4 +644,6 @@ namespace Assets.Gridmap_Assets.Scripts.Mapmaker
             }
         }
     }
+
+   
 }

@@ -32,6 +32,10 @@ namespace Assets.Scripts.GridMapMaker
 
         public bool IsEmpty { get { return MeshHashes.Count == 0; } }
 
+        private bool pendingUpdate;
+
+        
+
         private void Init()
         {
             MeshHashes = new List<int>();
@@ -214,25 +218,7 @@ namespace Assets.Scripts.GridMapMaker
             UpdateMesh();
         }
 
-        public void CombineFusedMesh(FusedMesh fusedMesh)
-        {
-            if (fusedMesh == null)
-            {
-                throw new Exception("Fused mesh is null");
-            }
-
-            if (fusedMesh.MeshSizes.Count == 0)
-            {
-                throw new Exception("Fused mesh is empty");
-            }
-
-            for (int i = 0; i < fusedMesh.MeshSizes.Count; i++)
-            {
-                AddMesh_NoUpdate(fusedMesh.Mesh, fusedMesh.MeshHashes[i], Vector3.zero);
-            }
-
-            UpdateMesh();
-        }
+        
         private void AddMesh_NoUpdate(Mesh mesh, int hash, Vector3 offset)
         {
             int index = MeshHashes.IndexOf(hash);
@@ -394,6 +380,25 @@ namespace Assets.Scripts.GridMapMaker
             }
         }
 
+        public void CombineFusedMesh(FusedMesh fusedMesh)
+        {
+            if (fusedMesh == null)
+            {
+                throw new Exception("Fused mesh is null");
+            }
+
+            if (fusedMesh.MeshSizes.Count == 0)
+            {
+                throw new Exception("Fused mesh is empty");
+            }
+
+            for (int i = 0; i < fusedMesh.MeshSizes.Count; i++)
+            {
+                AddMesh_NoUpdate(fusedMesh.Mesh, fusedMesh.MeshHashes[i], Vector3.zero);
+            }
+
+            UpdateMesh();
+        }
         public bool HasMesh(int hash)
         {
             return MeshHashes.IndexOf(hash) == -1 ? false : true;
@@ -497,7 +502,7 @@ namespace Assets.Scripts.GridMapMaker
                 mesh.SetTriangles(subdividedTriangles[i], i);
                 mesh.SetColors(subdividedColors[i]);
                 mesh.SetUVs(0, subdividedUVs[i]);
-
+                 
                 // Recalculate normals and bounds for each submesh
                 mesh.RecalculateNormals();
                 mesh.RecalculateBounds();
