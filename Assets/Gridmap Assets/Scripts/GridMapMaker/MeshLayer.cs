@@ -202,7 +202,7 @@ namespace Assets.Gridmap_Assets.Scripts.Mapmaker
 
             // every time we insert a visual vData, we must check if the grid position already has a visual vData, if it does, we must remove it because we might have to assign a new visual Data to it..thus moving said grid mesh to a new fused mesh
 
-            TimeLogger.InsertTimer(12, "InsertPosition");
+            TimeLogger.StartTimer(12, "InsertPosition");
 
             if (redrawMode == false)
             {
@@ -211,21 +211,30 @@ namespace Assets.Gridmap_Assets.Scripts.Mapmaker
                 CellVisualDatas.Add(gridPosition, visualProp);
             }
 
+            TimeLogger.StartTimer(7845, "Insert 0");
             ShapeMeshFuser meshFuser = null;
             
+            // change hash to retur numbers for shapevisdata
             VisualDataGroup.TryGetValue(visualProp, out meshFuser);
+
+            TimeLogger.StopTimer(7845);
 
             if (meshFuser != null)
             {
+                TimeLogger.StartTimer(1485, "Insert 1");
                 VisualDataGroup[visualProp].InsertPosition(gridPosition);
+                TimeLogger.StopTimer(1485);
             }
             else
             {
+                TimeLogger.StartTimer(1415, "Insert 2");
                 ShapeMeshFuser newFuser = new ShapeMeshFuser(LayerGridShape, chunkOffset);
 
                 VisualDataGroup.Add(visualProp, newFuser);
 
                 SetEvent(visualProp);
+
+                TimeLogger.StopTimer(1415);
             }
 
             TimeLogger.StopTimer(12);
@@ -343,7 +352,10 @@ namespace Assets.Gridmap_Assets.Scripts.Mapmaker
 
             // group meshes that are within the max vert limit, combined them, with sub meshes, use material from visual data
 
+            TimeLogger.StartTimer(133, "GroupAndDrawMeshes");
             GroupAndDrawMeshes();
+            TimeLogger.StopTimer(133);
+
 
             TimeLogger.StopTimer(13);
 
@@ -424,7 +436,6 @@ namespace Assets.Gridmap_Assets.Scripts.Mapmaker
                 }
             }
         }
-
         public void UpdateMesh()
         {
             CreateFusedMeshes();
@@ -597,7 +608,6 @@ namespace Assets.Gridmap_Assets.Scripts.Mapmaker
 
 
         }
-
         private struct SmallMesh
         {
             public ShapeVisualData vData;
@@ -642,7 +652,6 @@ namespace Assets.Gridmap_Assets.Scripts.Mapmaker
             }
         }
         
-
         /// <summary>
         /// Just used to quick create layers. Nothing majors
         /// </summary>

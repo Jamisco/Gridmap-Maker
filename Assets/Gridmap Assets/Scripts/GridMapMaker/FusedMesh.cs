@@ -34,8 +34,6 @@ namespace Assets.Scripts.GridMapMaker
 
         private bool pendingUpdate;
 
-        
-
         private void Init()
         {
             MeshHashes = new List<int>();

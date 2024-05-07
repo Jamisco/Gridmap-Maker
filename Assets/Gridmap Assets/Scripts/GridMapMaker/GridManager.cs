@@ -206,6 +206,8 @@ namespace Assets.Scripts.GridMapMaker
         }
         public void FillGridChunks_TestMethod(string layerId = USE_DEFAULT_LAYER)
         {
+            TimeLogger.StartTimer(42, "Filling Grid Chunks");
+            
             ValidateLayerId(ref layerId);
             
             BasicVisual data;
@@ -213,7 +215,7 @@ namespace Assets.Scripts.GridMapMaker
             Material material = visualContainer.GetRandomObject<Material>();
 
             MakeRandomData();
-            
+
             foreach (GridChunk chunk in sortedChunks.Values)
             {
                 int startX = chunk.StartPosition.x;
@@ -225,18 +227,21 @@ namespace Assets.Scripts.GridMapMaker
                 Vector2Int gridPosition;
 
                 for (int x = startX; x < xCount; x++)
-                {
+                {              
                     visualProps.Add(data);
 
                     for (int y = startY; y < yCount; y++)
                     {
                         MakeRandomData();
+                                         
                         gridPosition = new Vector2Int(x, y);
 
                         chunk.InsertVisualData(layerId, gridPosition, data);                      
-                    }
-                }
+                    } 
+                }   
             }
+
+            TimeLogger.StopTimer(42);
 
             UpdateGrid();
 

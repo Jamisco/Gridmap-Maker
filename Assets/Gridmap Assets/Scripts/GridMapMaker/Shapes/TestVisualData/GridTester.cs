@@ -47,12 +47,12 @@ namespace Assets.Gridmap_Assets.Scripts.GridMapMaker.Shapes.TestVisualData
         bool useVe = false;
         public void GenerateGrid()
         {
-            TimeLogger.StartTimer(123, "Generation Time");
+            TimeLogger.ClearTimers();
+            
+            TimeLogger.StartTimer(451, "Generation Time");
 
             DefaultVisual def
                     = DefaultVisual.CreateDefaultVisual(Color.blue);
-
-            TimeLogger.ClearTimers();
 
             TimeLogger.StartTimer(145, "Initing Grid");
             gridManager.Initialize();
@@ -64,9 +64,7 @@ namespace Assets.Gridmap_Assets.Scripts.GridMapMaker.Shapes.TestVisualData
 
             gridManager.SetVisualContainer(visualContainer);
 
-            TimeLogger.StartTimer(42, "Filling Grid Chunks");
-            gridManager.FillGridChunks_TestMethod();
-            TimeLogger.StopTimer(42);
+            gridManager.FillGridChunks_TestMethod();           
 
             TimeLogger.StopAllTimers();
 
