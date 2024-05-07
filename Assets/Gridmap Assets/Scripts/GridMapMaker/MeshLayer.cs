@@ -343,27 +343,13 @@ namespace Assets.Gridmap_Assets.Scripts.Mapmaker
 
             // group meshes that are within the max vert limit, combined them, with sub meshes, use material from visual data
 
-            List<ShapeVisualData> tempDats = new List<ShapeVisualData>();
-
-            for(int i = 0; i < smallMeshes.Count; i++)
-            {
-                ShapeVisualData vData = smallMeshes[i].vData;
-                Mesh mesh = smallMeshes[i].smallMesh;
-
-                if (mesh.vertexCount > )
-                {
-                    // if the mesh is too large, we have to split it up
-                }
-            }
-            
-
-            SetMaterials();
+            GroupAndDrawMeshes();
 
             TimeLogger.StopTimer(13);
 
-            GameObject CreateMeshHolder(ShapeVisualData vData)
+            GameObject CreateMeshHolder(string objName = "Layer Mesh")
             {
-                GameObject meshHold = new GameObject(name);
+                GameObject meshHold = new GameObject(objName);
                 meshHold.transform.SetParent(transform);
 
                 meshHold.transform.localPosition = Vector3.zero;
@@ -373,18 +359,16 @@ namespace Assets.Gridmap_Assets.Scripts.Mapmaker
                 MeshFilter meshF = meshHold.AddComponent<MeshFilter>();
                 MeshRenderer meshR = meshHold.AddComponent<MeshRenderer>();
 
-                ShapeRenderData rData = vData.GetShapeRenderData();
-
-                meshR.sharedMaterial = rData.SharedMaterial;
-
                 return meshHold;
             }
 
-            void GroupMeshes()
+            void GroupAndDrawMeshes()
             {
                 smallMeshes.Sort((x, y) => x.VertexCount.CompareTo(y.VertexCount));
 
-                MaxMesh mm = new MaxMesh();
+                MaxMesh mm = MaxMesh.Default();
+
+                List<MaxMesh> mmGroup = new List<MaxMesh>();
 
                 for(int i = 0; i < smallMeshes.Count; i++)
                 {
@@ -394,23 +378,50 @@ namespace Assets.Gridmap_Assets.Scripts.Mapmaker
                     }
                     else
                     {
-                        GameObject meshHolder = CreateMeshHolder(mm.vDatas[0]);
+                        mmGroup.Add(mm);
 
-                        Mesh mesh = new Mesh();
+                        mm = MaxMesh.Default();
 
-                        mesh = FusedMesh.CombineToSubmesh(mm.smallMesh);
-
-                        List<Material> sharedMats = new List<Material>();
-
-                        mm.vDatas.ForEach(x => sharedMats.Add(x));
-
-
-                        meshHolder.GetComponent<MeshFilter>().sharedMesh = mesh;
-
-                        mm = new MaxMesh();
+                        mm.Add(smallMeshes[i].vData, smallMeshes[i].smallMesh);
                     }
                 }
 
+                if(mm.VertexCount > 0)
+                {
+                    mmGroup.Add(mm);
+                }
+
+                int x = 1;
+                foreach (MaxMesh m in mmGroup)
+                {
+                    GameObject meshHolder = CreateMeshHolder("Mesh " + x++);
+
+                    Mesh mesh = new Mesh();
+
+                    mesh = FusedMesh.CombineToSubmesh(m.smallMesh);
+
+                    List<Material> sharedMats = new List<Material>();
+                    List<MaterialPropertyBlock> matProps = new List<MaterialPropertyBlock>();
+
+                    foreach(ShapeVisualData vData in m.vDatas)
+                    {
+                        ShapeRenderData srd = vData.GetShapeRenderData();
+
+                        sharedMats.Add(srd.SharedMaterial);
+                        matProps.Add(srd.PropertyBlock);
+                    }
+
+                    MeshRenderer ren = meshHolder.GetComponent<MeshRenderer>();
+
+                    ren.sharedMaterials = sharedMats.ToArray();
+
+                    for(int i = 0; i < sharedMats.Count; i++) 
+                    {
+                        ren.SetPropertyBlock(matProps[i], i);
+                    }
+
+                    meshHolder.GetComponent<MeshFilter>().sharedMesh = mesh;
+                }
             }
         }
 
@@ -548,7 +559,7 @@ namespace Assets.Gridmap_Assets.Scripts.Mapmaker
 
             public int VertexCount;
 
-            public MaxMesh(int i = 0)
+            private void Init()
             {
                 vDatas = new List<ShapeVisualData>();
                 smallMesh = new List<Mesh>();
@@ -565,7 +576,7 @@ namespace Assets.Gridmap_Assets.Scripts.Mapmaker
 
             public bool CanAdd(Mesh fuser)
             {
-                if(VertexCount + fuser.vertexCount < MAX_VERTICES)
+                if(VertexCount + fuser.vertexCount <= MAX_VERTICES)
                 {
                     return true;
                 }
@@ -574,6 +585,15 @@ namespace Assets.Gridmap_Assets.Scripts.Mapmaker
                     return false;
                 }
             }   
+
+            public static MaxMesh Default()
+            {
+                MaxMesh def = new MaxMesh();
+
+                def.Init();
+
+                return def;
+            }
 
 
         }
