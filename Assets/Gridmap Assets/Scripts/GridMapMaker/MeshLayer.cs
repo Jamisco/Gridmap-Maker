@@ -263,6 +263,8 @@ namespace Assets.Gridmap_Assets.Scripts.Mapmaker
                     VisualDataGroup.Remove(existing);
                     RemoveEvent(existing);
                 }
+
+                CellVisualDatas.Remove(gridPosition);
             }
         }
         public bool HasVisualData(Vector2Int gridPosition)
@@ -438,6 +440,12 @@ namespace Assets.Gridmap_Assets.Scripts.Mapmaker
         }
         public void UpdateMesh()
         {
+            // delelet all child game objects 
+            for (int i = transform.childCount - 1; i >= 0; i--)
+            {
+                DestroyImmediate(transform.GetChild(i).gameObject);
+            }
+
             CreateFusedMeshes();
 
             if (LayerMesh != null)

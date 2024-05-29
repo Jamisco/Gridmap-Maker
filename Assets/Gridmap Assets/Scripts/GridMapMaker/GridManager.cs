@@ -228,12 +228,10 @@ namespace Assets.Scripts.GridMapMaker
 
                 for (int x = startX; x < xCount; x++)
                 {              
-                    visualProps.Add(data);
+                    visualProps.Add(data.ShallowCopy<BasicVisual>());
 
                     for (int y = startY; y < yCount; y++)
                     {
-                        MakeRandomData();
-                                         
                         gridPosition = new Vector2Int(x, y);
 
                         chunk.InsertVisualData(layerId, gridPosition, data);                      

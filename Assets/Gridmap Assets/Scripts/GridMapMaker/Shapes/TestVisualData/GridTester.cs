@@ -108,7 +108,15 @@ namespace Assets.Gridmap_Assets.Scripts.GridMapMaker.Shapes.TestVisualData
 
         public void HighlightShape()
         {
+            BasicVisual data = gridManager.GetVisualProperties(Vector2Int.zero, layerId) as BasicVisual;
+
+            data = data.DeepCopy<BasicVisual>();
+            data.mainColor = Color.green;
+            data.VisualIdChanged();
             
+            gridManager.InsertVisualData(InputHex, data, layerId);
+
+            gridManager.UpdateGrid();
 
         }
 

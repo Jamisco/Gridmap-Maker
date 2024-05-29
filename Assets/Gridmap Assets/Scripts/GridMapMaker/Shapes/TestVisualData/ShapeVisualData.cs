@@ -46,6 +46,9 @@ namespace Assets.Gridmap_Assets.Scripts.GridMapMaker.Shapes.TestVisualData
         /// 
         protected virtual List<Type> IgnoredTypes { get; set; }
 
+        /// <summary>
+        /// Similar to getHashCode, if 2 visuals have thesame reference, they should be equal. This is a unique identifier for the visual data during serialization/deserilization
+        /// </summary>
         public Guid VisualId { get; private set; }
 
         public ShapeVisualData()
@@ -56,6 +59,8 @@ namespace Assets.Gridmap_Assets.Scripts.GridMapMaker.Shapes.TestVisualData
             // this is done intentionally because 
             IgnoredTypes.Add(typeof(MaterialPropertyBlock));
             IgnoredTypes.Add(typeof(ISerializedVisual));
+
+            VisualEqualityHash = -111111;
         }
 
         public abstract void SetMaterialProperties();
@@ -67,15 +72,28 @@ namespace Assets.Gridmap_Assets.Scripts.GridMapMaker.Shapes.TestVisualData
         protected virtual void OnVisualIdChanged(ShapeVisualData sender)
         {
             VisualIdChange?.Invoke(this);
+            VisualEqualityHash = CalculateVisualEqualityHash();
+
         }
         public virtual ShapeRenderData GetShapeRenderData()
         {
             SetMaterialProperties();
             return new ShapeRenderData(sharedMaterial, propertyBlock, visualName);
         }
+
+        /// <summary>
+        /// Will return a shallow copy of the visual data. This is useful when you want to create a new visual data that looks thesame as the original. The returned visual data will STILL SHARE REFERENCES. 
+        /// </summary>
+        /// <typeparam name="T"></typeparam>
+        /// <returns></returns>
         public virtual T ShallowCopy<T>() where T : ShapeVisualData
         {
             return (T)MemberwiseClone();
+        }
+        public virtual int CalculateVisualEqualityHash()
+        {
+            ShapeRenderData data = GetShapeRenderData();
+            return data.GetVisualHash();
         }
         public virtual T DeepCopy<T>(MapVisualContainer container) where T : ShapeVisualData
         {
@@ -86,6 +104,7 @@ namespace Assets.Gridmap_Assets.Scripts.GridMapMaker.Shapes.TestVisualData
 
             return copy;
         }
+
         public abstract T DeepCopy<T>() where T : ShapeVisualData;
 
         /// <summary>
@@ -108,17 +127,8 @@ namespace Assets.Gridmap_Assets.Scripts.GridMapMaker.Shapes.TestVisualData
         /// <returns></returns>
         public virtual bool VisuallyEquals(ShapeVisualData other)
         {
-            ShapeRenderData data = GetShapeRenderData();
-            ShapeRenderData otherData = other.GetShapeRenderData();
-
-            bool val = data.VisuallyEqual(otherData);
-            return val;
+            return VisualEqualityHash == other.VisualEqualityHash;
         }
-
-        /// <summary>
-        /// just a default hash code to use when the visual data is not set to use visual equality
-        /// </summary>
-        private const int defaultHashCode = -1111111;
 
         /// <summary>
         ///  This is used to generate a hash code for the visual data. Implement this if you want to use visual equality to compare visuals.
@@ -127,8 +137,7 @@ namespace Assets.Gridmap_Assets.Scripts.GridMapMaker.Shapes.TestVisualData
         /// </summary>
         public virtual int GetVisualEqualityHash()
         {
-            ShapeRenderData data = GetShapeRenderData();
-            return data.GetVisualHash();
+            return VisualEqualityHash;
         }
         
 
