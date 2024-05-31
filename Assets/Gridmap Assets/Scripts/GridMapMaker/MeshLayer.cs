@@ -51,7 +51,7 @@ namespace Assets.Gridmap_Assets.Scripts.Mapmaker
             {
                 useVisualEquality = value;
 
-                visualDataComparer.UseVisualEquality = value;
+                visualDataComparer.UseVisualHash = value;
             }
         }
         
@@ -158,7 +158,7 @@ namespace Assets.Gridmap_Assets.Scripts.Mapmaker
             this.layerId = layerId;
             this.defaultVisualProp = defaultVisual;
             this.useVisualEquality = useVisualEquality;
-            visualDataComparer.UseVisualEquality = useVisualEquality;
+            visualDataComparer.UseVisualHash = useVisualEquality;
 
             VisualDataGroup = new Dictionary<ShapeVisualData, ShapeMeshFuser>(visualDataComparer);
 
@@ -338,19 +338,29 @@ namespace Assets.Gridmap_Assets.Scripts.Mapmaker
             
             List<SmallMesh> smallMeshes = new List<SmallMesh>();
 
+            TimeLogger.StartTimer(1748, "CreateFusedMeshes Loop 1");
             // we need to draw the max meshes in their own mesh object
+            
             foreach (var vData in VisualDataGroup.Keys)
             {
                 ShapeMeshFuser m = VisualDataGroup[vData];
-                m.UpdateMesh();
 
+                TimeLogger.StartTimer(719, "CreateFusedMeshes Update");
+                m.UpdateMesh();
+                TimeLogger.StopTimer(719);
+
+
+                TimeLogger.StartTimer(715, "CreateFusedMeshes Post Update");
                 List<Mesh> tempMeshes = m.GetAllMeshes();
 
                 for (int i = 0; i < tempMeshes.Count; i++)
                 {
                     smallMeshes.Add(new SmallMesh(vData, tempMeshes[i]));
                 }
+                TimeLogger.StopTimer(715);
             }
+
+            TimeLogger.StopTimer(1748);
 
             // group meshes that are within the max vert limit, combined them, with sub meshes, use material from visual data
 

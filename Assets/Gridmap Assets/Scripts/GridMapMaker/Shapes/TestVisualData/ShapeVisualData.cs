@@ -25,9 +25,15 @@ namespace Assets.Gridmap_Assets.Scripts.GridMapMaker.Shapes.TestVisualData
         }
 
         /// <summary>
-        /// For faster comparison, Generate a visual hash code such that if two visual data are equal, they should have the same hash code
+        /// Similar to getHashCode, if 2 visuals have thesame reference, they should be equal. This is a unique identifier for a visual data during serialization/deserilization
         /// </summary>
-        protected int VisualEqualityHash { get; set; }
+        public Guid VisualId { get; private set; }
+
+        /// <summary>
+        /// For faster comparison, Generate a visual hash code such that if two visual data are equal, they should have the same hash code.
+        /// This Should return a hash code such that 2 visual data that look thesame should have thesame hash. Make sure the hashcode is unique only for a specific visual look.
+        /// </summary>
+        protected virtual int VisualHash { get; set; }
 
         public delegate void VisualDataChanged(ShapeVisualData sender);
 
@@ -40,29 +46,16 @@ namespace Assets.Gridmap_Assets.Scripts.GridMapMaker.Shapes.TestVisualData
         public static string mainTexProperty = "_MainTex";
         public static string mainColorProperty = "_Color";
 
-        /// <summary>
-        /// This is a list of types to ignore when using reflection to check for equality
-        /// </summary>
-        /// 
-        protected virtual List<Type> IgnoredTypes { get; set; }
-
-        /// <summary>
-        /// Similar to getHashCode, if 2 visuals have thesame reference, they should be equal. This is a unique identifier for the visual data during serialization/deserilization
-        /// </summary>
-        public Guid VisualId { get; private set; }
-
         public ShapeVisualData()
         {
             VisualId = Guid.NewGuid();
 
-            IgnoredTypes = new List<Type>();
-            // this is done intentionally because 
-            IgnoredTypes.Add(typeof(MaterialPropertyBlock));
-            IgnoredTypes.Add(typeof(ISerializedVisual));
-
-            VisualEqualityHash = -111111;
+            VisualHash = -111111;
         }
 
+        /// <summary>
+        /// Set the material properties of your shader in this method. This will be called when the visual data is being used to render a shape
+        /// </summary>
         public abstract void SetMaterialProperties();
 
         public void VisualIdChanged()
@@ -72,7 +65,7 @@ namespace Assets.Gridmap_Assets.Scripts.GridMapMaker.Shapes.TestVisualData
         protected virtual void OnVisualIdChanged(ShapeVisualData sender)
         {
             VisualIdChange?.Invoke(this);
-            VisualEqualityHash = CalculateVisualEqualityHash();
+            VisualHash = GetShaderVisualHash();
 
         }
         public virtual ShapeRenderData GetShapeRenderData()
@@ -90,11 +83,23 @@ namespace Assets.Gridmap_Assets.Scripts.GridMapMaker.Shapes.TestVisualData
         {
             return (T)MemberwiseClone();
         }
-        public virtual int CalculateVisualEqualityHash()
+
+        /// <summary>
+        /// This will get the render data of the visual data and then get the VisualHash of said data. This is an expensive operation and should be used sparingly.
+        /// </summary>
+        /// <returns></returns>
+        protected int GetShaderVisualHash()
         {
             ShapeRenderData data = GetShapeRenderData();
             return data.GetVisualHash();
         }
+
+        /// <summary>
+        /// Does a deep copy by serializing and deserializing the visual data. This is useful when you want to create a new visual data that looks thesame as the original. The returned visual data will NOT SHARE REFERENCES.
+        /// </summary>
+        /// <typeparam name="T"></typeparam>
+        /// <param name="container"></param>
+        /// <returns></returns>
         public virtual T DeepCopy<T>(MapVisualContainer container) where T : ShapeVisualData
         {
             T copy = (T)MemberwiseClone();
@@ -104,7 +109,6 @@ namespace Assets.Gridmap_Assets.Scripts.GridMapMaker.Shapes.TestVisualData
 
             return copy;
         }
-
         public abstract T DeepCopy<T>() where T : ShapeVisualData;
 
         /// <summary>
@@ -125,31 +129,20 @@ namespace Assets.Gridmap_Assets.Scripts.GridMapMaker.Shapes.TestVisualData
         /// </summary>
         /// <param timerName="other"></param>
         /// <returns></returns>
-        public virtual bool VisuallyEquals(ShapeVisualData other)
+        public bool VisuallyEquals(ShapeVisualData other)
         {
-            return VisualEqualityHash == other.VisualEqualityHash;
-        }
-
-        /// <summary>
-        ///  This is used to generate a hash code for the visual data. Implement this if you want to use visual equality to compare visuals.
-        /// This Should return a hash code such that 2 visual data that are thesame should have thesame hash. Make sure the hashcode is unique only for a specific visual look 
-        /// If your method is too expensive/time taking, it might be best to cache the hash and change the VisualDataComparer to compare cache values accordingly
-        /// </summary>
-        public virtual int GetVisualEqualityHash()
-        {
-            return VisualEqualityHash;
+            return VisualHash == other.VisualHash;
         }
         
-
         /// <summary>
         /// This is used to compare visuals.
         /// </summary>
         public class VisualDataComparer : IEqualityComparer<ShapeVisualData>
         {
-            public bool UseVisualEquality { get; set; }
+            public bool UseVisualHash { get; set; }
             public bool Equals(ShapeVisualData x, ShapeVisualData y)
             {
-                if (UseVisualEquality == true)
+                if (UseVisualHash == true)
                 {
                     return x.VisuallyEquals(y);
                 }
@@ -161,9 +154,9 @@ namespace Assets.Gridmap_Assets.Scripts.GridMapMaker.Shapes.TestVisualData
 
             public int GetHashCode(ShapeVisualData obj)
             {
-                if (UseVisualEquality == true)
+                if (UseVisualHash == true)
                 {
-                    return obj.GetVisualEqualityHash();
+                    return obj.VisualHash;
                 }
                 else
                 {

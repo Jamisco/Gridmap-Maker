@@ -123,8 +123,12 @@ namespace Assets.Gridmap_Assets.Scripts.Miscellaneous
 
         public static void LogAll()
         {
-            string fullLog = "";
-            foreach(int id in timers.Keys.ToList())
+            // give date and time in am and pm
+
+            string date = DateTime.Now.ToString("MM/dd/yyyy hh:mm tt");
+
+            string fullLog = "Log Time: " + date + "\n";
+            foreach (int id in timers.Keys.ToList())
             {
                 string l = GetLog(id);
 
