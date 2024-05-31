@@ -1,4 +1,19 @@
-﻿Log Time: 05/30/2024 11:29 PM
+﻿This is from Commit 8757adfdb42a028c72f6f2a35bddd4ace493e38a - "Working on Performance Improvements"
+Generation Time Took: 		 3.794 seconds
+Initing Grid Took: 		 0.001 seconds
+Creating Layer Took: 		 0.001 seconds
+Filling Grid Chunks Took: 		 3.092 seconds
+InsertPosition Took: 		 2.803 seconds
+Insert 0 Took: 		 1.423 seconds --   VisualDataGroup.TryGetValue(visualProp, out meshFuser);
+Insert 2 Took: 		 0.003 seconds
+Insert 1 Took: 		 1.284 seconds -- VisualDataGroup[visualProp].InsertPosition(gridPosition); - if visualProp already existed
+CreateFusedMeshes Took: 		 0.698 seconds
+GroupAndDrawMeshes Took: 		 0.006 seconds
+
+For 200 x 200 grid, 50 x 50 chunks
+
+
+Log Time: 05/30/2024 11:29 PM
 Generation Time Took: 		 0.739 seconds
 Initing Grid Took: 		 0.001 seconds
 Creating Layer Took: 		 0.001 seconds
@@ -13,6 +28,22 @@ CreateFusedMeshes Update Took: 		 0.606 seconds
 CreateFusedMeshes Post Update Took: 		 0 seconds
 GroupAndDrawMeshes Took: 		 0.008 seconds
 
-It seems most of the time (0.606 seconds = 0.606/0.739  82% of the total time) is spent in the CreateFusedMeshes Update function.
-	- That function is the ShapeMeshFuser.Update Function. 
+Log Time: 05/31/2024 01:08 AM
+Generation Time Took: 		 0.892 seconds
+Initing Grid Took: 		 0.001 seconds
+Creating Layer Took: 		 0.001 seconds
+Filling Grid Chunks Took: 		 0.236 seconds
+InsertPosition Took: 		 0.108 seconds
+Insert 0 Took: 		 0.014 seconds
+Insert 2 Took: 		 0 seconds
+Insert 1 Took: 		 0.027 seconds
+CreateFusedMeshes Took: 		 0.652 seconds
+
+For 200 x 200 grid, 50 x 50 chunks
+
+It seems most of the time (70% - 80%) is spent in the CreateFusedMeshes Update function.
+	- That CreateFusedMeshes function is the ShapeMeshFuser.Update Function. 
 	- The good news is that we have successfully optimized our insert method such that it is now insignificant
+	- Additionally, whenever we update the map, we wont have to redraw the whole thing. We also redraw parts of the map that have been changed, 
+	- I tested highlighting a single cell. This was done by, get the cell at (0,0), deep copy it, change its color, and then insert it back into the map.
+		- This was done in 0.004 - 0.013 seconds. If was usually .004 after the first time. JIT compiler and all

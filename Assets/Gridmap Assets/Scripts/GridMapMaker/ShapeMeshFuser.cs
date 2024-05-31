@@ -8,6 +8,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using UnityEngine;
+using UnityEngine.UIElements;
 
 namespace Assets.Gridmap_Assets.Scripts.GridMapMaker
 {
@@ -76,8 +77,6 @@ namespace Assets.Gridmap_Assets.Scripts.GridMapMaker
 
             shapePositions.Add(hash, position);
             pendingUpdate = true;
-
-
         }
 
         public void RemovePosition(Vector2Int position)
@@ -89,6 +88,25 @@ namespace Assets.Gridmap_Assets.Scripts.GridMapMaker
                 shapePositions.Remove(hash);
                 pendingUpdate = true;
             }
+        }
+
+        /// <summary>
+        /// Will combine the given fuser with this fuser. Note that positions that already exist will be ignored
+        /// </summary>
+        /// <param name="meshFuser"></param>
+        public void CombineFuser(ShapeMeshFuser meshFuser)
+        {
+            foreach (KeyValuePair<int, Vector2Int> item in meshFuser.shapePositions)
+            {
+                int hash = item.Value.GetHashCode_Unique();
+
+                if (!shapePositions.ContainsKey(hash))
+                {
+                    shapePositions.Add(hash, item.Value);
+                }  
+            }
+
+            pendingUpdate = true;
         }
 
         public void UpdateMesh()
@@ -115,9 +133,11 @@ namespace Assets.Gridmap_Assets.Scripts.GridMapMaker
 
             foreach(int key in shapePositions.Keys)
             {
+                // this takes 5% of this methods time
                 Vector2Int pos = shapePositions[key];
                 Vector3 offset = gridShape.GetTesselatedPosition(pos) - positionOffset;
 
+                // this takes 60% of this methods time
                 for (int j = 0; j < shapeMeshSize.vertexCount; j++)
                 {
                     Vertices.Add(shapeMesh.vertices[j] + offset);
@@ -125,13 +145,14 @@ namespace Assets.Gridmap_Assets.Scripts.GridMapMaker
                     UVs.Add(shapeMesh.uv[j]);
                 }
 
+                // this takes 30% of this methods time
                 for (int j = 0; j < shapeMeshSize.triangleCount; j++)
                 {
                     Triangles.Add(shapeMesh.triangles[j] + (subMeshIndex * shapeMeshSize.vertexCount));
                 }
 
                 subMeshIndex++;
-
+                // this takes 2% of this methods time
                 if (subMeshIndex == subMeshCount)
                 {
                     meshData.vertices = Vertices.ToArray();

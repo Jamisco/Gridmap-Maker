@@ -108,6 +108,10 @@ namespace Assets.Gridmap_Assets.Scripts.GridMapMaker.Shapes.TestVisualData
 
         public void HighlightShape()
         {
+            TimeLogger.ClearTimers();
+            
+            TimeLogger.StartTimer(4816, "Highlight Shape");
+            
             BasicVisual data = gridManager.GetVisualProperties(Vector2Int.zero, layerId) as BasicVisual;
 
             data = data.DeepCopy<BasicVisual>();
@@ -118,6 +122,9 @@ namespace Assets.Gridmap_Assets.Scripts.GridMapMaker.Shapes.TestVisualData
 
             gridManager.UpdateGrid();
 
+            TimeLogger.StopTimer(4816);
+
+            TimeLogger.LogAll();
         }
 
         public void SetSprite()

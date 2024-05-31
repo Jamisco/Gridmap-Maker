@@ -34,7 +34,7 @@ namespace Assets.Gridmap_Assets.Scripts.Miscellaneous
         }
 
         /// <summary>
-        /// Starts the timer with the given id. If it doesnt exist one is created
+        /// Starts the timer with the given id. If it doesnt exist one is created. If it does
         /// </summary>
         /// <param layerName="id"></param>
         /// <param layerName="name"></param>
@@ -48,7 +48,12 @@ namespace Assets.Gridmap_Assets.Scripts.Miscellaneous
             timers[id].Start();
         }
 
-        public static void StopTimer(int id)
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="id"></param>
+        /// <param name="lazy"> The lazy string simply exist so you can copy/paste the StartTimer line and replace with StopTimer </param>
+        public static void StopTimer(int id, string lazy = "")
         {
             if (!timers.ContainsKey(id))
             {
@@ -137,7 +142,6 @@ namespace Assets.Gridmap_Assets.Scripts.Miscellaneous
 
             Debug.Log(fullLog);
         }
-
         public static void ClearTimers()
         {
             timers.Clear();

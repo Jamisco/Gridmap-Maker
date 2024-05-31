@@ -204,7 +204,7 @@ namespace Assets.Gridmap_Assets.Scripts.Mapmaker
 
             TimeLogger.StartTimer(12, "InsertPosition");
 
-            if (redrawMode == false)
+            if (reInsertMode == false)
             {
                 DeleteShape(gridPosition);
 
@@ -214,18 +214,12 @@ namespace Assets.Gridmap_Assets.Scripts.Mapmaker
             TimeLogger.StartTimer(7845, "Insert 0");
             ShapeMeshFuser meshFuser = null;
             
-            // change hash to retur numbers for shapevisdata
+            // change hash to return numbers for shapevisdata
             VisualDataGroup.TryGetValue(visualProp, out meshFuser);
 
             TimeLogger.StopTimer(7845);
 
-            if (meshFuser != null)
-            {
-                TimeLogger.StartTimer(1485, "Insert 1");
-                VisualDataGroup[visualProp].InsertPosition(gridPosition);
-                TimeLogger.StopTimer(1485);
-            }
-            else
+            if (meshFuser == null)
             {
                 TimeLogger.StartTimer(1415, "Insert 2");
                 ShapeMeshFuser newFuser = new ShapeMeshFuser(LayerGridShape, chunkOffset);
@@ -236,6 +230,10 @@ namespace Assets.Gridmap_Assets.Scripts.Mapmaker
 
                 TimeLogger.StopTimer(1415);
             }
+
+            TimeLogger.StartTimer(1485, "Insert 1");
+            VisualDataGroup[visualProp].InsertPosition(gridPosition);
+            TimeLogger.StopTimer(1485);
 
             TimeLogger.StopTimer(12);
         }
@@ -281,96 +279,81 @@ namespace Assets.Gridmap_Assets.Scripts.Mapmaker
         }
         public void VisualIdChanged(ShapeVisualData sender)
         {
-//            ShapeVisualData changedProp = VisualDataGroup.Keys.FirstOrDefault
-//                                    (x => x == sender);
+            ShapeVisualData changedProp = VisualDataGroup.Keys.FirstOrDefault
+                                    (x => x == sender);
 
-//            // make sure the changedProp exists
-//            // if it doesn't, it means that the visual vData was never inserted in the first place or has been removed
-//            if (changedProp != null)
-//            {
-//                // When a visual prop has changed, we need to see if there is another visual prop that looks like it
+            // make sure the changedProp exists
+            // if it doesn't, it means that the visual vData was never inserted in the first place or has been removed
+            if (changedProp != null)
+            {
+                // When a visual prop has changed, we need to see if there is another visual prop that looks like it
 
-//                ShapeVisualData identicalData = VisualDataGroup.Keys.FirstOrDefault
-//                            (x => (x != changedProp && x.Equals(changedProp)));
+                ShapeVisualData identicalData = VisualDataGroup.Keys.FirstOrDefault
+                            (x => (x != changedProp && x.Equals(changedProp)));
 
-//                // if there is a identicalData, combine it with the old vData
-//                if (identicalData != null)
-//                {
-//                    // if there is a identicalData, combine the fused meshes
-//                    ShapeMeshFuser prePositions = VisualDataGroup[identicalData];
-//                    List<Vector2Int> changedPositions = VisualDataGroup[changedProp];
+                // if there is a identicalData, combine it with the old vData
+                if (identicalData != null)
+                {
+                    // if there is a identicalData, combine the fused meshes
+                    ShapeMeshFuser prePositions = VisualDataGroup[identicalData];
+                    ShapeMeshFuser changedPositions = VisualDataGroup[changedProp];
 
-//                    // remove the old fused mesh
-//                    VisualDataGroup.Remove(changedProp);
+                    // remove the old fused mesh
+                    VisualDataGroup.Remove(changedProp);
 
-//                    prePositions.AddRange(changedPositions);
+                    prePositions.CombineFuser(changedPositions);
 
-//                    VisualDataGroup[identicalData] = prePositions;
-//                }
-//                else
-//                {
-//                    // if there is no identicalData, it means that the visual vData is still unique, nothing more is required
-//                }
+                    VisualDataGroup[identicalData] = prePositions;
+                }
 
-//#if UNITY_EDITOR
-//                // if we are in editor, the event was most likely raised during a serialization process, and we can't update the mesh during serialization. So we wait until the serialization process is done, then update the mesh. 
-//                if (UpdateOnVisualChange)
-//                {
-//                    EditorApplication.delayCall += () =>
-//                    {
-//                        UpdateMesh();
-//                    };
-//                }
-//#else
-//                UpdateMesh();
-//#endif
-//            }
-//            else
-//            {
-//                // this visualData does not exist in this layer, remove it
-//                // this should never occur so as long as we are removing the event whenever we delete a position
-//            }
+
+#if UNITY_EDITOR
+                // if we are in editor, the event was most likely raised during a serialization process, and we can't update the mesh during serialization. So we wait until the serialization process is done, then update the mesh. 
+                if (UpdateOnVisualChange)
+                {
+                    EditorApplication.delayCall += () =>
+                    {
+                        UpdateMesh();
+                    };
+                }
+#else
+                UpdateMesh();
+#endif
+            }
+            else
+            {
+                // this visualData does not exist in this layer, remove it
+                // this should never occur so as long as we are removing the event whenever we delete a position
+            }
 
         }
+
         public void CreateFusedMeshes()
         {
-            TimeLogger.StartTimer(13, "CreateFusedMeshes");
+            TimeLogger.StartTimer(1516, "CreateFusedMeshes");
             
             List<SmallMesh> smallMeshes = new List<SmallMesh>();
 
-            TimeLogger.StartTimer(1748, "CreateFusedMeshes Loop 1");
-            // we need to draw the max meshes in their own mesh object
-            
             foreach (var vData in VisualDataGroup.Keys)
             {
                 ShapeMeshFuser m = VisualDataGroup[vData];
 
-                TimeLogger.StartTimer(719, "CreateFusedMeshes Update");
+                // this line accounts for 80% of the time it takes to draw our map
                 m.UpdateMesh();
-                TimeLogger.StopTimer(719);
 
-
-                TimeLogger.StartTimer(715, "CreateFusedMeshes Post Update");
                 List<Mesh> tempMeshes = m.GetAllMeshes();
 
                 for (int i = 0; i < tempMeshes.Count; i++)
                 {
                     smallMeshes.Add(new SmallMesh(vData, tempMeshes[i]));
                 }
-                TimeLogger.StopTimer(715);
             }
-
-            TimeLogger.StopTimer(1748);
-
-            // group meshes that are within the max vert limit, combined them, with sub meshes, use material from visual data
-
-            TimeLogger.StartTimer(133, "GroupAndDrawMeshes");
+            
+            // group meshes that are within the max vert limit, combined them, with sub meshes, use material from visual data               
             GroupAndDrawMeshes();
-            TimeLogger.StopTimer(133);
-
-
-            TimeLogger.StopTimer(13);
-
+            
+            TimeLogger.StopTimer(1516);
+            
             GameObject CreateMeshHolder(string objName = "Layer Mesh")
             {
                 GameObject meshHold = new GameObject(objName);
@@ -467,17 +450,18 @@ namespace Assets.Gridmap_Assets.Scripts.Mapmaker
         /// <summary>
         /// When redrawing the mesh, we want to skip various checks to expediate the process
         /// </summary>
-        bool redrawMode = false;
+        bool reInsertMode = false;
+        
         /// <summary>
-        /// Clears the mesh and redraws all visual data into the layer. This is useful when the equality comparison has been changed. For example, if you want to render the map based on visual equality
+        /// Clears the mesh and reinserts all visual data back into the layer. This is useful when the equality comparison for the visual properties has been changed.
         /// </summary>
-        public void RedrawLayer()
+        public void ReInsertPositions()
         {
             // because we are reinserting all the data back, we have to cache the visual data and grid visual ids and then clear them, then as we call insertVisualData, the method will reinsert the data back
             
             VisualDataGroup.Clear();
 
-            redrawMode = true;
+            reInsertMode = true;
             foreach (Vector2Int gridPosition in CellVisualDatas.Keys)
             {
                 ShapeVisualData visual = CellVisualDatas[gridPosition];
@@ -486,7 +470,7 @@ namespace Assets.Gridmap_Assets.Scripts.Mapmaker
                 
                 InsertVisualData(gridPosition, visual);
             }
-            redrawMode = false;
+            reInsertMode = false;
         }
         public void Clear()
         {

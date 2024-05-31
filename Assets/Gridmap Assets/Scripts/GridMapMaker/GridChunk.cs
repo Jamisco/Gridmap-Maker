@@ -424,14 +424,14 @@ namespace Assets.Scripts.GridMapMaker
 
         public void RedrawLayer(string layerId)
         {
-            ChunkLayers[layerId].RedrawLayer();
+            ChunkLayers[layerId].ReInsertPositions();
         }
 
         public void RedrawChunk()
         {
             foreach (MeshLayer layer in ChunkLayers.Values)
             {
-                layer.RedrawLayer();
+                layer.ReInsertPositions();
             }
         }
 

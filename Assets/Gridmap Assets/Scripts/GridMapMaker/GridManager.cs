@@ -232,6 +232,8 @@ namespace Assets.Scripts.GridMapMaker
 
                     for (int y = startY; y < yCount; y++)
                     {
+                        MakeRandomData();
+                        
                         gridPosition = new Vector2Int(x, y);
 
                         chunk.InsertVisualData(layerId, gridPosition, data);                      
@@ -246,7 +248,7 @@ namespace Assets.Scripts.GridMapMaker
             void MakeRandomData()
             {
                 bool texture = UnityEngine.Random.Range(0, 2) == 0 ? true : true;
-                
+
                 if (texture)
                 {
                     Texture2D T = visualContainer.GetRandomObject<Texture2D>();
