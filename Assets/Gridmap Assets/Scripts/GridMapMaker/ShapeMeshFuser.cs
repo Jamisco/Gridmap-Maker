@@ -57,7 +57,7 @@ namespace Assets.Gridmap_Assets.Scripts.GridMapMaker
 
             shapePositions = new Dictionary<int, Vector2Int>();
         }
-        public ShapeMeshFuser(GridShape shape, Vector3 positionOffset, List<Vector2Int> gridPositions): 
+        public ShapeMeshFuser(GridShape shape, Vector3 positionOffset, List<Vector2Int> gridPositions) :
                             this(shape, positionOffset)
         {
             foreach (Vector2Int item in gridPositions)
@@ -70,7 +70,7 @@ namespace Assets.Gridmap_Assets.Scripts.GridMapMaker
         {
             int hash = position.GetHashCode_Unique();
 
-            if(shapePositions.ContainsKey(hash))
+            if (shapePositions.ContainsKey(hash))
             {
                 return;
             }
@@ -103,7 +103,7 @@ namespace Assets.Gridmap_Assets.Scripts.GridMapMaker
                 if (!shapePositions.ContainsKey(hash))
                 {
                     shapePositions.Add(hash, item.Value);
-                }  
+                }
             }
 
             pendingUpdate = true;
@@ -135,7 +135,7 @@ namespace Assets.Gridmap_Assets.Scripts.GridMapMaker
 
             List<MeshData> finalMeshData = new List<MeshData>();
             finalMeshes = new List<Mesh>();
-            
+
             foreach (int key in shapePositions.Keys)
             {
                 Vector2Int pos = shapePositions[key];
@@ -147,26 +147,25 @@ namespace Assets.Gridmap_Assets.Scripts.GridMapMaker
                     Colors.Add(shapeMeshData.colors[j]);
                     UVs.Add(shapeMeshData.uv[j]);
                 }
-                
+
                 for (int j = 0; j < shapeMeshSize.triangleCount; j++)
                 {
                     Triangles.Add(shapeMeshData.triangles[j] + (subMeshIndex * shapeMeshSize.vertexCount));
                 }
 
-                subMeshIndex++; 
-                
+                subMeshIndex++;
+
                 if (subMeshIndex == subMeshCount)
                 {
-                   
-                    meshData.vertices = Vertices;
-                    meshData.colors = Colors;
-                    meshData.uv = UVs;
-                    meshData.triangles = Triangles;
+                    meshData.SetVertices(Vertices);
+                    meshData.SetColors(Colors);
+                    meshData.SetUVs(UVs);
+                    meshData.SetTriangles(Triangles);
 
                     finalMeshData.Add(meshData);
 
                     meshData = new MeshData();
-                    
+
                     Vertices.Clear();
                     Triangles.Clear();
                     Colors.Clear();
@@ -175,22 +174,16 @@ namespace Assets.Gridmap_Assets.Scripts.GridMapMaker
                     subMeshCount += subMeshCount;
                     subMeshIndex = 0;
 
-                    subMeshCount = Mathf.Min(shapePositions.Count - 1, subMeshCount);            
+                    subMeshCount = Mathf.Min(shapePositions.Count - 1, subMeshCount);
                 }
-                
+
             }
 
             finalMeshes = new List<Mesh>();
 
             foreach (MeshData item in finalMeshData)
             {
-                Mesh mesh = new Mesh();
-                mesh.SetVertices(item.vertices);
-                mesh.SetTriangles(item.triangles, 0);
-                mesh.SetColors(item.colors);
-                mesh.SetUVs(0, item.uv);
-
-                finalMeshes.Add(mesh);
+                finalMeshes.Add(item.GetMesh());
             }
 
             pendingUpdate = false;
@@ -215,7 +208,7 @@ namespace Assets.Gridmap_Assets.Scripts.GridMapMaker
 
             public int VertexCount { get { return vertices.Count; } }
             public int TriangleCount { get { return triangles.Count; } }
-
+            
             public MeshData(Mesh data)
             {
                 vertices = new List<Vector3>();
@@ -227,6 +220,27 @@ namespace Assets.Gridmap_Assets.Scripts.GridMapMaker
                 triangles.AddRange(data.triangles);
                 colors.AddRange(data.colors);
                 uv.AddRange(data.uv);
+            }
+
+            public void SetVertices(List<Vector3> vertices)
+            {
+                this.vertices = new List<Vector3>();
+                this.vertices.AddRange(vertices);
+            }
+            public void SetTriangles(List<int> triangles)
+            {
+                this.triangles = new List<int>();
+                this.triangles.AddRange(triangles);
+            }
+            public void SetColors(List<Color> colors)
+            {
+                this.colors = new List<Color>();
+                this.colors.AddRange(colors);
+            }
+            public void SetUVs(List<Vector2> uv)
+            {
+                this.uv = new List<Vector2>();
+                this.uv.AddRange(uv);
             }
 
             public Mesh GetMesh()

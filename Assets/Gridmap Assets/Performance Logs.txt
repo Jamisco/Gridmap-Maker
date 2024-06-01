@@ -91,3 +91,6 @@ Update Mesh Took: 		 3.225 seconds
 CreateFusedMeshes Took: 		 3.224 seconds
 
 1000 x 1000 grid, 50 x 50 chunks
+
+For Unity tilemap of same size
+Time to generate grid: 4.756 s

@@ -36,6 +36,11 @@ namespace Assets.Gridmap_Assets.Scripts.GridMapMaker.Shapes.TestVisualData
            // basicVisual.CheckVisualDataChanged();
         }
 
+        private void Start()
+        {
+            GenerateGrid();
+        }
+
         private void Update()
         {
             DisableUnseenChunks();
