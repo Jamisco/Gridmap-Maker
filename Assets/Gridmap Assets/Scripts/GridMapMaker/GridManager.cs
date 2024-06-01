@@ -204,6 +204,7 @@ namespace Assets.Scripts.GridMapMaker
                 chunk.AddLayer(layerId, shape, defaultVisual, useVisualEquality);
             }
         }
+
         public void FillGridChunks_TestMethod(string layerId = USE_DEFAULT_LAYER)
         {
             TimeLogger.StartTimer(42, "Filling Grid Chunks");
@@ -227,16 +228,13 @@ namespace Assets.Scripts.GridMapMaker
                 Vector2Int gridPosition;
 
                 for (int x = startX; x < xCount; x++)
-                {              
-                    visualProps.Add(data.ShallowCopy<BasicVisual>());
-
+                {
+                    MakeRandomData();
                     for (int y = startY; y < yCount; y++)
-                    {
-                        MakeRandomData();
-                        
+                    {                
                         gridPosition = new Vector2Int(x, y);
-
-                        chunk.InsertVisualData(layerId, gridPosition, data);                      
+                        chunk.InsertVisualData(gridPosition, data, layerId);
+                        visualProps.Add(data);
                     } 
                 }   
             }
@@ -248,7 +246,8 @@ namespace Assets.Scripts.GridMapMaker
             void MakeRandomData()
             {
                 bool texture = UnityEngine.Random.Range(0, 2) == 0 ? true : true;
-
+                texture = false;
+                
                 if (texture)
                 {
                     Texture2D T = visualContainer.GetRandomObject<Texture2D>();
@@ -260,6 +259,8 @@ namespace Assets.Scripts.GridMapMaker
                     Color C = UnityEngine.Random.ColorHSV();
                     data = new BasicVisual(material, null, C);
                 }
+
+                data.ValidateVisualHash();
             }
         }
 
@@ -273,6 +274,15 @@ namespace Assets.Scripts.GridMapMaker
         }
         public void Initialize()
         {
+            ValidateChunkSize();
+            CreateGridChunks();
+        }
+
+        public void Initialize(Vector2Int gridSize, Vector2Int chunkSize)
+        {
+            GridSize = gridSize;
+            ChunkSize = chunkSize;
+            
             ValidateChunkSize();
             CreateGridChunks();
         }
@@ -327,16 +337,23 @@ namespace Assets.Scripts.GridMapMaker
 
             if (chunk != null)
             {
-                chunk.InsertVisualData(layerId, gridPosition, data);
+                chunk.InsertVisualData(gridPosition, data, layerId);
                 visualProps.Add(data);
             }
         }
-
-        public void InsertVisualData_Block(List<Vector2Int> positions, List<ShapeVisualData> data, string layerId = USE_DEFAULT_LAYER)
+        public void InsertPosition_Block(List<Vector2Int> positions, List<ShapeVisualData> datas, string layerId = USE_DEFAULT_LAYER)
         {
-            for(int i = 0; i < positions.Count; i++)
+            ValidateLayerId(ref layerId);
+
+            if (positions.Count != datas.Count)
             {
-                InsertVisualData(positions[i], data[i], layerId);
+                Debug.LogError("When Inserting as Block, The number of positions and datas must be the same");
+                return;
+            }
+
+            for (int i = 0; i < positions.Count; i++)
+            {
+                InsertVisualData(positions[i], datas[i], layerId);
             }
         }
 
@@ -706,11 +723,16 @@ namespace Assets.Scripts.GridMapMaker
 
             return null;
         }
-        public void VisualIdChanged()
+       
+        /// <summary>
+        /// Will update the visualHash of all the hashes in the map.
+        /// Do not call unless you need to. Make sure to disable updateOnVisual change in the meshlayer class
+        /// </summary>
+        public void ValidateAllVisualHashes()
         {
             foreach (ShapeVisualData vp in visualProps)
             {
-                vp.VisualIdChanged();
+                vp.ValidateVisualHash();
             }
         }
 

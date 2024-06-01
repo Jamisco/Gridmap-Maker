@@ -8,14 +8,13 @@ using System.Threading.Tasks;
 using UnityEditor;
 using UnityEngine;
 using System.Text.Json;
-
+using Unity.Mathematics;
 
 namespace Assets.Gridmap_Assets.Scripts.GridMapMaker.Shapes
 {
     [Serializable]
     public class BasicVisual : ShapeVisualData
-    {
-        
+    {    
         [SerializeField]
         public Texture2D mainTexture;
         [SerializeField]
@@ -27,8 +26,6 @@ namespace Assets.Gridmap_Assets.Scripts.GridMapMaker.Shapes
 
         [SerializeField]
         private string name;
-       
-
         public BasicVisual(Material material, Texture2D texture, Color color)
         {
             sharedMaterial = material;
@@ -40,7 +37,6 @@ namespace Assets.Gridmap_Assets.Scripts.GridMapMaker.Shapes
         public Material SharedMaterial => sharedMaterial;
         public MaterialPropertyBlock PropertyBlock => propertyBlock;
         protected override ISerializedVisual SerializedData => serializedData;
-
         public override void SetMaterialProperties()
         {
             if (propertyBlock == null)
@@ -75,6 +71,17 @@ namespace Assets.Gridmap_Assets.Scripts.GridMapMaker.Shapes
         {
             BasicVisual clone = new BasicVisual(sharedMaterial, mainTexture, mainColor);
             return clone as T;
+        }
+        public override int GetVisualHash()
+        {
+            int mt = mainTexture != null ? mainTexture.GetHashCode() : 0;
+            unchecked
+            {
+                int hash = 17;
+                hash = hash * 23 + mt;
+                hash = hash * 23 + mainColor.GetHashCode();
+                return hash;
+            }
         }
 
         [Serializable]

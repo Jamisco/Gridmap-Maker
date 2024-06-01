@@ -47,3 +47,47 @@ It seems most of the time (70% - 80%) is spent in the CreateFusedMeshes Update f
 	- Additionally, whenever we update the map, we wont have to redraw the whole thing. We also redraw parts of the map that have been changed, 
 	- I tested highlighting a single cell. This was done by, get the cell at (0,0), deep copy it, change its color, and then insert it back into the map.
 		- This was done in 0.004 - 0.013 seconds. If was usually .004 after the first time. JIT compiler and all
+
+
+Log Time: 05/31/2024 02:36 PM
+Generation Time Took: 		 3.158 seconds
+Filling Grid Chunks Took: 		 1.138 seconds
+InsertPosition Took: 		 0.961 seconds
+Insert 0 Took: 		 0.015 seconds
+Insert 2 Took: 		 0.805 seconds
+Insert 1 Took: 		 0.047 seconds
+CreateFusedMeshes Took: 		 1.993 seconds
+CreateFusedMeshes VGroup Took: 		 0.026 seconds
+CreateFusedMeshes Update Took: 		 1.55 seconds
+CreateFusedMeshes Post Update Took: 		 0.021 seconds
+Group and Draw Update Took: 		 0.361 seconds
+
+For thesame gridSize, however if we make each individual position its own unique position,
+these are the stats we get. Not good!
+
+Log Time: 05/31/2024 03:56 PM
+Generation Time Took: 		 22.536 seconds
+Filling Grid Chunks Took: 		 3.459 seconds
+InsertPosition Took: 		 2.592 seconds
+Insert 0 Took: 		 0.373 seconds
+Insert 2 Took: 		 0.469 seconds
+CreateFusedMeshes Took: 		 19.014 seconds
+CreateFusedMeshes VGroup Took: 		 0.018 seconds
+CreateFusedMeshes Update Took: 		 18.629 seconds
+CreateFusedMeshes Post Update Took: 		 0.017 seconds
+Group and Draw Update Took: 		 0.323 seconds
+
+1000 x 1000 grid
+
+Log Time: 05/31/2024 10:51 PM
+Generation Time Took: 		 7.611 seconds
+Filling Grid Chunks Took: 		 4.317 seconds
+InsertPosition Took: 		 3.457 seconds
+Insert -1 Took: 		 1.243 seconds
+Insert 0 Took: 		 0.356 seconds
+Insert 1 Took: 		 0.467 seconds
+Insert 2 Took: 		 0.698 seconds
+Update Mesh Took: 		 3.225 seconds
+CreateFusedMeshes Took: 		 3.224 seconds
+
+1000 x 1000 grid, 50 x 50 chunks

@@ -160,7 +160,7 @@ namespace Assets.Scripts.GridMapMaker
             {
                 MeshLayer newLayer = CreateLayer(transform);
 
-                newLayer.Initialize(this, uniqueID, shape, defaultVisual, useVisualEquality);
+                newLayer.Initialize(uniqueID, this, shape, defaultVisual, useVisualEquality);
                 ChunkLayers.Add(uniqueID, newLayer);
 
                 spriteLayer.Initialize("Sprite Layer", shape);
@@ -193,7 +193,7 @@ namespace Assets.Scripts.GridMapMaker
             gameObject.transform.localPosition = pos;
         }
 
-        public void InsertVisualData(string layerId, Vector2Int gridPosition, ShapeVisualData visualProp)
+        public void InsertVisualData(Vector2Int gridPosition, ShapeVisualData visualProp, string layerId)
         {
             if (ChunkLayers.ContainsKey(layerId))
             {

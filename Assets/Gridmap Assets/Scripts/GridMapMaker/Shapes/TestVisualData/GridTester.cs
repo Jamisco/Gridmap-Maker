@@ -53,14 +53,10 @@ namespace Assets.Gridmap_Assets.Scripts.GridMapMaker.Shapes.TestVisualData
 
             DefaultVisual def
                     = DefaultVisual.CreateDefaultVisual(Color.blue);
-
-            TimeLogger.StartTimer(145, "Initing Grid");
+            
             gridManager.Initialize();
-            TimeLogger.StopTimer(145);
 
-            TimeLogger.StartTimer(233, "Creating Layer");
             gridManager.CreateLayer(layerId, aShape, def, useVisualEquality: useVe);
-            TimeLogger.StopTimer(233);
 
             gridManager.SetVisualContainer(visualContainer);
 
@@ -116,7 +112,7 @@ namespace Assets.Gridmap_Assets.Scripts.GridMapMaker.Shapes.TestVisualData
 
             data = data.DeepCopy<BasicVisual>();
             data.mainColor = Color.green;
-            data.VisualIdChanged();
+            data.ValidateVisualHash();
             
             gridManager.InsertVisualData(InputHex, data, layerId);
 

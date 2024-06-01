@@ -129,40 +129,43 @@ namespace Assets.Gridmap_Assets.Scripts.GridMapMaker
 
             int subMeshIndex = 0;
 
-            Mesh meshData = new Mesh();
+            MeshData meshData = new MeshData();
 
-            foreach(int key in shapePositions.Keys)
+            MeshData shapeMeshData = new MeshData(shapeMesh);
+
+            List<MeshData> finalMeshData = new List<MeshData>();
+            finalMeshes = new List<Mesh>();
+            
+            foreach (int key in shapePositions.Keys)
             {
-                // this takes 5% of this methods time
                 Vector2Int pos = shapePositions[key];
                 Vector3 offset = gridShape.GetTesselatedPosition(pos) - positionOffset;
 
-                // this takes 60% of this methods time
                 for (int j = 0; j < shapeMeshSize.vertexCount; j++)
                 {
-                    Vertices.Add(shapeMesh.vertices[j] + offset);
-                    Colors.Add(shapeMesh.colors[j]);
-                    UVs.Add(shapeMesh.uv[j]);
+                    Vertices.Add(shapeMeshData.vertices[j] + offset);
+                    Colors.Add(shapeMeshData.colors[j]);
+                    UVs.Add(shapeMeshData.uv[j]);
                 }
-
-                // this takes 30% of this methods time
+                
                 for (int j = 0; j < shapeMeshSize.triangleCount; j++)
                 {
-                    Triangles.Add(shapeMesh.triangles[j] + (subMeshIndex * shapeMeshSize.vertexCount));
+                    Triangles.Add(shapeMeshData.triangles[j] + (subMeshIndex * shapeMeshSize.vertexCount));
                 }
 
-                subMeshIndex++;
-                // this takes 2% of this methods time
+                subMeshIndex++; 
+                
                 if (subMeshIndex == subMeshCount)
                 {
-                    meshData.vertices = Vertices.ToArray();
-                    meshData.colors = Colors.ToArray();
-                    meshData.uv = UVs.ToArray();
-                    meshData.triangles = Triangles.ToArray();
+                   
+                    meshData.vertices = Vertices;
+                    meshData.colors = Colors;
+                    meshData.uv = UVs;
+                    meshData.triangles = Triangles;
 
-                    finalMeshes.Add(meshData);
+                    finalMeshData.Add(meshData);
 
-                    meshData = new Mesh();
+                    meshData = new MeshData();
                     
                     Vertices.Clear();
                     Triangles.Clear();
@@ -172,8 +175,22 @@ namespace Assets.Gridmap_Assets.Scripts.GridMapMaker
                     subMeshCount += subMeshCount;
                     subMeshIndex = 0;
 
-                    subMeshCount = Mathf.Min(shapePositions.Count - 1, subMeshCount);
+                    subMeshCount = Mathf.Min(shapePositions.Count - 1, subMeshCount);            
                 }
+                
+            }
+
+            finalMeshes = new List<Mesh>();
+
+            foreach (MeshData item in finalMeshData)
+            {
+                Mesh mesh = new Mesh();
+                mesh.SetVertices(item.vertices);
+                mesh.SetTriangles(item.triangles, 0);
+                mesh.SetColors(item.colors);
+                mesh.SetUVs(0, item.uv);
+
+                finalMeshes.Add(mesh);
             }
 
             pendingUpdate = false;
@@ -194,7 +211,7 @@ namespace Assets.Gridmap_Assets.Scripts.GridMapMaker
             public List<Vector3> vertices;
             public List<int> triangles;
             public List<Color> colors;
-            public List<Vector2> uvs;
+            public List<Vector2> uv;
 
             public int VertexCount { get { return vertices.Count; } }
             public int TriangleCount { get { return triangles.Count; } }
@@ -204,12 +221,23 @@ namespace Assets.Gridmap_Assets.Scripts.GridMapMaker
                 vertices = new List<Vector3>();
                 triangles = new List<int>();
                 colors = new List<Color>();
-                uvs = new List<Vector2>();
+                uv = new List<Vector2>();
 
                 vertices.AddRange(data.vertices);
                 triangles.AddRange(data.triangles);
                 colors.AddRange(data.colors);
-                uvs.AddRange(data.uv);
+                uv.AddRange(data.uv);
+            }
+
+            public Mesh GetMesh()
+            {
+                Mesh mesh = new Mesh();
+                mesh.SetVertices(vertices);
+                mesh.SetTriangles(triangles, 0);
+                mesh.SetColors(colors);
+                mesh.SetUVs(0, uv);
+
+                return mesh;
             }
         }
     }

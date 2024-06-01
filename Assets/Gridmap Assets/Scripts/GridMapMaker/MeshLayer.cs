@@ -147,7 +147,7 @@ namespace Assets.Gridmap_Assets.Scripts.Mapmaker
             SetMeshInfo();
         }
 
-        public void Initialize(GridChunk chunk, string layerId, GridShape gridShape, ShapeVisualData defaultVisual, bool useVisualEquality = true)
+        public void Initialize(string layerId, GridChunk chunk, GridShape gridShape, ShapeVisualData defaultVisual, bool useVisualEquality = true)
         {
             gridChunk = chunk;
             
@@ -185,56 +185,48 @@ namespace Assets.Gridmap_Assets.Scripts.Mapmaker
         }
         void SetEvent(ShapeVisualData visualProp)
         {
-            visualProp.VisualIdChange += VisualIdChanged;
+            visualProp.VisualDataChange += VisualIdChanged;
         }
         void RemoveEvent(ShapeVisualData visualProp)
         {
-            visualProp.VisualIdChange -= VisualIdChanged;
+            visualProp.VisualDataChange -= VisualIdChanged;
         }
 
         public void InsertVisualData(Vector2Int gridPosition,
                                      ShapeVisualData visualProp)
         {
-            // this function takes up 70% of the time it takes to generate a grid
-
-            //int hash = gridPosition.GetHashCode_Unique();
-            //Vector3 offset = LayerGridShape.GetTesselatedPosition(gridPosition) - chunkOffset;
 
             // every time we insert a visual vData, we must check if the grid position already has a visual vData, if it does, we must remove it because we might have to assign a new visual Data to it..thus moving said grid mesh to a new fused mesh
 
             TimeLogger.StartTimer(12, "InsertPosition");
 
+            // 36% of the time is spent here
             if (reInsertMode == false)
             {
+                // the delete method will remove the position if it exists. So we dont have to check if the gridPositions exist before deleting
                 DeleteShape(gridPosition);
 
                 CellVisualDatas.Add(gridPosition, visualProp);
             }
 
-            TimeLogger.StartTimer(7845, "Insert 0");
+            // 10.2% of the time is spent here
             ShapeMeshFuser meshFuser = null;
             
-            // change hash to return numbers for shapevisdata
             VisualDataGroup.TryGetValue(visualProp, out meshFuser);
-
-            TimeLogger.StopTimer(7845);
-
+            
             if (meshFuser == null)
             {
-                TimeLogger.StartTimer(1415, "Insert 2");
-                ShapeMeshFuser newFuser = new ShapeMeshFuser(LayerGridShape, chunkOffset);
+                // 13.5% of the time is spent here
+                meshFuser = new ShapeMeshFuser(LayerGridShape, chunkOffset);
 
-                VisualDataGroup.Add(visualProp, newFuser);
+                VisualDataGroup.Add(visualProp, meshFuser);
 
                 SetEvent(visualProp);
-
-                TimeLogger.StopTimer(1415);
             }
 
-            TimeLogger.StartTimer(1485, "Insert 1");
-            VisualDataGroup[visualProp].InsertPosition(gridPosition);
-            TimeLogger.StopTimer(1485);
-
+            // 20% of the time is spent here
+            meshFuser.InsertPosition(gridPosition);
+            
             TimeLogger.StopTimer(12);
         }
         public void RemoveVisualData(Vector2Int gridPosition)
@@ -243,9 +235,9 @@ namespace Assets.Gridmap_Assets.Scripts.Mapmaker
 
             InsertVisualData(gridPosition, defaultVisualProp);
         }
+
         public void DeleteShape(Vector2Int gridPosition)
         {
-            int hash = gridPosition.GetHashCode_Unique();
             // We will straight up delete the mesh at the grid position
 
             ShapeVisualData existing = null;
@@ -337,7 +329,6 @@ namespace Assets.Gridmap_Assets.Scripts.Mapmaker
             foreach (var vData in VisualDataGroup.Keys)
             {
                 ShapeMeshFuser m = VisualDataGroup[vData];
-
                 // this line accounts for 80% of the time it takes to draw our map
                 m.UpdateMesh();
 
@@ -348,7 +339,7 @@ namespace Assets.Gridmap_Assets.Scripts.Mapmaker
                     smallMeshes.Add(new SmallMesh(vData, tempMeshes[i]));
                 }
             }
-            
+
             // group meshes that are within the max vert limit, combined them, with sub meshes, use material from visual data               
             GroupAndDrawMeshes();
             
@@ -433,6 +424,7 @@ namespace Assets.Gridmap_Assets.Scripts.Mapmaker
         }
         public void UpdateMesh()
         {
+            TimeLogger.StartTimer(71451, "Update Mesh");
             // delelet all child game objects 
             for (int i = transform.childCount - 1; i >= 0; i--)
             {
@@ -445,6 +437,7 @@ namespace Assets.Gridmap_Assets.Scripts.Mapmaker
             {
                 meshFilter.sharedMesh = LayerMesh;
             }
+            TimeLogger.StopTimer(71451);
         }
 
         /// <summary>

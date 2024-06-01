@@ -33,11 +33,11 @@ namespace Assets.Gridmap_Assets.Scripts.GridMapMaker.Shapes.TestVisualData
         /// For faster comparison, Generate a visual hash code such that if two visual data are equal, they should have the same hash code.
         /// This Should return a hash code such that 2 visual data that look thesame should have thesame hash. Make sure the hashcode is unique only for a specific visual look.
         /// </summary>
-        protected virtual int VisualHash { get; set; }
+        protected virtual int VisualHash { get; private set; }
 
         public delegate void VisualDataChanged(ShapeVisualData sender);
 
-        public event VisualDataChanged VisualIdChange;
+        public event VisualDataChanged VisualDataChange;
 
         protected Material sharedMaterial;
         protected MaterialPropertyBlock propertyBlock;
@@ -46,11 +46,13 @@ namespace Assets.Gridmap_Assets.Scripts.GridMapMaker.Shapes.TestVisualData
         public static string mainTexProperty = "_MainTex";
         public static string mainColorProperty = "_Color";
 
+        public const int DEFAULT_VISUAL_HASH = -1111111111;
+        
         public ShapeVisualData()
         {
             VisualId = Guid.NewGuid();
 
-            VisualHash = -111111;
+            VisualHash = DEFAULT_VISUAL_HASH;
         }
 
         /// <summary>
@@ -58,16 +60,25 @@ namespace Assets.Gridmap_Assets.Scripts.GridMapMaker.Shapes.TestVisualData
         /// </summary>
         public abstract void SetMaterialProperties();
 
-        public void VisualIdChanged()
+        /// <summary>
+        /// Will check if the visual hash has changed. If the hash hash changed, it will raise OnVisualDataChanged event and then update the visual hash.
+        /// </summary>
+        public void ValidateVisualHash()
         {
-            OnVisualIdChanged(this);
-        }
-        protected virtual void OnVisualIdChanged(ShapeVisualData sender)
-        {
-            VisualIdChange?.Invoke(this);
-            VisualHash = GetShaderVisualHash();
+            int oldHash = VisualHash;
+            int newHash = GetVisualHash();
 
+            if (oldHash != newHash)
+            {
+                OnVisualDataChanged(this);
+                VisualHash = newHash;
+            }
         }
+        protected virtual void OnVisualDataChanged(ShapeVisualData sender)
+        {
+            VisualDataChange?.Invoke(this);
+        }
+
         public virtual ShapeRenderData GetShapeRenderData()
         {
             SetMaterialProperties();
@@ -85,13 +96,18 @@ namespace Assets.Gridmap_Assets.Scripts.GridMapMaker.Shapes.TestVisualData
         }
 
         /// <summary>
-        /// This will get the render data of the visual data and then get the VisualHash of said data. This is an expensive operation and should be used sparingly.
+        /// This will get the render data of the visual data and then get the VisualHash of said data. This is an expensive operation and it is recommended you override and create your own hash code based on your visual data.
         /// </summary>
         /// <returns></returns>
-        protected int GetShaderVisualHash()
+        public virtual int GetVisualHash()
         {
             ShapeRenderData data = GetShapeRenderData();
             return data.GetVisualHash();
+        }
+
+        public override int GetHashCode()
+        {
+            return VisualId.GetHashCode();
         }
 
         /// <summary>
