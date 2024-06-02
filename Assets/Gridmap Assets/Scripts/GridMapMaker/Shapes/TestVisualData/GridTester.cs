@@ -11,8 +11,6 @@ using UnityEditor;
 using UnityEngine;
 using UnityEngine.InputSystem;
 using UnityEngine.Rendering;
-using static UnityEditor.Experimental.GraphView.GraphView;
-using static UnityEngine.GraphicsBuffer;
 
 namespace Assets.Gridmap_Assets.Scripts.GridMapMaker.Shapes.TestVisualData
 {
@@ -46,8 +44,9 @@ namespace Assets.Gridmap_Assets.Scripts.GridMapMaker.Shapes.TestVisualData
             DisableUnseenChunks();
         }
 
-        string layerId = "Base Layer";
-
+        public string layerId = "Layer 1";
+        public string layerId2 = "Layer 2";
+        
         [SerializeField]
         bool useVe = false;
         public void GenerateGrid()
@@ -61,11 +60,21 @@ namespace Assets.Gridmap_Assets.Scripts.GridMapMaker.Shapes.TestVisualData
             
             gridManager.Initialize();
 
-            gridManager.CreateLayer(layerId, aShape, def, useVisualEquality: useVe);
+            MeshLayerInfo layerInfo = new MeshLayerInfo(layerId, aShape, def, useVe, 0);
+
+            MeshLayerInfo layerInfo2 = new MeshLayerInfo(layerId2, aShape, def, useVe, 1);
+
+            gridManager.CreateLayer(layerInfo);
+            gridManager.CreateLayer(layerInfo2);
 
             gridManager.SetVisualContainer(visualContainer);
 
-            gridManager.FillGridChunks_TestMethod();           
+            (List<Vector2Int>, List<ShapeVisualData>) mapData = gridManager.GenerateRandomMap();
+
+            gridManager.InsertPosition_Block(mapData.Item1, mapData.Item2, layerId);
+            gridManager.InsertPosition_Block(mapData.Item1, mapData.Item2, layerId2);
+
+            gridManager.UpdateGrid();
 
             TimeLogger.StopAllTimers();
 
@@ -128,9 +137,15 @@ namespace Assets.Gridmap_Assets.Scripts.GridMapMaker.Shapes.TestVisualData
             TimeLogger.LogAll();
         }
 
+        public string layerName = "";
+        public int order = 1;
         public void SetSprite()
         {
-            gridManager.SpawnSprite(InputHex, sprite);
+            // gridManager.SpawnSprite(InputHex, sprite);
+
+            SortingLayerInfo sl = new SortingLayerInfo(layerName, order);
+
+            gridManager.SortMeshLayers(GridManager.SortAxis.Y);
         }
 
         public void RemoveVisualData()

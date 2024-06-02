@@ -11,7 +11,7 @@ using UnityEngine.Rendering;
 namespace Assets.Gridmap_Assets.Scripts.GridMapMaker.Shapes
 {
     /// <summary>
-    /// This simple contains a material and a property block used to render the shape
+    /// This simple contains a material and a property block used to render the Shape
     /// </summary>
     /// 
     [Serializable]

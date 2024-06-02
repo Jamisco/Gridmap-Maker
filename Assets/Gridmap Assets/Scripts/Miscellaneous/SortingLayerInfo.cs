@@ -11,7 +11,7 @@ namespace Assets.Gridmap_Assets.Scripts.Miscellaneous
 
     /// The reason for this class is that the SortingLayer class is not serializable.
     /// This is a workaround. Allowing us to serialize the sorting meshSortLayer.
-    public struct SortingLayerPicker
+    public struct SortingLayerInfo
     {
         [SerializeField] private string layerName;
         [SerializeField] private int orderInLayer;
@@ -33,11 +33,11 @@ namespace Assets.Gridmap_Assets.Scripts.Miscellaneous
             private set => orderInLayer = value;
         }
 
-        public SortingLayerPicker(string layerName, int orderInLayer)
+        public SortingLayerInfo(string layerName, int orderInLayer)
         {
             this.layerName = layerName;
             this.orderInLayer = orderInLayer;
-            layerID = 0;
+            layerID = SortingLayer.NameToID(layerName);
         }
 
         public void Validate()

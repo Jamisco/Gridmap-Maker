@@ -32,8 +32,8 @@ namespace Assets.Gridmap_Assets.Scripts.GridMapMaker.Shapes
         protected Vector2 cellGap;
 
         /// <summary>
-        /// This will contain the edge/bounds position of the shape.
-        /// It is used to find/calculate the bounds and tesselated position of a shape
+        /// This will contain the edge/bounds position of the Shape.
+        /// It is used to find/calculate the bounds and tesselated position of a Shape
         /// </summary>
         protected ShapeVertexBounds svb;
 
@@ -57,7 +57,7 @@ namespace Assets.Gridmap_Assets.Scripts.GridMapMaker.Shapes
             set { uniqueShapeName = value; }
         }
         /// <summary>
-        /// The minimum number of vertices required to make a shape
+        /// The minimum number of vertices required to make a Shape
         /// </summary>
         public List<Vector3> BaseVertices
         {
@@ -65,7 +65,7 @@ namespace Assets.Gridmap_Assets.Scripts.GridMapMaker.Shapes
             set { baseVertices = value; }
         }
        /// <summary>
-        /// The minimum number of UVs required to map a texture onto a shape
+        /// The minimum number of UVs required to map a texture onto a Shape
         /// </summary>
         public List<Vector2> BaseUVs
         {
@@ -74,7 +74,7 @@ namespace Assets.Gridmap_Assets.Scripts.GridMapMaker.Shapes
         }
 
         /// <summary>
-        /// The minimum number of triangles required to make a shape
+        /// The minimum number of triangles required to make a Shape
         /// </summary>
         public List<int> BaseTriangles
         {
@@ -83,21 +83,21 @@ namespace Assets.Gridmap_Assets.Scripts.GridMapMaker.Shapes
         }
 
         /// <summary>
-        /// This function will return the base version of the shape
+        /// This function will return the base version of the Shape
         /// </summary>
         /// <returns></returns>
         public abstract Mesh GetShapeMesh();
         /// <summary>
-        /// The method will return the position of a shape on the grid given its coordinates denoted cx, cy
+        /// The method will return the position of a Shape on the grid given its coordinates denoted cx, cy
         /// </summary>
         /// <param timerName="cx">X coordinate on the grid</param>
         /// <param timerName="cy">Y coordinate on the grid</param>
         /// <returns></returns>
         public abstract Vector3 GetTesselatedPosition(int x, int y);
         /// <summary>
-        /// The method will return the position of a shape on the grid given its coordinates denoted in Vector2Int
+        /// The method will return the position of a Shape on the grid given its coordinates denoted in Vector2Int
         /// </summary>
-        ///  <param timerName="gridPosition">The grid position of the shape</param>
+        ///  <param timerName="gridPosition">The grid position of the Shape</param>
         /// <returns></returns>
         public abstract Vector3 GetTesselatedPosition(Vector2Int gridPosition);
 
@@ -170,7 +170,7 @@ namespace Assets.Gridmap_Assets.Scripts.GridMapMaker.Shapes
         }
         
         /// <summary>
-        /// If tesselation is Uniform, such as it is with rectangles, we can simply multiple the gridPosition gridOffset directly to the shape bounds without having to get the tesselated position of each cell. THIS WILL NOT WORK FOR UN-UNIFORM TESSELATION SUCH AS HEXES
+        /// If tesselation is Uniform, such as it is with rectangles, we can simply multiple the gridPosition gridOffset directly to the Shape bounds without having to get the tesselated position of each cell. THIS WILL NOT WORK FOR UN-UNIFORM TESSELATION SUCH AS HEXES
         /// </summary>
         /// <param name="minGridPosition"></param>
         /// <param name="maxGridPosition"></param>
@@ -217,7 +217,7 @@ namespace Assets.Gridmap_Assets.Scripts.GridMapMaker.Shapes
             Vector3 botTes = GetTesselatedPosition(minGridPosition) + gridOffset;
             Vector3 topTes = GetTesselatedPosition(maxGridPosition) + gridOffset;
 
-            // we then offset the tesselated positions by the shape edge positions to give us the precise positions of the edge
+            // we then offset the tesselated positions by the Shape edge positions to give us the precise positions of the edge
             Vector3 min = new Vector3(botTes.x + svb.leftF, 0,
                                       botTes.z + svb.botF);
 

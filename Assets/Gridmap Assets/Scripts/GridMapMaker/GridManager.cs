@@ -17,6 +17,8 @@ using System.Diagnostics;
 using Debug = UnityEngine.Debug;
 using Assets.Gridmap_Assets.Scripts.Miscellaneous;
 using static UnityEngine.Rendering.VolumeComponent;
+using UnityEngine.UIElements;
+using static UnityEditor.PlayerSettings;
 
 #if UNITY_EDITOR
 using UnityEditor;
@@ -52,7 +54,8 @@ namespace Assets.Scripts.GridMapMaker
         private HashSet<GridShape> gridShapes = new HashSet<GridShape>();
 
         [SerializeField]
-        private HashSet<string> layerIds = new HashSet<string>();
+        private Dictionary<string, MeshLayerInfo> meshLayerInfos 
+                            = new Dictionary<string, MeshLayerInfo>();
 
         public Vector3 WorldPosition
         {
@@ -205,6 +208,50 @@ namespace Assets.Scripts.GridMapMaker
             }
         }
 
+        public (List<Vector2Int>, List<ShapeVisualData>) GenerateRandomMap()
+        {
+            List<Vector2Int> positions = new List<Vector2Int>();
+            List<ShapeVisualData> visualData = new List<ShapeVisualData>();
+
+            BasicVisual data;
+
+            Material material = visualContainer.GetRandomObject<Material>();
+
+            for(int x = 0; x < gridSize.x; x++)
+            {
+                for(int y = 0; y < gridSize.y; y++)
+                {
+                    positions.Add(new Vector2Int(x, y));
+                    MakeRandomData();
+
+                    visualData.Add(data);
+                }
+            }
+
+            TimeLogger.StopTimer(42);
+
+            return (positions, visualData);
+
+            void MakeRandomData()
+            {
+                bool texture = UnityEngine.Random.Range(0, 2) == 0 ? true : true;
+                texture = false;
+
+                if (texture)
+                {
+                    Texture2D T = visualContainer.GetRandomObject<Texture2D>();
+
+                    data = new BasicVisual(material, T, Color.white);
+                }
+                else
+                {
+                    Color C = UnityEngine.Random.ColorHSV();
+                    data = new BasicVisual(material, null, C);
+                }
+
+                data.ValidateVisualHash();
+            }
+        }
         public void FillGridChunks_TestMethod(string layerId = USE_DEFAULT_LAYER)
         {
             TimeLogger.StartTimer(42, "Filling Grid Chunks");
@@ -227,9 +274,10 @@ namespace Assets.Scripts.GridMapMaker
 
                 Vector2Int gridPosition;
 
+                MakeRandomData();
+
                 for (int x = startX; x < xCount; x++)
                 {
-                    MakeRandomData();
                     for (int y = startY; y < yCount; y++)
                     {                
                         gridPosition = new Vector2Int(x, y);
@@ -277,7 +325,6 @@ namespace Assets.Scripts.GridMapMaker
             ValidateChunkSize();
             CreateGridChunks();
         }
-
         public void Initialize(Vector2Int gridSize, Vector2Int chunkSize)
         {
             GridSize = gridSize;
@@ -286,47 +333,115 @@ namespace Assets.Scripts.GridMapMaker
             ValidateChunkSize();
             CreateGridChunks();
         }
-        public bool CreateLayer(LayerCreator data)
+        public bool CreateLayer(MeshLayerInfo layerInfo, bool setBaselayer = false)
         {
-            return CreateLayer(data.layerId, data.shape, data.defaultVData, data.setBaselayer, data.useVisualEquality);
-        }
-        
-        public bool CreateLayer(string layerId, GridShape shape, ShapeVisualData defaultVData, bool setBaselayer = false, bool useVisualEquality = false)
-        {
-            if (layerIds.Contains(layerId))
+            if (meshLayerInfos.TryAdd(layerInfo.LayerId, layerInfo) == false)
             {
                 return false;
             }
 
-            gridShapes.TryGetValue(shape, out GridShape gridShape);
+            gridShapes.TryGetValue(layerInfo.Shape, out GridShape gridShape);
 
             if (gridShape == null)
             {
-                gridShape = shape.Init(shape, CellGap);
+                gridShape = layerInfo.Shape.Init(layerInfo.Shape, CellGap);
 
                 gridShapes.Add(gridShape);
             }
 
-            layerIds.Add(layerId);
+            AddLayerToAllGridChunks(layerInfo.LayerId, gridShape, layerInfo.DefaultVisualData, layerInfo.UseVisualEquality);
 
-            AddLayerToAllGridChunks(layerId, gridShape, defaultVData, useVisualEquality);
-
-            if (setBaselayer || layerIds.Count == 1)
+            if (setBaselayer || meshLayerInfos.Count == 1)
             {
-                defaultLayerId = layerId;
+                defaultLayerId = layerInfo.LayerId;
 
                 UpdateChunkLocalPosition();
             }
 
             return true;
         }
+        public MeshLayerInfo GetLayerInfo(string layerId = USE_DEFAULT_LAYER)
+        {
+            ValidateLayerId(ref layerId);
+
+            return meshLayerInfos[layerId];
+            
+        }
+        public void SetLayerInfo(string layerId, MeshLayerInfo mli)
+        {
+            meshLayerInfos[layerId] = mli;
+        }
+        public enum SortAxis { X, Y, Z }
+        public void SortMeshLayers(SortAxis axis = SortAxis.Y)
+        {
+            List<MeshLayerInfo> orderedLayers = meshLayerInfos.Values.OrderBy(x => x.OrderInLayer).ToList();
+
+            int i = 0;
+
+            int previousOrder = int.MinValue;
+            float offset = 0;
+
+            // the reason we have this is because, consecutive calls to sort the layers will result in the offset position progressively getting higher. Thus, we assume that the position of the parent gridObject is the absolute lowest position all mesh layers will start from.
+            float baseLocation = 0;
+            Vector3 gridPos = transform.position;
+
+            switch (axis)
+            {
+                case SortAxis.X:
+                    baseLocation += gridPos.x;
+                    break;
+                case SortAxis.Y:
+                    baseLocation += gridPos.y;
+                    break;
+                case SortAxis.Z:
+                    baseLocation += gridPos.z;
+                    break;
+                default:
+                    break;
+            }
+
+            foreach (MeshLayerInfo layer in orderedLayers)
+            {
+                int order = layer.OrderInLayer;
+
+                if (order > previousOrder)
+                {
+                    offset = baseLocation + MeshLayerInfo.SortStep * i++;
+                }
+            
+                foreach (GridChunk chunk in sortedChunks.Values)
+                {
+                    chunk.SortLayer(layer.LayerId, axis, offset);
+                }
+
+                previousOrder = order;
+            }
+        }
         
+        /// <summary>
+        /// Will return a dictionary, where for every LayerId, give the current position of its corresponding layerObject. This is useful if you want to know the position of the layers such that you can know how/where to place other objects such as sprites
+        /// </summary>
+        /// <returns></returns>
+        public Dictionary<string, Vector3> GetMeshLayerPositions()
+        {
+            GridChunk start = sortedChunks.Values.First();
+            Dictionary<string, Vector3> mlPos = new Dictionary<string, Vector3>();
+
+            foreach(MeshLayerInfo info in meshLayerInfos.Values)
+            {
+                MeshLayer ml = start.GetMeshLayer(info.LayerId);
+                mlPos.Add(info.LayerId, ml.gameObject.transform.position);
+            }
+
+            return mlPos;
+        }
+
         /// <summary>
         /// Insert a visual data at a given position. If said position already has a visual data, it is replaced with the given data
         /// </summary>
         /// <param timerName="gridPosition"></param>
         /// <param timerName="data"></param>
-        /// <param timerName="layerId"></param>
+        /// <param timerName="LayerId"></param>
         public void InsertVisualData(Vector2Int gridPosition, ShapeVisualData data, 
                             string layerId = USE_DEFAULT_LAYER)
         {
@@ -361,7 +476,7 @@ namespace Assets.Scripts.GridMapMaker
         /// Removes the visual data at the given grid position from the given layer
         /// </summary>
         /// <param timerName="gridPosition"></param>
-        /// <param timerName="layerId"></param>
+        /// <param timerName="LayerId"></param>
         public void RemoveVisualData(Vector2Int gridPosition, string layerId = USE_DEFAULT_LAYER)
         {
             GridChunk chunk = GetHexChunk(gridPosition);
@@ -528,6 +643,8 @@ namespace Assets.Scripts.GridMapMaker
             {
                 chunk.UpdateLayers();
             }
+
+            SortMeshLayers();
         }
 
         public void RedrawLayer(string layerId = USE_DEFAULT_LAYER)
@@ -568,7 +685,7 @@ namespace Assets.Scripts.GridMapMaker
 
             sortedChunks.Clear();
             visualProps.Clear();
-            layerIds.Clear();
+            meshLayerInfos.Clear();
             gridShapes.Clear();
         }
         #endregion
@@ -576,9 +693,9 @@ namespace Assets.Scripts.GridMapMaker
         #region Grid Positioning
 
         /// <summary>
-        /// If the layerId is the Base layer id, we simply set the layerID to the actual base layer id
+        /// If the LayerId is the Base layer id, we simply set the layerID to the actual base layer id
         /// </summary>
-        /// <param timerName="layerId"></param>
+        /// <param timerName="LayerId"></param>
         private void ValidateLayerId(ref string layerId)
         {
             if (layerId.Equals(USE_DEFAULT_LAYER))
@@ -587,9 +704,9 @@ namespace Assets.Scripts.GridMapMaker
             }
         }
         /// <summary>
-        /// Loops through all the chunks and returns the shape of the first layer found with the given ID.
+        /// Loops through all the chunks and returns the Shape of the first layer found with the given ID.
         /// </summary>
-        /// <param timerName="layerId"></param>
+        /// <param timerName="LayerId"></param>
         /// <returns></returns>
         public GridShape GetShape(string layerId = USE_DEFAULT_LAYER)
         {
@@ -606,9 +723,9 @@ namespace Assets.Scripts.GridMapMaker
         }
 
         /// <summary>
-        /// Returns the shape of the layer at the given grid position.
+        /// Returns the Shape of the layer at the given grid position.
         /// </summary>
-        /// <param timerName="layerId"></param>
+        /// <param timerName="LayerId"></param>
         /// <param timerName="gridPosition"></param>
         /// <returns></returns>
         public GridShape GetShape(Vector2Int gridPosition, 
@@ -685,7 +802,7 @@ namespace Assets.Scripts.GridMapMaker
         /// </summary>
         /// <typeparam timerName="T"></typeparam>
         /// <param timerName="gridPosition"></param>
-        /// <param timerName="layerId"></param>
+        /// <param timerName="LayerId"></param>
         /// <returns></returns>
         public T GetVisualProperties<T>(Vector2Int gridPosition,
                                     string layerId = USE_DEFAULT_LAYER) where T : ShapeVisualData
@@ -707,7 +824,7 @@ namespace Assets.Scripts.GridMapMaker
         /// Modifying and Updating said visualData will consequently modify all shapes that used said visualData...use with care
         /// </summary>
         /// <param timerName="gridPosition"></param>
-        /// <param timerName="layerId"></param>
+        /// <param timerName="LayerId"></param>
         /// <returns></returns>
         public ShapeVisualData GetVisualProperties(Vector2Int gridPosition,
                                                     string layerId = USE_DEFAULT_LAYER)
@@ -813,7 +930,7 @@ namespace Assets.Scripts.GridMapMaker
 
             public SavedMap(GridManager gridManager)
             {
-                this.gridSize = gridManager.GridSize; ;
+                gridSize = gridManager.GridSize; ;
                 
                 visualProps = gridManager.visualProps.ToList();
 
@@ -846,6 +963,44 @@ namespace Assets.Scripts.GridMapMaker
         
         #endregion
 
+    }
+
+    public struct MeshLayerInfo
+    {
+        public static float SortStep = 0.0001f;
+
+        public string LayerId { get; private set; }
+        public GridShape Shape { get; set; }
+        public ShapeVisualData DefaultVisualData { get; set; }
+        public bool UseVisualEquality { get; set; }
+        public int OrderInLayer { get; set; }
+        public MeshLayerInfo(string layerId, GridShape shape, ShapeVisualData defaultVData, bool useVisualEquality = false, int orderInLayer = 0)
+        {
+            LayerId = layerId;
+            Shape = shape;
+            DefaultVisualData = defaultVData;
+            UseVisualEquality = useVisualEquality;
+            OrderInLayer = orderInLayer;
+        }
+
+        public override int GetHashCode()
+        {
+            return LayerId.GetHashCode();
+        }
+
+        public override bool Equals(object obj)
+        {
+            if (obj.GetType() == typeof(MeshLayerInfo))
+            {
+                MeshLayerInfo mli = (MeshLayerInfo)obj;
+                return LayerId.Equals(mli.LayerId);
+            }
+            else
+            {
+                return false;
+            }
+
+        }
     }
 
 #if UNITY_EDITOR

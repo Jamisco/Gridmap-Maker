@@ -10,6 +10,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
 using System.Threading;
+using Unity.Mathematics;
 using UnityEditor;
 using UnityEngine;
 using static Assets.Gridmap_Assets.Scripts.GridMapMaker.Shapes.TestVisualData.ShapeVisualData;
@@ -21,9 +22,6 @@ using Debug = UnityEngine.Debug;
 namespace Assets.Gridmap_Assets.Scripts.Mapmaker
 {
     [RequireComponent(typeof(LayerHandle))]
-    [RequireComponent(typeof(MeshFilter))]
-    [RequireComponent(typeof(MeshRenderer))]
-    [RequireComponent(typeof(MeshCollider))]
     [Serializable]
     public class MeshLayer : MonoBehaviour
     {
@@ -35,9 +33,7 @@ namespace Assets.Gridmap_Assets.Scripts.Mapmaker
         The benefit of 1 mesh is less CPU overhead.
         */
         // A layered mesh is a collection of fused meshes that are then combined together to make one mesh.
-        // Each fused mesh is a unique visually, meaning it may have a different texture, color, etc. However each fused mesh has thesame shape
-
-
+        // Each fused mesh is a unique visually, meaning it may have a different texture, color, etc. However each fused mesh has thesame Shape
         const int MAX_VERTICES = 65534;
         GridChunk gridChunk;
 
@@ -71,20 +67,12 @@ namespace Assets.Gridmap_Assets.Scripts.Mapmaker
         /// </summary>
         private Dictionary<Vector2Int, ShapeVisualData> CellVisualDatas
                           = new Dictionary<Vector2Int, ShapeVisualData>();
-        private Mesh LayerMesh { get; set; }
         private Mesh shapeMesh;
 
         private Bounds layerBounds;
-        public Bounds MeshBounds
-        {
-            get
-            {
-                return meshRenderer.bounds;
-            }
-        }
 
         /// <summary>
-        /// This is use to offset the tesselated position so that the shape is drawn with reference to the chunk. 
+        /// This is use to offset the tesselated position so that the Shape is drawn with reference to the chunk. 
         /// For example, say we are drawing a cell at gridPosition 5, 0 and its tesselated position is (5, 0). if the chunk starts at gridPosition (3, 0), then the cell we are drawing will be the 3rd cell in the chunk. So we need to offset the tesselated position by 3 cells so that the cell is drawn at the correct position in the chunk.
         /// </summary>
         private Vector3 chunkOffset;
@@ -94,49 +82,38 @@ namespace Assets.Gridmap_Assets.Scripts.Mapmaker
         {
             get => layerId;
         }
-
-        MeshFilter meshFilter;
-        MeshRenderer meshRenderer;
         private List<Material> SharedMaterials { get; set; }
                                             = new List<Material>();
         public List<MaterialPropertyBlock> PropertyBlocks { get; private set; }
                                         = new List<MaterialPropertyBlock>();
 
-        private SortingLayerPicker meshSortLayer;
-        public SortingLayerPicker MeshSortLayer
-        {
-            get => meshSortLayer;
-            set
-            {
-                meshSortLayer = value;
-                SetLayerInfo();
-            }
-        }
-
         [SerializeField]
         private bool UpdateOnVisualChange;
 
-        private void Reset()
-        {
-            meshRenderer = GetComponent<MeshRenderer>();
-            meshFilter = GetComponent<MeshFilter>();
-        }
         private void OnValidate()
         {
 
         }
-        private void SetLayerInfo()
+        public void SortLayer(SortAxis axis, float offset)
         {
-            meshRenderer.sortingLayerID = meshSortLayer.LayerID;
-            meshRenderer.sortingOrder = meshSortLayer.OrderInLayer;
-        }
-        private void SetMeshInfo()
-        {
-            if (meshRenderer == null || meshFilter == null)
+            Vector3 pos = gameObject.transform.position;
+
+            switch (axis)
             {
-                meshRenderer = GetComponent<MeshRenderer>();
-                meshFilter = GetComponent<MeshFilter>();
+                case SortAxis.X:
+                    pos.x += offset;
+                    break;
+                case SortAxis.Y:
+                    pos.y += offset;
+                    break;
+                case SortAxis.Z:
+                    pos.z += offset;
+                    break;
+                default:
+                    break;
             }
+
+            gameObject.transform.position = pos;
         }
         private void Initialize(GridShape gridShape)
         {
@@ -144,7 +121,6 @@ namespace Assets.Gridmap_Assets.Scripts.Mapmaker
             
             LayerGridShape = gridShape;
             shapeMesh = gridShape.GetShapeMesh();
-            SetMeshInfo();
         }
 
         public void Initialize(string layerId, GridChunk chunk, GridShape gridShape, ShapeVisualData defaultVisual, bool useVisualEquality = true)
@@ -163,6 +139,28 @@ namespace Assets.Gridmap_Assets.Scripts.Mapmaker
             VisualDataGroup = new Dictionary<ShapeVisualData, ShapeMeshFuser>(visualDataComparer);
 
             chunkOffset = gridShape.GetTesselatedPosition(chunk.StartPosition);
+
+            SetLayerBounds();
+        }
+
+        public void Initialize(MeshLayerInfo layerInfo, GridChunk chunk)
+        {
+            gridChunk = chunk;
+            LayerGridShape = layerInfo.Shape;
+
+            Initialize(layerInfo.Shape);
+
+            gameObject.name = layerId;
+
+            layerId = layerInfo.LayerId;
+            defaultVisualProp = layerInfo.DefaultVisualData;
+            useVisualEquality = layerInfo.UseVisualEquality;
+
+            visualDataComparer.UseVisualHash = useVisualEquality;
+
+            VisualDataGroup = new Dictionary<ShapeVisualData, ShapeMeshFuser>(visualDataComparer);
+
+            chunkOffset = LayerGridShape.GetTesselatedPosition(chunk.StartPosition);
 
             SetLayerBounds();
         }
@@ -320,6 +318,7 @@ namespace Assets.Gridmap_Assets.Scripts.Mapmaker
 
         }
 
+        private List<GameObject> layerMeshes = new List<GameObject>();
         public void CreateFusedMeshes()
         {
             TimeLogger.StartTimer(1516, "CreateFusedMeshes");
@@ -393,7 +392,8 @@ namespace Assets.Gridmap_Assets.Scripts.Mapmaker
                 foreach (MaxMesh m in mmGroup)
                 {
                     GameObject meshHolder = CreateMeshHolder("Mesh " + x++);
-
+                    layerMeshes.Add(meshHolder);
+                    
                     Mesh mesh = new Mesh();
 
                     mesh = FusedMesh.CombineToSubmesh(m.smallMesh);
@@ -425,18 +425,17 @@ namespace Assets.Gridmap_Assets.Scripts.Mapmaker
         public void UpdateMesh()
         {
             TimeLogger.StartTimer(71451, "Update Mesh");
-            // delelet all child game objects 
-            for (int i = transform.childCount - 1; i >= 0; i--)
+            
+            // delete all child game objects 
+            foreach (GameObject go in layerMeshes)
             {
-                DestroyImmediate(transform.GetChild(i).gameObject);
+                DestroyImmediate(go);
             }
+
+            layerMeshes.Clear();
 
             CreateFusedMeshes();
 
-            if (LayerMesh != null)
-            {
-                meshFilter.sharedMesh = LayerMesh;
-            }
             TimeLogger.StopTimer(71451);
         }
 
@@ -467,27 +466,12 @@ namespace Assets.Gridmap_Assets.Scripts.Mapmaker
         }
         public void Clear()
         {
-            if (meshFilter != null)
+            if (VisualDataGroup != null)
             {
-                meshFilter.mesh = null;
-            }
-
-            if (meshRenderer != null)
-            {
-                meshRenderer.materials = new Material[0];
-            }
-
-            if (LayerMesh != null)
-            {
-                //foreach (FusedMesh fused in VisualDataGroup.Values)
-                //{
-                //    fused.ClearFusedMesh();
-                //}
-
                 VisualDataGroup.Clear();
             }
 
-            LayerMesh = null;
+            
             defaultVisualProp = null;
             LayerGridShape = null;
 
@@ -497,39 +481,6 @@ namespace Assets.Gridmap_Assets.Scripts.Mapmaker
 
             SharedMaterials.Clear();
             PropertyBlocks.Clear();
-        }
-        private void SetMaterials()
-        {
-            SharedMaterials.Clear();
-            PropertyBlocks.Clear();
-
-            foreach (ShapeVisualData vData in VisualDataGroup.Keys)
-            {
-                ShapeRenderData rData = vData.GetShapeRenderData();
-
-                SharedMaterials.Add(rData.SharedMaterial);
-
-                if (rData.PropertyBlock == null)
-                {
-                    PropertyBlocks.Add(new MaterialPropertyBlock());
-                }
-                else
-                {
-                    PropertyBlocks.Add(rData.PropertyBlock);
-                }
-            }
-
-            meshRenderer.sharedMaterials = SharedMaterials.ToArray();
-
-            for (int i = 0; i < SharedMaterials.Count; i++)
-            {
-                if (PropertyBlocks[i].isEmpty)
-                {
-                    continue;
-                }
-
-                meshRenderer.SetPropertyBlock(PropertyBlocks[i], i);
-            }
         }
         public SerializedLayer SerializeLayer(MapVisualContainer container)
         {
@@ -650,23 +601,7 @@ namespace Assets.Gridmap_Assets.Scripts.Mapmaker
         /// <summary>
         /// Just used to quick create layers. Nothing majors
         /// </summary>
-        public struct LayerCreator
-        {
-            public string layerId;
-            public GridShape shape;
-            public ShapeVisualData defaultVData;
-            public bool setBaselayer;
-            public bool useVisualEquality;
-
-            public LayerCreator(string layerId, GridShape shape, ShapeVisualData defaultVData, bool setBaselayer = false, bool useVisualEquality = false)
-            {
-                this.layerId = layerId;
-                this.shape = shape;
-                this.defaultVData = defaultVData;
-                this.setBaselayer = setBaselayer;
-                this.useVisualEquality = useVisualEquality;
-            }
-        }
+       
     }
 
    

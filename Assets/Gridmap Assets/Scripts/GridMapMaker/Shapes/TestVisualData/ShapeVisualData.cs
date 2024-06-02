@@ -56,7 +56,7 @@ namespace Assets.Gridmap_Assets.Scripts.GridMapMaker.Shapes.TestVisualData
         }
 
         /// <summary>
-        /// Set the material properties of your shader in this method. This will be called when the visual data is being used to render a shape
+        /// Set the material properties of your shader in this method. This will be called when the visual data is being used to render a Shape
         /// </summary>
         public abstract void SetMaterialProperties();
 
