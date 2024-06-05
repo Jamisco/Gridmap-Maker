@@ -16,11 +16,6 @@ namespace Assets.Gridmap_Assets.Scripts.GridMapMaker.Shapes
     public class BasicVisual : ShapeVisualData
     {    
         [SerializeField]
-        public Texture2D mainTexture;
-        [SerializeField]
-        public Color mainColor;
-
-        [SerializeField]
         [HideInInspector]
         private SerializedBasicVisual serializedData;
 
@@ -37,7 +32,7 @@ namespace Assets.Gridmap_Assets.Scripts.GridMapMaker.Shapes
         public Material SharedMaterial => sharedMaterial;
         public MaterialPropertyBlock PropertyBlock => propertyBlock;
         protected override ISerializedVisual SerializedData => serializedData;
-        public override void SetMaterialProperties()
+        public override void SetMaterialPropertyBlock()
         {
             if (propertyBlock == null)
             {

@@ -91,6 +91,8 @@ namespace Assets.Gridmap_Assets.Scripts.Miscellaneous
             timers.Remove(id);
         }
 
+        private const int la = -20;
+        private const int ra = 20;
         public static string GetLog(int id, string addOn = "")
         {
             if (!timers.ContainsKey(id))
@@ -105,7 +107,7 @@ namespace Assets.Gridmap_Assets.Scripts.Miscellaneous
                 msg = "Timer " + id + " took: ";
             }
 
-            msg = addOn + msg + "\t\t";
+            msg = addOn +  $"{msg}\t";
 
             Stopwatch sw;
 
@@ -126,13 +128,18 @@ namespace Assets.Gridmap_Assets.Scripts.Miscellaneous
             Debug.Log(str);
         }
 
-        public static void LogAll()
+        public static void LogAll(string title = "")
         {
             // give date and time in am and pm
 
             string date = DateTime.Now.ToString("MM/dd/yyyy hh:mm tt");
 
             string fullLog = "Log Time: " + date + "\n";
+
+            fullLog += (title != "") ? "Title: " + title + "\n" : "";
+
+            fullLog += "\n";
+
             foreach (int id in timers.Keys.ToList())
             {
                 string l = GetLog(id);

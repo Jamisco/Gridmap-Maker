@@ -14,7 +14,6 @@ using Unity.Mathematics;
 using UnityEditor;
 using UnityEngine;
 using static Assets.Gridmap_Assets.Scripts.GridMapMaker.Shapes.TestVisualData.ShapeVisualData;
-using static Assets.Scripts.GridMapMaker.FusedMesh;
 using static Assets.Scripts.GridMapMaker.GridManager;
 using static Assets.Scripts.Miscellaneous.ExtensionMethods;
 using Debug = UnityEngine.Debug;
@@ -39,7 +38,6 @@ namespace Assets.Gridmap_Assets.Scripts.Mapmaker
 
         [SerializeField]
         private bool useVisualEquality;
-
         public bool UseVisualEquality
         {
             get => useVisualEquality;
@@ -61,17 +59,19 @@ namespace Assets.Gridmap_Assets.Scripts.Mapmaker
         // The grouping of visual datas that are used to make a mesh.
         // So cells that have "equal" visualData will be group here and drawn as one
         /// </summary>
-        private Dictionary<ShapeVisualData, ShapeMeshFuser> VisualDataGroup;
+        private Dictionary<ShapeVisualData, ShapeMeshFuser> MaterialVisualGroup;
+        private ShapeMeshFuser ColorVisualGroup;
+
         /// <summary>
         /// The original visualData used for each cell. We store this so we can redraw the mesh if need be
         /// </summary>
-        private Dictionary<Vector2Int, ShapeVisualData> CellVisualDatas
-                          = new Dictionary<Vector2Int, ShapeVisualData>();
-        private Mesh shapeMesh;
+        private Dictionary<int, ShapeVisualData> CellVisualDatas
+                          = new Dictionary<int, ShapeVisualData>();
+
+        private Dictionary<int, Vector2Int> CellGridPositions = new Dictionary<int, Vector2Int>();
 
         private Bounds layerBounds;
-
-        /// <summary>
+       /// <summary>
         /// This is use to offset the tesselated position so that the Shape is drawn with reference to the chunk. 
         /// For example, say we are drawing a cell at gridPosition 5, 0 and its tesselated position is (5, 0). if the chunk starts at gridPosition (3, 0), then the cell we are drawing will be the 3rd cell in the chunk. So we need to offset the tesselated position by 3 cells so that the cell is drawn at the correct position in the chunk.
         /// </summary>
@@ -101,13 +101,13 @@ namespace Assets.Gridmap_Assets.Scripts.Mapmaker
             switch (axis)
             {
                 case SortAxis.X:
-                    pos.x += offset;
+                    pos.x = offset;
                     break;
                 case SortAxis.Y:
-                    pos.y += offset;
+                    pos.y = offset;
                     break;
                 case SortAxis.Z:
-                    pos.z += offset;
+                    pos.z = offset;
                     break;
                 default:
                     break;
@@ -120,10 +120,9 @@ namespace Assets.Gridmap_Assets.Scripts.Mapmaker
             Clear();
             
             LayerGridShape = gridShape;
-            shapeMesh = gridShape.GetShapeMesh();
         }
 
-        public void Initialize(string layerId, GridChunk chunk, GridShape gridShape, ShapeVisualData defaultVisual, bool useVisualEquality = true)
+        public void Initialize(string layerId, GridChunk chunk, GridShape gridShape, bool useVisualEquality = true)
         {
             gridChunk = chunk;
             
@@ -132,14 +131,15 @@ namespace Assets.Gridmap_Assets.Scripts.Mapmaker
             gameObject.name = layerId;
 
             this.layerId = layerId;
-            this.defaultVisualProp = defaultVisual;
             this.useVisualEquality = useVisualEquality;
             visualDataComparer.UseVisualHash = useVisualEquality;
 
-            VisualDataGroup = new Dictionary<ShapeVisualData, ShapeMeshFuser>(visualDataComparer);
-
             chunkOffset = gridShape.GetTesselatedPosition(chunk.StartPosition);
 
+            MaterialVisualGroup = new Dictionary<ShapeVisualData, ShapeMeshFuser>(visualDataComparer);
+
+            ColorVisualGroup = new ShapeMeshFuser(LayerGridShape, chunkOffset);
+            
             SetLayerBounds();
         }
 
@@ -153,12 +153,11 @@ namespace Assets.Gridmap_Assets.Scripts.Mapmaker
             gameObject.name = layerId;
 
             layerId = layerInfo.LayerId;
-            defaultVisualProp = layerInfo.DefaultVisualData;
             useVisualEquality = layerInfo.UseVisualEquality;
 
             visualDataComparer.UseVisualHash = useVisualEquality;
 
-            VisualDataGroup = new Dictionary<ShapeVisualData, ShapeMeshFuser>(visualDataComparer);
+            MaterialVisualGroup = new Dictionary<ShapeVisualData, ShapeMeshFuser>(visualDataComparer);
 
             chunkOffset = LayerGridShape.GetTesselatedPosition(chunk.StartPosition);
 
@@ -193,83 +192,125 @@ namespace Assets.Gridmap_Assets.Scripts.Mapmaker
         public void InsertVisualData(Vector2Int gridPosition,
                                      ShapeVisualData visualProp)
         {
-
             // every time we insert a visual vData, we must check if the grid position already has a visual vData, if it does, we must remove it because we might have to assign a new visual Data to it..thus moving said grid mesh to a new fused mesh
 
-            TimeLogger.StartTimer(12, "InsertPosition");
+            //TimeLogger.StartTimer(2313, "InsertPosition");
 
+            int hash = gridPosition.GetHashCode_Unique();
             // 36% of the time is spent here
             if (reInsertMode == false)
             {
                 // the delete method will remove the position if it exists. So we dont have to check if the gridPositions exist before deleting
                 DeleteShape(gridPosition);
 
-                CellVisualDatas.Add(gridPosition, visualProp);
+                CellVisualDatas.Add(hash, visualProp);
+                CellGridPositions.Add(hash, gridPosition);
+            }
+
+            // Mesh that draw only their colors are inserted into 1 group.
+            // This is because we can draw all the color meshes in one draw call by simply painting the mesh vertices themselves
+            if (visualProp.ShapeRenderMode == ShapeVisualData.RenderMode.MeshColor)
+            {
+                ColorVisualGroup.InsertPosition(hash, gridPosition, visualProp.mainColor);
+                return;
             }
 
             // 10.2% of the time is spent here
             ShapeMeshFuser meshFuser = null;
             
-            VisualDataGroup.TryGetValue(visualProp, out meshFuser);
+            MaterialVisualGroup.TryGetValue(visualProp, out meshFuser);
             
             if (meshFuser == null)
             {
                 // 13.5% of the time is spent here
                 meshFuser = new ShapeMeshFuser(LayerGridShape, chunkOffset);
 
-                VisualDataGroup.Add(visualProp, meshFuser);
+                MaterialVisualGroup.Add(visualProp, meshFuser);
 
                 SetEvent(visualProp);
             }
 
             // 20% of the time is spent here
-            meshFuser.InsertPosition(gridPosition);
+            meshFuser.InsertPosition(hash, gridPosition);
             
-            TimeLogger.StopTimer(12);
+            //TimeLogger.StopTimer(2313);
         }
+
         public void RemoveVisualData(Vector2Int gridPosition)
         {
             // removing a visual vData is thesame as inserting a default visual vData
-
-            InsertVisualData(gridPosition, defaultVisualProp);
+            InsertVisualData(gridPosition, ShapeVisualData.GetDefaultVisual());
         }
 
-        public void DeleteShape(Vector2Int gridPosition)
+        private void DeleteShape(int hash)
         {
             // We will straight up delete the mesh at the grid position
 
             ShapeVisualData existing = null;
 
-            CellVisualDatas.TryGetValue(gridPosition, out existing);
+            CellVisualDatas.TryGetValue(hash, out existing);
 
             if (existing != null)
             {
-                VisualDataGroup[existing].RemovePosition(gridPosition);
+                MaterialVisualGroup[existing].RemovePosition(hash);
 
-                if (VisualDataGroup[existing].IsEmpty)
+                if (MaterialVisualGroup[existing].IsEmpty)
                 {
-                    VisualDataGroup.Remove(existing);
+                    MaterialVisualGroup.Remove(existing);
                     RemoveEvent(existing);
                 }
 
-                CellVisualDatas.Remove(gridPosition);
+                CellVisualDatas.Remove(hash);
+                CellGridPositions.Remove(hash);
+            }
+        }
+
+        public static int hitCount = 0;
+        public void DeleteShape(Vector2Int gridPosition)
+        {
+            // We will straight up delete the mesh at the grid position
+
+            int hash = gridPosition.GetHashCode_Unique();
+            ShapeVisualData existing = null;
+
+            CellVisualDatas.TryGetValue(hash, out existing);
+
+            if (existing != null)
+            {
+                hitCount++;
+                ShapeMeshFuser mf = null;
+
+               bool isMat = MaterialVisualGroup.TryGetValue(existing, out mf);
+
+                mf = (mf == null) ? ColorVisualGroup : mf;
+
+                mf.RemovePosition(gridPosition);
+
+                if (mf.IsEmpty && isMat)
+                {
+                    MaterialVisualGroup.Remove(existing);
+                    RemoveEvent(existing);
+                }
+
+                CellVisualDatas.Remove(hash);
+                CellGridPositions.Remove(hash);
             }
         }
         public bool HasVisualData(Vector2Int gridPosition)
         {
-            return CellVisualDatas.ContainsKey(gridPosition);
+            return CellVisualDatas.ContainsKey(gridPosition.GetHashCode_Unique());
         }
         public ShapeVisualData GetVisualProperties(Vector2Int gridPosition)
         {
             ShapeVisualData existing = null;
 
-            CellVisualDatas.TryGetValue(gridPosition, out existing);
+            CellVisualDatas.TryGetValue(gridPosition.GetHashCode_Unique(), out existing);
 
             return existing;
         }
         public void VisualIdChanged(ShapeVisualData sender)
         {
-            ShapeVisualData changedProp = VisualDataGroup.Keys.FirstOrDefault
+            ShapeVisualData changedProp = MaterialVisualGroup.Keys.FirstOrDefault
                                     (x => x == sender);
 
             // make sure the changedProp exists
@@ -278,22 +319,22 @@ namespace Assets.Gridmap_Assets.Scripts.Mapmaker
             {
                 // When a visual prop has changed, we need to see if there is another visual prop that looks like it
 
-                ShapeVisualData identicalData = VisualDataGroup.Keys.FirstOrDefault
+                ShapeVisualData identicalData = MaterialVisualGroup.Keys.FirstOrDefault
                             (x => (x != changedProp && x.Equals(changedProp)));
 
                 // if there is a identicalData, combine it with the old vData
                 if (identicalData != null)
                 {
                     // if there is a identicalData, combine the fused meshes
-                    ShapeMeshFuser prePositions = VisualDataGroup[identicalData];
-                    ShapeMeshFuser changedPositions = VisualDataGroup[changedProp];
+                    ShapeMeshFuser prePositions = MaterialVisualGroup[identicalData];
+                    ShapeMeshFuser changedPositions = MaterialVisualGroup[changedProp];
 
                     // remove the old fused mesh
-                    VisualDataGroup.Remove(changedProp);
+                    MaterialVisualGroup.Remove(changedProp);
 
                     prePositions.CombineFuser(changedPositions);
 
-                    VisualDataGroup[identicalData] = prePositions;
+                    MaterialVisualGroup[identicalData] = prePositions;
                 }
 
 
@@ -303,7 +344,7 @@ namespace Assets.Gridmap_Assets.Scripts.Mapmaker
                 {
                     EditorApplication.delayCall += () =>
                     {
-                        UpdateMesh();
+                        DrawFusedMesh();
                     };
                 }
 #else
@@ -319,19 +360,26 @@ namespace Assets.Gridmap_Assets.Scripts.Mapmaker
         }
 
         private List<GameObject> layerMeshes = new List<GameObject>();
-        public void CreateFusedMeshes()
+        public void FusedMeshGroups()
         {
-            TimeLogger.StartTimer(1516, "CreateFusedMeshes");
+            //TimeLogger.StartTimer(1516, "FusedMeshGroups");
+
+            smallMeshes.Clear();
             
-            List<SmallMesh> smallMeshes = new List<SmallMesh>();
-
-            foreach (var vData in VisualDataGroup.Keys)
+            foreach (ShapeVisualData vData in MaterialVisualGroup.Keys)
             {
-                ShapeMeshFuser m = VisualDataGroup[vData];
-                // this line accounts for 80% of the time it takes to draw our map
-                m.UpdateMesh();
+                ShapeMeshFuser m = MaterialVisualGroup[vData];
 
-                List<Mesh> tempMeshes = m.GetAllMeshes();
+                if(gridChunk.GridManager.Multithread_Fuse)
+                {
+                    m.FuseMesh_Fast();
+                }
+                else
+                {
+                    m.FuseMesh();
+                }
+
+                List<MeshData> tempMeshes = m.GetFusedMeshes();
 
                 for (int i = 0; i < tempMeshes.Count; i++)
                 {
@@ -339,92 +387,22 @@ namespace Assets.Gridmap_Assets.Scripts.Mapmaker
                 }
             }
 
-            // group meshes that are within the max vert limit, combined them, with sub meshes, use material from visual data               
-            GroupAndDrawMeshes();
-            
-            TimeLogger.StopTimer(1516);
-            
-            GameObject CreateMeshHolder(string objName = "Layer Mesh")
+            // Color Visual Group
+
+            ColorVisualGroup.FuseMesh_Fast();
+
+            List<MeshData> colorMeshes = ColorVisualGroup.GetFusedMeshes();
+
+            for (int i = 0; i < colorMeshes.Count; i++)
             {
-                GameObject meshHold = new GameObject(objName);
-                meshHold.transform.SetParent(transform);
-
-                meshHold.transform.localPosition = Vector3.zero;
-
-                // add mesh components
-
-                MeshFilter meshF = meshHold.AddComponent<MeshFilter>();
-                MeshRenderer meshR = meshHold.AddComponent<MeshRenderer>();
-
-                return meshHold;
+                smallMeshes.Add(new SmallMesh(ShapeVisualData.GetDefaultVisual(), colorMeshes[i]));
             }
-
-            void GroupAndDrawMeshes()
-            {
-                smallMeshes.Sort((x, y) => x.VertexCount.CompareTo(y.VertexCount));
-
-                MaxMesh mm = MaxMesh.Default();
-
-                List<MaxMesh> mmGroup = new List<MaxMesh>();
-
-                for(int i = 0; i < smallMeshes.Count; i++)
-                {
-                    if (mm.CanAdd(smallMeshes[i].smallMesh) )
-                    {
-                        mm.Add(smallMeshes[i].vData, smallMeshes[i].smallMesh);
-                    }
-                    else
-                    {
-                        mmGroup.Add(mm);
-
-                        mm = MaxMesh.Default();
-
-                        mm.Add(smallMeshes[i].vData, smallMeshes[i].smallMesh);
-                    }
-                }
-
-                if(mm.VertexCount > 0)
-                {
-                    mmGroup.Add(mm);
-                }
-
-                int x = 1;
-                foreach (MaxMesh m in mmGroup)
-                {
-                    GameObject meshHolder = CreateMeshHolder("Mesh " + x++);
-                    layerMeshes.Add(meshHolder);
-                    
-                    Mesh mesh = new Mesh();
-
-                    mesh = FusedMesh.CombineToSubmesh(m.smallMesh);
-
-                    List<Material> sharedMats = new List<Material>();
-                    List<MaterialPropertyBlock> matProps = new List<MaterialPropertyBlock>();
-
-                    foreach(ShapeVisualData vData in m.vDatas)
-                    {
-                        ShapeRenderData srd = vData.GetShapeRenderData();
-
-                        sharedMats.Add(srd.SharedMaterial);
-                        matProps.Add(srd.PropertyBlock);
-                    }
-
-                    MeshRenderer ren = meshHolder.GetComponent<MeshRenderer>();
-
-                    ren.sharedMaterials = sharedMats.ToArray();
-
-                    for(int i = 0; i < sharedMats.Count; i++) 
-                    {
-                        ren.SetPropertyBlock(matProps[i], i);
-                    }
-
-                    meshHolder.GetComponent<MeshFilter>().sharedMesh = mesh;
-                }
-            }
+            
+            //TimeLogger.StopTimer(1516);
         }
-        public void UpdateMesh()
+        public void DrawFusedMesh()
         {
-            TimeLogger.StartTimer(71451, "Update Mesh");
+            //TimeLogger.StartTimer(71451, "Update Mesh");
             
             // delete all child game objects 
             foreach (GameObject go in layerMeshes)
@@ -434,9 +412,92 @@ namespace Assets.Gridmap_Assets.Scripts.Mapmaker
 
             layerMeshes.Clear();
 
-            CreateFusedMeshes();
+            GroupAndDrawMeshes();
 
-            TimeLogger.StopTimer(71451);
+            //TimeLogger.StopTimer(71451);
+        }
+
+        private GameObject CreateMeshHolder(string objName = "Layer Mesh")
+        {
+            GameObject meshHold = new GameObject(objName);
+            meshHold.transform.SetParent(transform);
+
+            meshHold.transform.localPosition = Vector3.zero;
+
+            // add mesh components
+
+            MeshFilter meshF = meshHold.AddComponent<MeshFilter>();
+            MeshRenderer meshR = meshHold.AddComponent<MeshRenderer>();
+
+            return meshHold;
+        }
+
+        private List<SmallMesh> smallMeshes = new List<SmallMesh>();
+
+        // group meshes that are within the max vert limit, combined them, with sub meshes, use material from visual data  
+        private void GroupAndDrawMeshes()
+        {
+            smallMeshes.Sort((x, y) => x.VertexCount.CompareTo(y.VertexCount));
+
+            MaxMesh mm = MaxMesh.Default();
+
+            List<MaxMesh> mmGroup = new List<MaxMesh>();
+
+            for (int i = 0; i < smallMeshes.Count; i++)
+            {
+                if (mm.CanAdd(smallMeshes[i].smallMesh))
+                {
+                    mm.Add(smallMeshes[i].vData, smallMeshes[i].smallMesh);
+                }
+                else
+                {
+                    mmGroup.Add(mm);
+
+                    mm = MaxMesh.Default();
+
+                    mm.Add(smallMeshes[i].vData, smallMeshes[i].smallMesh);
+                }
+            }
+
+            if (mm.VertexCount > 0)
+            {
+                mmGroup.Add(mm);
+            }
+
+            int x = 1;
+            foreach (MaxMesh m in mmGroup)
+            {
+                GameObject meshHolder = CreateMeshHolder("Mesh " + x++);
+                layerMeshes.Add(meshHolder);
+
+                Mesh mesh = new Mesh();
+
+                List<Mesh> subMeshes = m.smallMesh.Select((x) => x.GetMesh()).ToList();
+
+                mesh = FusedMesh.CombineToSubmesh(subMeshes);
+
+                List<Material> sharedMats = new List<Material>();
+                List<MaterialPropertyBlock> matProps = new List<MaterialPropertyBlock>();
+
+                foreach (ShapeVisualData vData in m.vDatas)
+                {
+                    ShapeRenderData srd = vData.GetShapeRenderData();
+
+                    sharedMats.Add(srd.SharedMaterial);
+                    matProps.Add(srd.PropertyBlock);
+                }
+
+                MeshRenderer ren = meshHolder.GetComponent<MeshRenderer>();
+
+                ren.sharedMaterials = sharedMats.ToArray();
+
+                for (int i = 0; i < sharedMats.Count; i++)
+                {
+                    ren.SetPropertyBlock(matProps[i], i);
+                }
+
+                meshHolder.GetComponent<MeshFilter>().sharedMesh = mesh;
+            }
         }
 
         /// <summary>
@@ -451,12 +512,13 @@ namespace Assets.Gridmap_Assets.Scripts.Mapmaker
         {
             // because we are reinserting all the data back, we have to cache the visual data and grid visual ids and then clear them, then as we call insertVisualData, the method will reinsert the data back
             
-            VisualDataGroup.Clear();
+            MaterialVisualGroup.Clear();
 
             reInsertMode = true;
-            foreach (Vector2Int gridPosition in CellVisualDatas.Keys)
+            foreach (int hash in CellVisualDatas.Keys)
             {
-                ShapeVisualData visual = CellVisualDatas[gridPosition];
+                Vector2Int gridPosition = CellGridPositions[hash];
+                ShapeVisualData visual = CellVisualDatas[hash];
 
                 RemoveEvent(visual);
                 
@@ -466,18 +528,33 @@ namespace Assets.Gridmap_Assets.Scripts.Mapmaker
         }
         public void Clear()
         {
-            if (VisualDataGroup != null)
+            if (MaterialVisualGroup != null)
             {
-                VisualDataGroup.Clear();
+                foreach (ShapeMeshFuser item in MaterialVisualGroup.Values)
+                {
+                    item.Clear();
+                }
+
+                foreach (GameObject item in layerMeshes)
+                {
+                    MeshFilter mf = item.GetComponent<MeshFilter>();
+                    DestroyImmediate(mf.sharedMesh);
+
+                    DestroyImmediate(item);
+                }
+
+                layerMeshes.Clear();
+                MaterialVisualGroup.Clear();
+                CellVisualDatas.Clear();
+                ColorVisualGroup.Clear();
+                CellGridPositions.Clear();
             }
 
-            
-            defaultVisualProp = null;
+            ColorVisualGroup = null;
+            MaterialVisualGroup = null;
             LayerGridShape = null;
 
             useVisualEquality = false;
-
-            CellVisualDatas.Clear();
 
             SharedMaterials.Clear();
             PropertyBlocks.Clear();
@@ -506,24 +583,24 @@ namespace Assets.Gridmap_Assets.Scripts.Mapmaker
                 InsertVisualData(pos, data);
             }
 
-            UpdateMesh();
+            DrawFusedMesh();
         }
 
         private struct MaxMesh
         {
             public List<ShapeVisualData> vDatas;
-            public List<Mesh> smallMesh;
+            public List<MeshData> smallMesh;
 
             public int VertexCount;
 
             private void Init()
             {
                 vDatas = new List<ShapeVisualData>();
-                smallMesh = new List<Mesh>();
+                smallMesh = new List<MeshData>();
 
                 VertexCount = 0;
             }
-            public void Add(ShapeVisualData vData, Mesh fuser)
+            public void Add(ShapeVisualData vData, MeshData fuser)
             {
                 vDatas.Add(vData);
                 smallMesh.Add(fuser);
@@ -531,7 +608,7 @@ namespace Assets.Gridmap_Assets.Scripts.Mapmaker
                 VertexCount += fuser.vertexCount;
             }
 
-            public bool CanAdd(Mesh fuser)
+            public bool CanAdd(MeshData fuser)
             {
                 if(VertexCount + fuser.vertexCount <= MAX_VERTICES)
                 {
@@ -557,15 +634,15 @@ namespace Assets.Gridmap_Assets.Scripts.Mapmaker
         private struct SmallMesh
         {
             public ShapeVisualData vData;
-            public Mesh smallMesh;
+            public MeshData smallMesh;
 
             public int VertexCount => smallMesh.vertexCount;
-            public SmallMesh(ShapeVisualData vData, Mesh fuser)
+            public SmallMesh(ShapeVisualData vData, MeshData fuser)
             {
                 this.vData = vData;
                 this.smallMesh = fuser;
             }
-            public void Deconstruct(out ShapeVisualData vData, out Mesh fuser)
+            public void Deconstruct(out ShapeVisualData vData, out MeshData fuser)
             {
                 vData = this.vData;
                 fuser = this.smallMesh;
@@ -588,12 +665,12 @@ namespace Assets.Gridmap_Assets.Scripts.Mapmaker
                 shapeId = layer.LayerGridShape.UniqueShapeName;
                 layerId = layer.layerId;
 
-                gridPositions = layer.CellVisualDatas.Keys.ToList();
+                gridPositions = layer.CellGridPositions.Values.ToList();
                 gridVisualIds = new List<Guid>();
 
                 foreach (Vector2Int cell in gridPositions)
                 {
-                    gridVisualIds.Add(layer.CellVisualDatas[cell].VisualId);
+                    gridVisualIds.Add(layer.CellVisualDatas[cell.GetHashCode_Unique()].VisualId);
                 }
             }
         }

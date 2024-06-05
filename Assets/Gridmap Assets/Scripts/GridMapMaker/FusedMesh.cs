@@ -577,7 +577,7 @@ namespace Assets.Scripts.GridMapMaker
                 tempArray[i] = subInstance;
             }
 
-            newMesh.CombineMeshes(tempArray, false, false);
+            newMesh.CombineMeshes(tempArray, false, false); 
 
             return newMesh;
         }

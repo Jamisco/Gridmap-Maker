@@ -1,4 +1,6 @@
-﻿using Assets.Gridmap_Assets.Scripts.GridMapMaker.Shapes.TestVisualData;
+﻿using Assets.Gridmap_Assets.Scripts.GridMapMaker.Shapes;
+using Assets.Gridmap_Assets.Scripts.GridMapMaker.Shapes.TestVisualData;
+using Assets.Gridmap_Assets.Scripts.Miscellaneous;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
@@ -49,7 +51,15 @@ namespace Assets.Scripts.Miscellaneous
             return bounds;
         }
 
-
+        //public static Shader GetMeshColorShader()
+        //{
+        //    if (colorShader == null)
+        //    {
+        //        colorShader =
+        //    }
+            
+        //    return colorShader;
+        //}
         public static T GetComponentByName<T>(this GameObject gameObject, string componentName, bool includeActive = true) where T : Component
         {
             return gameObject.GetComponentsInChildren<T>(includeActive)
@@ -147,11 +157,29 @@ namespace Assets.Scripts.Miscellaneous
             }
             else
             {
-                log = $"{message} {timeInMilliseconds / 1000f} seconds";
+                string time = timeInMilliseconds / 1000f + "";
+                string spacer = " ".PR(10);
+                log = $"{message} {spacer} {time} seconds";
             }
 
             return log;
         }
+
+        const int al = 40;
+        /// <summary>
+        /// 0 for left, 1 for right, 2 for center
+        /// </summary>
+        /// <param name="input"></param>
+        /// <returns></returns>
+        public static string PL(this string input, int count)
+        {
+            return input.PadLeft(count, ' ');
+        }
+        public static string PR(this string input, int count)
+        {
+            return input.PadRight(count, ' ');
+        }
+
 
         public static bool TryRemoveElementsInRange<TValue>([DisallowNull] this IList<TValue> list, int index, int count, [NotNullWhen(false)] out Exception error)
         {
@@ -257,6 +285,18 @@ namespace Assets.Scripts.Miscellaneous
             }
 
             mesh.colors = colors.ToArray();
+        }
+
+        public static void SetFullColor(this MeshData mesh, Color color)
+        {
+            List<Color> colors = new List<Color>(mesh.vertexCount);
+
+            for (int i = 0; i < colors.Count; i++)
+            {
+                colors[i] = color;
+            }
+
+            mesh.Colors = colors;
         }
 
         /// <summary>

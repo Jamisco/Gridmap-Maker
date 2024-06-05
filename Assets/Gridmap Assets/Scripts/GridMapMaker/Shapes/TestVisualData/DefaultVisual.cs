@@ -28,7 +28,7 @@ namespace Assets.Gridmap_Assets.Scripts.GridMapMaker.Shapes.TestVisualData
             defaultColor = color;
         }        
 
-        public override void SetMaterialProperties()
+        public override void SetMaterialPropertyBlock()
         {
             if (propertyBlock == null)
             {

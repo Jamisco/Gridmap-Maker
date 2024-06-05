@@ -1,4 +1,5 @@
-﻿using Assets.Gridmap_Assets.Scripts.Miscellaneous;
+﻿using Assets.Gridmap_Assets.Scripts.Mapmaker;
+using Assets.Gridmap_Assets.Scripts.Miscellaneous;
 using Assets.Scripts.GridMapMaker;
 using Assets.Scripts.Miscellaneous;
 using System;
@@ -27,26 +28,25 @@ namespace Assets.Gridmap_Assets.Scripts.GridMapMaker.Shapes.TestVisualData
         GridShape aShape;
 
         [SerializeField]
-        BasicVisual basicVisual;
-        
+        BasicVisual basicVisual;     
         private void OnValidate()
         {
            // basicVisual.CheckVisualDataChanged();
         }
-
         private void Start()
         {
             GenerateGrid();
         }
-
         private void Update()
         {
             DisableUnseenChunks();
         }
-
+        
         public string layerId = "Layer 1";
         public string layerId2 = "Layer 2";
-        
+
+        (List<Vector2Int>, List<ShapeVisualData>) mapData;
+            
         [SerializeField]
         bool useVe = false;
         public void GenerateGrid()
@@ -55,30 +55,57 @@ namespace Assets.Gridmap_Assets.Scripts.GridMapMaker.Shapes.TestVisualData
             
             TimeLogger.StartTimer(451, "Generation Time");
 
-            DefaultVisual def
-                    = DefaultVisual.CreateDefaultVisual(Color.blue);
-            
             gridManager.Initialize();
 
-            MeshLayerInfo layerInfo = new MeshLayerInfo(layerId, aShape, def, useVe, 0);
+            MeshLayerInfo layerInfo = new MeshLayerInfo(layerId, aShape, useVe, 0);
 
-            MeshLayerInfo layerInfo2 = new MeshLayerInfo(layerId2, aShape, def, useVe, 1);
+            MeshLayerInfo layerInfo2 = new MeshLayerInfo(layerId2, aShape, useVe, 1);
 
             gridManager.CreateLayer(layerInfo);
             gridManager.CreateLayer(layerInfo2);
 
             gridManager.SetVisualContainer(visualContainer);
 
-            (List<Vector2Int>, List<ShapeVisualData>) mapData = gridManager.GenerateRandomMap();
+            TimeLogger.StartTimer(-345, "Generate Tiles");
+
+            TimeLogger.StopTimer(451);
+         
+            if (mapData.Item1 == null || mapData.Item1.Count != gridManager.GridSize.x * gridManager.GridSize.y)
+            {
+                mapData = gridManager.GenerateRandomMap(true);
+            }
+            
+            TimeLogger.StartTimer(451);
+
+            TimeLogger.StopTimer(-345);
+
+            TimeLogger.StartTimer(-1502, "Insert Block");
+
+            MeshLayer.hitCount = 0;
 
             gridManager.InsertPosition_Block(mapData.Item1, mapData.Item2, layerId);
-            gridManager.InsertPosition_Block(mapData.Item1, mapData.Item2, layerId2);
+            //  GridManager.InsertPosition_Block(mapData.Item1, mapData.Item2, layerId2);
 
-            gridManager.UpdateGrid();
+            TimeLogger.StopTimer(-1502);
+
+            TimeLogger.StartTimer(-415, "Update Grid");
+
+            if(gridManager.Multithread_Chunk)
+            {
+                gridManager.UpdateGrid_Fast();
+            }
+            else
+            {
+                gridManager.UpdateGrid();
+            }
+            
+            TimeLogger.StopTimer(-415);
 
             TimeLogger.StopAllTimers();
 
-            TimeLogger.LogAll();
+            TimeLogger.LogAll(gridManager.GetMapDescription());
+
+            Debug.Log("Insert Hit Count: " + MeshLayer.hitCount);
         }
         public void UpdateMap()
         {
@@ -141,11 +168,11 @@ namespace Assets.Gridmap_Assets.Scripts.GridMapMaker.Shapes.TestVisualData
         public int order = 1;
         public void SetSprite()
         {
-            // gridManager.SpawnSprite(InputHex, sprite);
+            // GridManager.SpawnSprite(InputHex, sprite);
 
             SortingLayerInfo sl = new SortingLayerInfo(layerName, order);
 
-            gridManager.SortMeshLayers(GridManager.SortAxis.Y);
+            gridManager.SortMeshLayers();
         }
 
         public void RemoveVisualData()

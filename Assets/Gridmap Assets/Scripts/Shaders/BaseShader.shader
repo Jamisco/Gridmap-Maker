@@ -1,4 +1,4 @@
-  Shader "Example/BaseShader" 
+  Shader "GridMapMaker/BaseShader" 
   { 
     Properties
     {

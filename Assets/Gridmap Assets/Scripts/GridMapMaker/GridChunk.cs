@@ -19,7 +19,7 @@ namespace Assets.Scripts.GridMapMaker
     [RequireComponent(typeof(SpriteLayer))]
     public class GridChunk : MonoBehaviour
     {
-        GridManager gridManager;
+        public GridManager GridManager { get; private set; }
 
         Dictionary<string, MeshLayer> ChunkLayers = new Dictionary<string, MeshLayer>();
 
@@ -114,7 +114,7 @@ namespace Assets.Scripts.GridMapMaker
         //}
         public void Initialize(GridManager grid, BoundsInt gridBounds)
         {
-            gridManager = grid;
+            GridManager = grid;
             
             startPosition = gridBounds.min.ToGridPos();
             endPosition = gridBounds.max.ToGridPos();
@@ -137,13 +137,13 @@ namespace Assets.Scripts.GridMapMaker
             
             return newLayer;
         }
-        public void AddLayer(string uniqueID, GridShape shape, ShapeVisualData defaultVisual, bool useVisualEquality = false)
+        public void AddLayer(string uniqueID, GridShape shape, bool useVisualEquality = false)
         {
             if (!ChunkLayers.ContainsKey(uniqueID))
             {
                 MeshLayer newLayer = CreateLayer(transform);
 
-                newLayer.Initialize(uniqueID, this, shape, defaultVisual, useVisualEquality);
+                newLayer.Initialize(uniqueID, this, shape, useVisualEquality);
                 ChunkLayers.Add(uniqueID, newLayer);
 
                 spriteLayer.Initialize("Sprite Layer", shape);
@@ -158,6 +158,11 @@ namespace Assets.Scripts.GridMapMaker
             }
         }
 
+        public bool HasLayer(string layerId)
+        {
+            return ChunkLayers.ContainsKey(layerId);
+        }
+
         public MeshLayer GetMeshLayer(string layerId)
         {
             if (ChunkLayers.ContainsKey(layerId))
@@ -169,7 +174,7 @@ namespace Assets.Scripts.GridMapMaker
         }
         public void UpdateLocalPosition()
         {
-            string layer = gridManager.DefaultLayer;
+            string layer = GridManager.DefaultLayer;
 
             if (string.IsNullOrEmpty(layer))
             {
@@ -183,11 +188,43 @@ namespace Assets.Scripts.GridMapMaker
         }
         public void InsertVisualData(Vector2Int gridPosition, ShapeVisualData visualProp, string layerId)
         {
-            if (ChunkLayers.ContainsKey(layerId))
+            if (ChunkLayers.ContainsKey(layerId) && ContainsPosition(gridPosition))
             {
                 ChunkLayers[layerId].InsertVisualData(gridPosition, visualProp);
             }
         }
+        public bool TryInsertVisualData(Vector2Int gridPosition, ShapeVisualData visualProp, string layerId)
+        {
+            MeshLayer ml = null;
+            ChunkLayers.TryGetValue(layerId, out ml);
+
+            if (ml != null && ContainsPosition(gridPosition))
+            {
+                ml.InsertVisualData(gridPosition, visualProp);
+                return true;
+            }
+
+            return false;
+        }
+
+        public void QuickInsertVisualData(Vector2Int gridPosition, ShapeVisualData visualProp, string layerId)
+        {
+            ChunkLayers[layerId].InsertVisualData(gridPosition, visualProp);
+        }
+
+        public bool CanInsert(Vector2Int gridPosition, string layerId)
+        {
+            MeshLayer ml = null;
+            ChunkLayers.TryGetValue(layerId, out ml);
+
+            if (ml != null && ContainsPosition(gridPosition))
+            {
+                return true;
+            }
+
+            return false;
+        }
+
         public void RemoveVisualData(Vector2Int gridPosition, string layerId)
         {
             if (ChunkLayers.ContainsKey(layerId))
@@ -280,7 +317,7 @@ namespace Assets.Scripts.GridMapMaker
         {
             if (ChunkLayers.ContainsKey(layerId))
             {
-                return ChunkLayers[layerId].GetBounds(gridManager.WorldPosition);
+                return ChunkLayers[layerId].GetBounds(GridManager.WorldPosition);
             }
 
             return new Bounds();
@@ -293,7 +330,7 @@ namespace Assets.Scripts.GridMapMaker
         /// <returns></returns>
         public Bounds GetDefaultLayerBounds()
         {
-            string layerId = gridManager.DefaultLayer;
+            string layerId = GridManager.DefaultLayer;
 
             return GetLayerBounds(layerId);
         }
@@ -357,7 +394,7 @@ namespace Assets.Scripts.GridMapMaker
         {
             GridShape shape;
   
-            if (TryGetLayerShape(gridManager.DefaultLayer,
+            if (TryGetLayerShape(GridManager.DefaultLayer,
                                                 out shape))
             {
                 gridPosition = shape.GetGridCoordinate(localPosition);
@@ -410,13 +447,30 @@ namespace Assets.Scripts.GridMapMaker
         {
             foreach (MeshLayer layer in ChunkLayers.Values)
             {
-                layer.UpdateMesh();
+                layer.FusedMeshGroups();
+                layer.DrawFusedMesh();
+            }
+        }
+
+        public void FusedMeshGroups()
+        {
+            foreach (MeshLayer layer in ChunkLayers.Values)
+            {
+                layer.FusedMeshGroups();
+            }
+        }
+
+        public void DrawFusedMesh()
+        {
+            foreach (MeshLayer layer in ChunkLayers.Values)
+            {
+                layer.DrawFusedMesh();
             }
         }
 
         public void UpdateLayer(string layerId)
         {
-            ChunkLayers[layerId].UpdateMesh();
+            ChunkLayers[layerId].DrawFusedMesh();
         }
 
         public void RedrawLayer(string layerId)

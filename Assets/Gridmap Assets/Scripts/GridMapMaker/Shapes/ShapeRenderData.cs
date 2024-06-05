@@ -20,13 +20,17 @@ namespace Assets.Gridmap_Assets.Scripts.GridMapMaker.Shapes
         [ShowOnlyField]
         [SerializeField]
         private string visualName;
-
         public string VisualName { get => visualName; }
+
+        public RenderType ShapeRenderType { get; private set; }
+        public enum RenderType { Material, Color };
 
         [ShowOnlyField]
         private Material sharedMaterial;
 
-        private MaterialPropertyBlock propertyBlock;   
+        private MaterialPropertyBlock propertyBlock;
+
+        public Color ShapeColor;
         
         public Material SharedMaterial
         {
@@ -43,6 +47,20 @@ namespace Assets.Gridmap_Assets.Scripts.GridMapMaker.Shapes
             visualName = name;
             sharedMaterial = material;
             this.propertyBlock = propertyBlock;
+
+            ShapeRenderType = RenderType.Material;
+
+            ShapeColor = Color.white;
+        }
+
+        public ShapeRenderData(Color shapeColor, string name = "")
+        {
+            visualName = name;
+            ShapeColor = shapeColor;
+
+            ShapeRenderType = RenderType.Color;
+            sharedMaterial = null;
+            propertyBlock = null;
         }
 
         public bool IsNullOrEmpty()
@@ -55,9 +73,22 @@ namespace Assets.Gridmap_Assets.Scripts.GridMapMaker.Shapes
             return false;
         }
 
-        public bool Equals(ShapeRenderData data)
+        public bool Equals(ShapeRenderData other)
         {
-            if (data.sharedMaterial == sharedMaterial && data.propertyBlock == propertyBlock)
+            // if the render type is thesame, check if the render type is color, then check if the color is thesame, else check if the material and property block are thesame
+            if (ShapeRenderType == other.ShapeRenderType )
+            {
+                if (ShapeRenderType == RenderType.Color)
+                {
+                    return ShapeColor == other.ShapeColor;
+                }
+            }
+            else
+            {
+                return false;
+            }
+            
+            if (other.sharedMaterial == sharedMaterial && other.propertyBlock == propertyBlock)
             {
                 return true;
             }
@@ -67,6 +98,18 @@ namespace Assets.Gridmap_Assets.Scripts.GridMapMaker.Shapes
 
         public bool VisuallyEqual(ShapeRenderData other)
         {
+            if (ShapeRenderType == other.ShapeRenderType)
+            {
+                if (ShapeRenderType == RenderType.Color)
+                {
+                    return ShapeColor == other.ShapeColor;
+                }
+            }
+            else
+            {
+                return false;
+            }
+
             if (sharedMaterial != other.sharedMaterial)
             {
                 return false;

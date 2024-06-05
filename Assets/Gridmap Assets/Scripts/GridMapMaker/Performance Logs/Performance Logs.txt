@@ -1,0 +1,328 @@
+﻿This is from Commit 8757adfdb42a028c72f6f2a35bddd4ace493e38a - "Working on Performance Improvements"
+Generation Time Took: 		 3.794 seconds
+Initing Grid Took: 		 0.001 seconds
+Creating Layer Took: 		 0.001 seconds
+Filling Grid Chunks Took: 		 3.092 seconds
+InsertPosition Took: 		 2.803 seconds
+Insert 0 Took: 		 1.423 seconds --   VisualDataGroup.TryGetValue(visualProp, out meshFuser);
+Insert 2 Took: 		 0.003 seconds
+Insert 1 Took: 		 1.284 seconds -- VisualDataGroup[visualProp].InsertPosition(gridPosition); - if visualProp already existed
+CreateFusedMeshes Took: 		 0.698 seconds
+GroupAndDrawMeshes Took: 		 0.006 seconds
+
+For 200 x 200 grid, 50 x 50 chunks
+
+
+Log Time: 05/30/2024 11:29 PM
+Generation Time Took: 		 0.739 seconds
+Initing Grid Took: 		 0.001 seconds
+Creating Layer Took: 		 0.001 seconds
+Filling Grid Chunks Took: 		 0.121 seconds
+InsertPosition Took: 		 0.1 seconds
+Insert 0 Took: 		 0.013 seconds
+Insert 2 Took: 		 0 seconds
+Insert 1 Took: 		 0.026 seconds
+CreateFusedMeshes Took: 		 0.614 seconds
+CreateFusedMeshes Loop 1 Took: 		 0.606 seconds
+CreateFusedMeshes Update Took: 		 0.606 seconds
+CreateFusedMeshes Post Update Took: 		 0 seconds
+GroupAndDrawMeshes Took: 		 0.008 seconds
+
+Log Time: 05/31/2024 01:08 AM
+Generation Time Took: 		 0.892 seconds
+Initing Grid Took: 		 0.001 seconds
+Creating Layer Took: 		 0.001 seconds
+Filling Grid Chunks Took: 		 0.236 seconds
+InsertPosition Took: 		 0.108 seconds
+Insert 0 Took: 		 0.014 seconds
+Insert 2 Took: 		 0 seconds
+Insert 1 Took: 		 0.027 seconds
+CreateFusedMeshes Took: 		 0.652 seconds
+
+For 200 x 200 grid, 50 x 50 chunks
+
+It seems most of the time (70% - 80%) is spent in the CreateFusedMeshes Update function.
+	- That CreateFusedMeshes function is the ShapeMeshFuser.Update Function. 
+	- The good news is that we have successfully optimized our insert method such that it is now insignificant
+	- Additionally, whenever we update the map, we wont have to redraw the whole thing. We also redraw parts of the map that have been changed, 
+	- I tested highlighting a single cell. This was done by, get the cell at (0,0), deep copy it, change its color, and then insert it back into the map.
+		- This was done in 0.004 - 0.013 seconds. If was usually .004 after the first time. JIT compiler and all
+
+
+Log Time: 05/31/2024 02:36 PM
+Generation Time Took: 		 3.158 seconds
+Filling Grid Chunks Took: 		 1.138 seconds
+InsertPosition Took: 		 0.961 seconds
+Insert 0 Took: 		 0.015 seconds
+Insert 2 Took: 		 0.805 seconds
+Insert 1 Took: 		 0.047 seconds
+CreateFusedMeshes Took: 		 1.993 seconds
+CreateFusedMeshes VGroup Took: 		 0.026 seconds
+CreateFusedMeshes Update Took: 		 1.55 seconds
+CreateFusedMeshes Post Update Took: 		 0.021 seconds
+Group and Draw Update Took: 		 0.361 seconds
+
+For thesame gridSize, however if we make each individual position its own unique position,
+these are the stats we get. Not good!
+
+Log Time: 05/31/2024 03:56 PM
+Generation Time Took: 		 22.536 seconds
+Filling Grid Chunks Took: 		 3.459 seconds
+InsertPosition Took: 		 2.592 seconds
+Insert 0 Took: 		 0.373 seconds
+Insert 2 Took: 		 0.469 seconds
+CreateFusedMeshes Took: 		 19.014 seconds
+CreateFusedMeshes VGroup Took: 		 0.018 seconds
+CreateFusedMeshes Update Took: 		 18.629 seconds
+CreateFusedMeshes Post Update Took: 		 0.017 seconds
+Group and Draw Update Took: 		 0.323 seconds
+
+1000 x 1000 grid
+
+Log Time: 05/31/2024 10:51 PM
+Generation Time Took: 		 7.611 seconds
+Filling Grid Chunks Took: 		 4.317 seconds
+InsertPosition Took: 		 3.457 seconds
+Insert -1 Took: 		 1.243 seconds
+Insert 0 Took: 		 0.356 seconds
+Insert 1 Took: 		 0.467 seconds
+Insert 2 Took: 		 0.698 seconds
+Update Mesh Took: 		 3.225 seconds
+CreateFusedMeshes Took: 		 3.224 seconds
+
+1000 x 1000 grid, 50 x 50 chunks
+
+For Unity tilemap of same size
+Time to generate grid: 4.756 s
+
+
+Log Time: 06/03/2024 01:07 PM
+Generation Time Took: 		 23.062 seconds
+InsertPosition Took: 		 4.938 seconds
+Update Mesh Took: 		 8.044 seconds
+CreateFusedMeshes Took: 		 8.039 seconds
+CreateFused Mesh Loop 1 Took: 		 7.129 seconds
+Group and Draw Meshes Took: 		 0.902 seconds
+
+Has 20k batches
+1000 x 1000 grid, 20 x 20 chunks
+
+
+Log Time: 06/03/2024 02:31 PM
+Generation Time Took: 		 0.376 seconds
+Generate Tiles Took: 		 0.116 seconds
+Insert Position Block Took: 		 0.108 seconds
+Inserting Block 1 Took: 		 0.009 seconds
+Inserting Block 2 Took: 		 0.099 seconds
+InsertPosition Took: 		 0.079 seconds
+Update Grid Took: 		 0.145 seconds
+
+200 x 200, 50 x 50
+
+
+// without parralism
+Log Time: 06/03/2024 07:13 PM
+Generation Time Took: 		 3.676 seconds
+Generate Tiles Took: 		 0 seconds
+Insert Block Took: 		 1.146 seconds
+Update Grid Took: 		 2.451 seconds
+
+1k x 1k, 50 x 50 chunks
+
+// Using chunk parallelism -- where each chunk fuses their mesh in parrelel, 
+// chunks are still drawn in sequence because Unity Mesh can only be accessed from main thread
+Log Time: 06/03/2024 07:14 PM
+Generation Time Took: 		 2.489 seconds
+Generate Tiles Took: 		 0 seconds
+Insert Block Took: 		 1.133 seconds
+Update Grid Took: 		 1.277 seconds
+
+// Unity Tilemap stats for 1000 x 1000
+
+Time to generate grid: 4.789 s
+Time to generate Colors: 0.366 s
+
+Time to generate grid: 5.199 s
+Time to generate Colors: 0 s
+
+Log Time: 06/03/2024 10:48 PM
+Generation Time Took: 		 1.49 seconds
+Generate Tiles Took: 		 0.082 seconds
+Insert Block Took: 		 0.509 seconds
+Update Grid Took: 		 0.913 seconds
+
+Log Time: 06/03/2024 10:48 PM
+Generation Time Took: 		 1.954 seconds
+Generate Tiles Took: 		 0 seconds
+Insert Block Took: 		 0.767 seconds
+Update Grid Took: 		 1.106 seconds
+
+The last 2 are 1k x 1k, 50 x 50 chunks
+
+Log Time: 06/03/2024 10:48 PM
+Generation Time Took: 		 7.323 seconds
+Generate Tiles Took: 		 0 seconds
+Insert Block Took: 		 2.59 seconds
+Update Grid Took: 		 4.417 seconds
+
+2000 x 2000, 50 x 50 chunks
+
+Log Time: 06/04/2024 01:58 PM
+Title: Map size(Chunk Size): 1000 X 1000(130 X 130)
+
+Generation Time Took: 	            1.89 seconds
+Generate Tiles Took: 	            0 seconds
+Insert Block Took: 	            0.397 seconds
+Update Grid Took: 	            1.476 seconds
+
+Log Time: 06/04/2024 04:49 PM
+Title: Map size(Chunk Size): 2000 X 2000(50 X 50)
+
+Generation Time Took: 	            8.351 seconds
+Generate Tiles Took: 	            0.375 seconds
+Insert Block Took: 	            2.693 seconds
+Update Grid Took: 	            5.357 seconds
+
+Log Time: 06/04/2024 04:50 PM
+Title: Map size(Chunk Size): 4000 X 4000(50 X 50)
+
+Generation Time Took: 	            42.738 seconds
+Generate Tiles Took: 	            1.679 seconds
+Insert Block Took: 	            11.516 seconds
+Update Grid Took: 	            30.023 seconds
+
+Uses fuseMesh, non parrallel
+
+Log Time: 06/04/2024 06:28 PM
+Title: Map size(Chunk Size): 4000 X 4000(50 X 50)
+
+Generation Time Took: 	            38.237 seconds
+Generate Tiles Took: 	            1.306 seconds
+Insert Block Took: 	            11.389 seconds
+Update Grid Took: 	            25.705 seconds
+
+Uses fuseMesh, parrallel
+
+Log Time: 06/04/2024 06:32 PM
+Title: Map size(Chunk Size): 100 X 100(50 X 50)
+
+Generation Time Took: 	            0.019 seconds
+Generate Tiles Took: 	            0 seconds
+Insert Block Took: 	            0.006 seconds
+Update Grid Took: 	            0.01 seconds
+
+Log Time: 06/04/2024 06:32 PM
+Title: Map size(Chunk Size): 500 X 500(50 X 50)
+
+Generation Time Took: 	            0.349 seconds
+Generate Tiles Took: 	            0.021 seconds
+Insert Block Took: 	            0.115 seconds
+Update Grid Took: 	            0.212 seconds
+
+The last 2 Uses Parrelel fuse mesh
+
+------------------------------------------------------
+
+After full implementation, testing which is fastest. Will run twice for small values and once for large values
+
+Log Time: 06/04/2024 06:43 PM
+Title: Map size(Chunk Size): 100 X 100(50 X 50)
+Multithreaded Chunks: False
+Multithreaded Fuse: False
+
+Generation Time Took: 	            0.026 seconds
+Generate Tiles Took: 	            0 seconds
+Insert Block Took: 	            0.007 seconds
+Update Grid Took: 	            0.017 seconds
+
+Log Time: 06/04/2024 06:44 PM
+Title: Map size(Chunk Size): 500 X 500(50 X 50)
+Multithreaded Chunks: False
+Multithreaded Fuse: False
+
+Generation Time Took: 	            0.644 seconds
+Generate Tiles Took: 	            0.019 seconds
+Insert Block Took: 	            0.176 seconds
+Update Grid Took: 	            0.45 seconds
+
+Log Time: 06/04/2024 06:44 PM
+Title: Map size(Chunk Size): 1000 X 1000(50 X 50)
+Multithreaded Chunks: False
+Multithreaded Fuse: False
+
+Generation Time Took: 	            2.829 seconds
+Generate Tiles Took: 	            0.077 seconds
+Insert Block Took: 	            0.799 seconds
+Update Grid Took: 	            1.96 seconds
+
+Log Time: 06/04/2024 06:44 PM
+Title: Map size(Chunk Size): 2000 X 2000(50 X 50)
+Multithreaded Chunks: False
+Multithreaded Fuse: False
+
+Generation Time Took: 	            13.27 seconds
+Generate Tiles Took: 	            0.357 seconds
+Insert Block Took: 	            2.854 seconds
+Update Grid Took: 	            10.109 seconds
+
+Log Time: 06/04/2024 06:48 PM
+Title: Map size(Chunk Size): 4000 X 4000(50 X 50)
+Multithreaded Chunks: False
+Multithreaded Fuse: False
+
+Generation Time Took: 	            59.119 seconds
+Generate Tiles Took: 	            0 seconds
+Insert Block Took: 	            10.375 seconds
+Update Grid Took: 	            47.459 seconds
+
+----------------------- Both doing multhi-threading
+
+Log Time: 06/04/2024 06:45 PM
+Title: Map size(Chunk Size): 100 X 100(50 X 50)
+Multithreaded Chunks: True
+Multithreaded Fuse: True
+
+Generation Time Took: 	            0.018 seconds
+Generate Tiles Took: 	            0 seconds
+Insert Block Took: 	            0.006 seconds
+Update Grid Took: 	            0.01 seconds
+
+Log Time: 06/04/2024 06:45 PM
+Title: Map size(Chunk Size): 500 X 500(50 X 50)
+Multithreaded Chunks: True
+Multithreaded Fuse: True
+
+Generation Time Took: 	            0.46 seconds
+Generate Tiles Took: 	            0.023 seconds
+Insert Block Took: 	            0.19 seconds
+Update Grid Took: 	            0.247 seconds
+
+Log Time: 06/04/2024 06:45 PM
+Title: Map size(Chunk Size): 1000 X 1000(50 X 50)
+Multithreaded Chunks: True
+Multithreaded Fuse: True
+
+Generation Time Took: 	            2.113 seconds
+Generate Tiles Took: 	            0.079 seconds
+Insert Block Took: 	            0.77 seconds
+Update Grid Took: 	            1.273 seconds
+
+Log Time: 06/04/2024 06:46 PM
+Title: Map size(Chunk Size): 2000 X 2000(50 X 50)
+Multithreaded Chunks: True
+Multithreaded Fuse: True
+
+Generation Time Took: 	            7.981 seconds
+Generate Tiles Took: 	            0.295 seconds
+Insert Block Took: 	            2.86 seconds
+Update Grid Took: 	            4.843 seconds
+
+Log Time: 06/04/2024 06:46 PM
+Title: Map size(Chunk Size): 4000 X 4000(50 X 50)
+Multithreaded Chunks: True
+Multithreaded Fuse: True
+
+Generation Time Took: 	            31.839 seconds
+Generate Tiles Took: 	            1.342 seconds
+Insert Block Took: 	            11.31 seconds
+Update Grid Took: 	            19.358 seconds

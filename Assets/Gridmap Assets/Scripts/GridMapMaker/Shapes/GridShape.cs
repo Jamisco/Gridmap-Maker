@@ -1,4 +1,5 @@
 ﻿using Assets.Gridmap_Assets.Scripts.GridMapMaker.Shapes.TestVisualData;
+using Assets.Gridmap_Assets.Scripts.Miscellaneous;
 using Assets.Scripts.Miscellaneous;
 using System;
 using System.Collections.Generic;
@@ -51,6 +52,22 @@ namespace Assets.Gridmap_Assets.Scripts.GridMapMaker.Shapes
             protected set { shapeBounds = value; }
         }
 
+        public enum Orientation { XZ, XY };
+        
+        private Orientation shapeOrientation = Orientation.XZ;
+        public virtual Orientation ShapeOrientation
+        {
+            get 
+            { 
+                return shapeOrientation;
+            }
+            set 
+            { 
+                shapeOrientation = value;
+                UpdateOrientation();
+            }
+        }
+
         public string UniqueShapeName
         {
             get { return uniqueShapeName; }
@@ -65,7 +82,7 @@ namespace Assets.Gridmap_Assets.Scripts.GridMapMaker.Shapes
             set { baseVertices = value; }
         }
        /// <summary>
-        /// The minimum number of UVs required to map a texture onto a Shape
+        /// The minimum number of Uvs required to map a texture onto a Shape
         /// </summary>
         public List<Vector2> BaseUVs
         {
@@ -86,7 +103,7 @@ namespace Assets.Gridmap_Assets.Scripts.GridMapMaker.Shapes
         /// This function will return the base version of the Shape
         /// </summary>
         /// <returns></returns>
-        public abstract Mesh GetShapeMesh();
+        public abstract MeshData GetShapeMesh();
         /// <summary>
         /// The method will return the position of a Shape on the grid given its coordinates denoted cx, cy
         /// </summary>
@@ -107,6 +124,14 @@ namespace Assets.Gridmap_Assets.Scripts.GridMapMaker.Shapes
         /// <param timerName="localPosition"></param>
         /// <returns></returns>
         public abstract Vector2Int GetGridCoordinate(Vector3 localPosition);
+        
+        public void UpdateOrientation()
+        {
+            for (int i = 0; i < baseVertices.Count; i++)
+            {
+                baseVertices[i] = new Vector3(baseVertices[i].x, baseVertices[i].z, baseVertices[i].y);
+            }
+        }
        
         /// <summary>
         /// Will return a Vector with the respective bounds
@@ -158,8 +183,7 @@ namespace Assets.Gridmap_Assets.Scripts.GridMapMaker.Shapes
             svb.botF = bot.z;
 
             SetShapeBounds();
-        }
-     
+        }   
         protected virtual void SetShapeBounds()
         {
             // we then gridOffset the tesselated positions by the vertex positions to give us the bounds/edges
@@ -235,7 +259,6 @@ namespace Assets.Gridmap_Assets.Scripts.GridMapMaker.Shapes
 
             return currentShape.Contains(otherShape);
         }
-
         public virtual GridShape Init(GridShape shape, Vector2 cellGap)
         {
             GridShape s = Instantiate(shape);
@@ -246,14 +269,12 @@ namespace Assets.Gridmap_Assets.Scripts.GridMapMaker.Shapes
 
             return s;
         }
-
         public bool Equals(GridShape other)
         {
             // compare names
 
             return uniqueShapeName.Equals(other);
         }
-
         public struct ShapeVertexBounds
         {
             public Vector3 top;

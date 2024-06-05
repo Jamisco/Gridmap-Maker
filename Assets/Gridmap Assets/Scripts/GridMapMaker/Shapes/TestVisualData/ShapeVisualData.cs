@@ -1,4 +1,5 @@
-﻿using Assets.Scripts.Miscellaneous;
+﻿using Assets.Scripts.GridMapMaker;
+using Assets.Scripts.Miscellaneous;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -41,13 +42,34 @@ namespace Assets.Gridmap_Assets.Scripts.GridMapMaker.Shapes.TestVisualData
 
         protected Material sharedMaterial;
         protected MaterialPropertyBlock propertyBlock;
+
+        private static Shader colorShader;
+        public static Shader ColorShader
+        {
+            get
+            {
+                if (colorShader == null)
+                {
+                    colorShader = Shader.Find("GridMapMaker/MeshColorShader");
+                }
+
+                return colorShader;
+            }
+        }
+
+        [SerializeField]
+        public Color mainColor;
+        [SerializeField]
+        public Texture2D mainTexture;
+
+        public RenderMode ShapeRenderMode { get; set; } = RenderMode.Material;
+        public enum RenderMode { Material, MeshColor };
         protected abstract ISerializedVisual SerializedData { get; }
 
         public static string mainTexProperty = "_MainTex";
         public static string mainColorProperty = "_Color";
 
         public const int DEFAULT_VISUAL_HASH = -1111111111;
-        
         public ShapeVisualData()
         {
             VisualId = Guid.NewGuid();
@@ -56,11 +78,31 @@ namespace Assets.Gridmap_Assets.Scripts.GridMapMaker.Shapes.TestVisualData
         }
 
         /// <summary>
-        /// Set the material properties of your shader in this method. This will be called when the visual data is being used to render a Shape
+        /// The Color Shader is the default shader used to render the color of the mesh. It is a simple shader that instructs the meshlayer to color the vertices of the mesh.Calling this method will make sure it is initialized
         /// </summary>
-        public abstract void SetMaterialProperties();
+        public static void CreateDefaultVisual()
+        {
+            if (colorShader == null)
+            {
+                colorShader = Shader.Find("GridMapMaker/MeshColorShader");
+            }
+
+            singletonInstance = new ColorVisualData();
+            singletonInstance.sharedMaterial = new Material(colorShader);
+        }
+
+        private static ShapeVisualData singletonInstance;
+        public static ShapeVisualData GetDefaultVisual()
+        {
+            return singletonInstance;
+        }
 
         /// <summary>
+        /// Set the material properties of your shader in this method. This will be called when the visual data is being used to render a Shape
+        /// </summary>
+        public abstract void SetMaterialPropertyBlock();
+        
+    /// <summary>
         /// Will check if the visual hash has changed. If the hash hash changed, it will raise OnVisualDataChanged event and then update the visual hash.
         /// </summary>
         public void ValidateVisualHash()
@@ -81,10 +123,9 @@ namespace Assets.Gridmap_Assets.Scripts.GridMapMaker.Shapes.TestVisualData
 
         public virtual ShapeRenderData GetShapeRenderData()
         {
-            SetMaterialProperties();
+            SetMaterialPropertyBlock();
             return new ShapeRenderData(sharedMaterial, propertyBlock, visualName);
         }
-
         /// <summary>
         /// Will return a shallow copy of the visual data. This is useful when you want to create a new visual data that looks thesame as the original. The returned visual data will STILL SHARE REFERENCES. 
         /// </summary>
@@ -95,7 +136,7 @@ namespace Assets.Gridmap_Assets.Scripts.GridMapMaker.Shapes.TestVisualData
             return (T)MemberwiseClone();
         }
 
-        /// <summary>
+  /// <summary>
         /// This will get the render data of the visual data and then get the VisualHash of said data. This is an expensive operation and it is recommended you override and create your own hash code based on your visual data.
         /// </summary>
         /// <returns></returns>
@@ -104,7 +145,6 @@ namespace Assets.Gridmap_Assets.Scripts.GridMapMaker.Shapes.TestVisualData
             ShapeRenderData data = GetShapeRenderData();
             return data.GetVisualHash();
         }
-
         public override int GetHashCode()
         {
             return VisualId.GetHashCode();
@@ -167,7 +207,6 @@ namespace Assets.Gridmap_Assets.Scripts.GridMapMaker.Shapes.TestVisualData
                     return x.Equals(y);
                 }     
             }
-
             public int GetHashCode(ShapeVisualData obj)
             {
                 if (UseVisualHash == true)
@@ -178,6 +217,34 @@ namespace Assets.Gridmap_Assets.Scripts.GridMapMaker.Shapes.TestVisualData
                 {
                     return obj.GetHashCode();
                 }
+            }
+        }
+        private class ColorVisualData : ShapeVisualData
+        {
+            protected override ISerializedVisual SerializedData => null;
+
+            public ColorVisualData()
+            {
+                ShapeRenderMode = RenderMode.MeshColor;
+            }
+
+            public static ColorVisualData SingletonInstance;
+            public override T DeepCopy<T>()
+            {
+                ColorVisualData clone = new ColorVisualData();
+                return clone as T;
+            }
+            public override void SetMaterialPropertyBlock()
+            {
+                propertyBlock = new MaterialPropertyBlock();
+            }
+            public override void SetSerializeData(MapVisualContainer container)
+            {
+                // not needed
+            }
+            public override void DeserializeData(MapVisualContainer container)
+            {
+                // not needed
             }
         }
     }

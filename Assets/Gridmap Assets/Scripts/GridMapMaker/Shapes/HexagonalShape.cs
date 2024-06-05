@@ -1,4 +1,5 @@
-﻿using Assets.Scripts.Miscellaneous;
+﻿using Assets.Gridmap_Assets.Scripts.Miscellaneous;
+using Assets.Scripts.Miscellaneous;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -65,19 +66,19 @@ namespace Assets.Gridmap_Assets.Scripts.GridMapMaker.Shapes
                 new Vector2(0, 0.75f)
             };   
         }
-        public override Mesh GetShapeMesh()
+        public override MeshData GetShapeMesh()
         {
             UpdateShape();
-            
-            Mesh baseMesh = new Mesh();
 
-            baseMesh.vertices = BaseVertices.ToArray();
-            baseMesh.uv = BaseUVs.ToArray();
-            baseMesh.triangles = BaseTriangles.ToArray();
+            MeshData meshData = new MeshData();
 
-            ExtensionMethods.SetFullColor(baseMesh, Color.green);
+            meshData.Vertices = BaseVertices;
+            meshData.Triangles = BaseTriangles;
+            meshData.Uvs = BaseUVs;
 
-            return baseMesh;
+            ExtensionMethods.SetFullColor(meshData, Color.white);
+
+            return meshData;
         }
         public override Vector3 GetTesselatedPosition(int x, int y)
         {
