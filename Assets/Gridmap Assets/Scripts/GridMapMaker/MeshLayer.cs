@@ -365,12 +365,12 @@ namespace Assets.Gridmap_Assets.Scripts.Mapmaker
             //TimeLogger.StartTimer(1516, "FusedMeshGroups");
 
             smallMeshes.Clear();
-            
+            bool useMultiThread = gridChunk.GridManager.Multithread_Fuse;
             foreach (ShapeVisualData vData in MaterialVisualGroup.Keys)
             {
                 ShapeMeshFuser m = MaterialVisualGroup[vData];
 
-                if(gridChunk.GridManager.Multithread_Fuse)
+                if(useMultiThread)
                 {
                     m.FuseMesh_Fast();
                 }
@@ -389,7 +389,14 @@ namespace Assets.Gridmap_Assets.Scripts.Mapmaker
 
             // Color Visual Group
 
-            ColorVisualGroup.FuseMesh_Fast();
+            if (useMultiThread)
+            {
+                ColorVisualGroup.FuseMesh_Fast();
+            }
+            else
+            {
+                ColorVisualGroup.FuseMesh();
+            } 
 
             List<MeshData> colorMeshes = ColorVisualGroup.GetFusedMeshes();
 
@@ -438,6 +445,16 @@ namespace Assets.Gridmap_Assets.Scripts.Mapmaker
         private void GroupAndDrawMeshes()
         {
             smallMeshes.Sort((x, y) => x.VertexCount.CompareTo(y.VertexCount));
+
+            // remove empty meshes
+
+            for (int i = smallMeshes.Count - 1; i >= 0; i--)
+            {
+                if (smallMeshes[i].VertexCount == 0)
+                {
+                    smallMeshes.RemoveAt(i);
+                }
+            }
 
             MaxMesh mm = MaxMesh.Default();
 

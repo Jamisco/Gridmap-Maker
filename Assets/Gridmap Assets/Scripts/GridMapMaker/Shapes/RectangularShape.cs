@@ -21,6 +21,12 @@ namespace Assets.Gridmap_Assets.Scripts.GridMapMaker.Shapes
         {
             UpdateShape();
         }
+
+        public override void Initialize()
+        {
+            UpdateShape();
+            BaseOrientation = Orientation.XZ;
+        }
         private void UpdateShape()
         {
             SetBaseVertices();
@@ -57,28 +63,10 @@ namespace Assets.Gridmap_Assets.Scripts.GridMapMaker.Shapes
             };
         }
 
-        public override MeshData GetShapeMesh()
-        {
-            UpdateShape();
-            
-            MeshData meshData = new MeshData();
-            meshData.Vertices = BaseVertices;
-            meshData.Triangles = BaseTriangles;
-            meshData.Uvs = BaseUVs;
-
-            ExtensionMethods.SetFullColor(meshData, Color.white);
-
-            return meshData;
-        }
-        public override Vector3 GetTesselatedPosition(int x, int y)
+        protected override Vector3 GetBaseTesselatedPosition(int x, int y)
         {
             return new Vector3(x * Width + (x * cellGap.x), 0f,
                                y * Height + (y * cellGap.y));
-        }
-
-        public override Vector3 GetTesselatedPosition(Vector2Int gridPosition)
-        {
-            return GetTesselatedPosition(gridPosition.x, gridPosition.y);
         }
 
         public override Vector2Int GetGridCoordinate(Vector3 localPosition)

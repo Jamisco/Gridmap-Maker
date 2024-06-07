@@ -28,7 +28,10 @@ namespace Assets.Gridmap_Assets.Scripts.GridMapMaker.Shapes.TestVisualData
         GridShape aShape;
 
         [SerializeField]
-        BasicVisual basicVisual;     
+        BasicVisual basicVisual;
+
+        [SerializeField]
+        public bool DisableUnseenChunk = false;
         private void OnValidate()
         {
            // basicVisual.CheckVisualDataChanged();
@@ -39,7 +42,10 @@ namespace Assets.Gridmap_Assets.Scripts.GridMapMaker.Shapes.TestVisualData
         }
         private void Update()
         {
-            DisableUnseenChunks();
+            if(DisableUnseenChunk)
+            {
+                DisableUnseenChunks();
+            }        
         }
         
         public string layerId = "Layer 1";
@@ -166,7 +172,7 @@ namespace Assets.Gridmap_Assets.Scripts.GridMapMaker.Shapes.TestVisualData
 
         public string layerName = "";
         public int order = 1;
-        public void SetSprite()
+        public void Miscellaneous()
         {
             // GridManager.SpawnSprite(InputHex, sprite);
 
@@ -230,9 +236,9 @@ namespace Assets.Gridmap_Assets.Scripts.GridMapMaker.Shapes.TestVisualData
                     exampleScript.RemoveVisualData();
                 }
 
-                if (GUILayout.Button("Spawn Sprite"))
+                if (GUILayout.Button("Miscellaneous"))
                 {
-                    exampleScript.SetSprite();
+                    exampleScript.Miscellaneous();
                 }
 
                 if (GUILayout.Button("Update Map"))

@@ -4,21 +4,12 @@ using System.Collections.Generic;
 using Assets.Gridmap_Assets.Scripts.GridMapMaker.Shapes.TestVisualData;
 using Assets.Gridmap_Assets.Scripts.Mapmaker;
 using System;
-using static Assets.Gridmap_Assets.Scripts.Mapmaker.MeshLayer;
 using System.Linq;
 using static Assets.Scripts.GridMapMaker.GridChunk;
 using Assets.Scripts.Miscellaneous;
-using Unity.IO.LowLevel.Unsafe;
-using static Assets.Scripts.Miscellaneous.HexFunctions;
-using UnityEngine.TextCore.Text;
 using static Assets.Scripts.Miscellaneous.ExtensionMethods;
-using static UnityEditor.Experimental.GraphView.GraphView;
-using System.Diagnostics;
 using Debug = UnityEngine.Debug;
 using Assets.Gridmap_Assets.Scripts.Miscellaneous;
-using static UnityEngine.Rendering.VolumeComponent;
-using UnityEngine.UIElements;
-using static UnityEditor.PlayerSettings;
 using System.Collections.Concurrent;
 using System.Threading.Tasks;
 
@@ -46,6 +37,9 @@ namespace Assets.Scripts.GridMapMaker
         public string DefaultLayer { get { return defaultLayerId; } }
 
         public Vector2 CellGap;
+        
+        [SerializeField]
+        public GridShape.Orientation MapOrientation = GridShape.Orientation.XY;
 
         [SerializeReference]
         private MapVisualContainer visualContainer;
@@ -59,19 +53,8 @@ namespace Assets.Scripts.GridMapMaker
         private Dictionary<string, MeshLayerInfo> meshLayerInfos 
                             = new Dictionary<string, MeshLayerInfo>();
 
-        private SortAxis layerSortAxis = SortAxis.Y;
-        public SortAxis LayerSortAxis
-        {
-            get
-            {
-                return layerSortAxis;
-            }
-            set
-            {
-                layerSortAxis = value;
-                SortMeshLayers();
-            }
-        }
+        private SortAxis layerSortAxis;
+        public SortAxis LayerSortAxis => layerSortAxis;
         public Vector3 WorldPosition
         {
             get
@@ -369,7 +352,9 @@ namespace Assets.Scripts.GridMapMaker
 
             if (gridShape == null)
             {
-                gridShape = layerInfo.Shape.Init(layerInfo.Shape, CellGap);
+                gridShape = Instantiate(layerInfo.Shape);
+                gridShape.CellGap = CellGap;
+                gridShape.ShapeOrientation = MapOrientation;
 
                 gridShapes.Add(gridShape);
             }
@@ -415,6 +400,17 @@ namespace Assets.Scripts.GridMapMaker
             float baseLocation = 0;
             Vector3 gridPos = transform.position;
 
+            // the orientation of the map determines which axis we must sort againsts.
+            // For example, if the grid is displayed along the XY axis, then we determine sorting by moving the layers forward or backward on the Z axis
+            if(MapOrientation ==  GridShape.Orientation.XY)
+            {
+               layerSortAxis = SortAxis.Z;
+            }
+            else
+            {
+                layerSortAxis = SortAxis.Y;
+            }
+
             switch (layerSortAxis)
             {
                 case SortAxis.X:
@@ -436,7 +432,7 @@ namespace Assets.Scripts.GridMapMaker
 
                 if (order > previousOrder)
                 {
-                    offset = baseLocation + MeshLayerInfo.SortStep * i++;
+                    offset = MeshLayerInfo.SortStep * i++;
                 }
             
                 foreach (GridChunk chunk in sortedChunks.Values)

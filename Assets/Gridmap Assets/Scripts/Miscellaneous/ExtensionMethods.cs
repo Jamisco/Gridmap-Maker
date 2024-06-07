@@ -289,11 +289,11 @@ namespace Assets.Scripts.Miscellaneous
 
         public static void SetFullColor(this MeshData mesh, Color color)
         {
-            List<Color> colors = new List<Color>(mesh.vertexCount);
+            List<Color> colors = new List<Color>();
 
-            for (int i = 0; i < colors.Count; i++)
+            for (int i = 0; i < mesh.vertexCount; i++)
             {
-                colors[i] = color;
+                colors.Add(color);
             }
 
             mesh.Colors = colors;
@@ -405,6 +405,19 @@ namespace Assets.Scripts.Miscellaneous
             int com = gridComparer.Compare(pos1, pos2);
 
             return com <= 0;
+        }
+
+        public static Vector3 SwapXY(this Vector3  vector)
+        {
+            return new Vector3(vector.y, vector.x, vector.z);
+        }
+        public static Vector3 SwapXZ(this Vector3 vector)
+        {
+            return new Vector3(vector.z, vector.y, vector.x);
+        }
+        public static Vector3 SwapYZ(this Vector3  vector)
+        {
+            return new Vector3 (vector.x, vector.z, vector.y);
         }
 
         public static bool Contains(this Bounds bounds, Bounds other)

@@ -19,12 +19,11 @@ namespace Assets.Gridmap_Assets.Scripts.GridMapMaker.Shapes
         
         [SerializeField]
         public float Depth;
-
         private void OnValidate()
         {
-            UpdateShape();
+            ValidateShape();
         }
-        private void UpdateShape()
+        private void ValidateShape()
         {
             SetBaseVertices();
             SetBaseTriangles();
@@ -66,21 +65,8 @@ namespace Assets.Gridmap_Assets.Scripts.GridMapMaker.Shapes
                 new Vector2(0, 0.75f)
             };   
         }
-        public override MeshData GetShapeMesh()
-        {
-            UpdateShape();
 
-            MeshData meshData = new MeshData();
-
-            meshData.Vertices = BaseVertices;
-            meshData.Triangles = BaseTriangles;
-            meshData.Uvs = BaseUVs;
-
-            ExtensionMethods.SetFullColor(meshData, Color.white);
-
-            return meshData;
-        }
-        public override Vector3 GetTesselatedPosition(int x, int y)
+        protected override Vector3 GetBaseTesselatedPosition(int x, int y)
         {
             Vector3 position = new Vector3();
             // Calculate the center of each hexagon
@@ -89,10 +75,6 @@ namespace Assets.Gridmap_Assets.Scripts.GridMapMaker.Shapes
             position.z = y * (Depth - Depth / 4.0f) + (y * cellGap.y); ;
 
             return position;
-        }
-        public override Vector3 GetTesselatedPosition(Vector2Int gridPosition)
-        {
-            return GetTesselatedPosition(gridPosition.x, gridPosition.y);
         }
         public override Vector2Int GetGridCoordinate(Vector3 localPosition)
         {
@@ -121,7 +103,7 @@ namespace Assets.Gridmap_Assets.Scripts.GridMapMaker.Shapes
                 {
                     for (int z = maxZ; z >= zMin; z--)
                     {
-                        Vector3 pos = GetTesselatedPosition(x, z);
+                        Vector3 pos = GetBaseTesselatedPosition(x, z);
                         distance = Vector3.Distance(pos, localPosition);
 
                         if (distance < prevDistance)
@@ -135,6 +117,12 @@ namespace Assets.Gridmap_Assets.Scripts.GridMapMaker.Shapes
                 // this should never run
                 return closest;
             }
+        }
+
+        public override void Initialize()
+        {
+            ValidateShape();
+            BaseOrientation = Orientation.XZ;
         }
     }
 }

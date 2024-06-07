@@ -47,8 +47,8 @@ namespace Assets.Gridmap_Assets.Scripts.GridMapMaker
         public bool PendingUpdate => pendingUpdate;
         public ShapeMeshFuser(GridShape shape, Vector3 positionOffset = new Vector3())
         {
-            shapeMesh = shape.GetShapeMesh();
             gridShape = shape;
+            shapeMesh = shape.ShapeMesh;
 
             this.positionOffset = positionOffset;
 
@@ -282,7 +282,7 @@ namespace Assets.Gridmap_Assets.Scripts.GridMapMaker
             foreach (int key in shapePositions.Keys)
             {
                 Vector2Int pos = shapePositions[key];
-                Vector3 offset = gridShape.GetTesselatedPosition(pos) - positionOffset;
+                Vector3 offset = gridShape.GetBaseTesselatedPosition(pos) - positionOffset;
                 Color color = positionColors[key];
                 
                 for (int j = 0; j < shapeMeshSize.vertexCount; j++)
