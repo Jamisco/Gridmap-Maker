@@ -219,26 +219,18 @@ namespace Assets.Gridmap_Assets.Scripts.GridMapMaker
                 Vector3 offset = gridShape.GetTesselatedPosition(pos) - positionOffset;
                 Color color = positionColors[keys[i]];
 
-                try
+                for (int j = 0; j < shapeMeshSize.vertexCount; j++)
                 {
-                    for (int j = 0; j < shapeMeshSize.vertexCount; j++)
-                    {
-                        finalMeshData[groupIndex].Vertices[vi] = shapeMesh.Vertices[j] + offset;
-                        finalMeshData[groupIndex].Colors[vi] = color;
-                        finalMeshData[groupIndex].Uvs[vi] = shapeMesh.Uvs[j];
-                        vi++;
-                    }
-
-                    for (int j = 0; j < shapeMeshSize.triangleCount; j++)
-                    {
-                        finalMeshData[groupIndex].Triangles[ti] = shapeMesh.Triangles[j] + (insertIndex * shapeMeshSize.vertexCount);
-                        ti++;
-                    }
+                    finalMeshData[groupIndex].Vertices[vi] = shapeMesh.Vertices[j] + offset;
+                    finalMeshData[groupIndex].Colors[vi] = color;
+                    finalMeshData[groupIndex].Uvs[vi] = shapeMesh.Uvs[j];
+                    vi++;
                 }
-                catch (Exception)
-                {
 
-                    int asdsd = 23;
+                for (int j = 0; j < shapeMeshSize.triangleCount; j++)
+                {
+                    finalMeshData[groupIndex].Triangles[ti] = shapeMesh.Triangles[j] + (insertIndex * shapeMeshSize.vertexCount);
+                    ti++;
                 }
 
             });

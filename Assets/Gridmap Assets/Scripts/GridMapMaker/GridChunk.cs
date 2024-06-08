@@ -13,6 +13,7 @@ using UnityEngine;
 using static Assets.Gridmap_Assets.Scripts.Mapmaker.MeshLayer;
 using static Assets.Scripts.GridMapMaker.GridManager;
 using static UnityEditor.Experimental.GraphView.GraphView;
+using static UnityEditor.PlayerSettings;
 
 namespace Assets.Scripts.GridMapMaker
 {
@@ -125,6 +126,10 @@ namespace Assets.Scripts.GridMapMaker
             chunkGridBounds.yMax = 1;
 
             spriteLayer = GetComponent<SpriteLayer>();
+
+            // a chunk local position is simply the position of the first cell in the chunk
+            // thus, the chunk position can only be known after a layer has been added
+            // see updatelocalposition method
         }
         private static MeshLayer CreateLayer(Transform parent = null)
         {
@@ -172,7 +177,7 @@ namespace Assets.Scripts.GridMapMaker
 
             return null;
         }
-        public void UpdateLocalPosition()
+        public void ValidateLocalPosition()
         {
             string layer = GridManager.DefaultLayer;
 
@@ -443,7 +448,21 @@ namespace Assets.Scripts.GridMapMaker
             }
         }
 
-        public void UpdateLayers()
+        /// <summary>
+        /// Will swap the Y and Z axis of the chunk, and all its layers. There is no check for the validity of the swap, so be sure to only call this when needed.
+        /// </summary>
+        public void ChangeOrientation()
+        {
+            gameObject.transform.localPosition = gameObject.transform.localPosition.SwapYZ();
+
+            foreach (MeshLayer layer in ChunkLayers.Values)
+            {
+                layer.ChangeOrientation_Fast();
+            }
+        }
+
+
+        public void DrawLayers()
         {
             foreach (MeshLayer layer in ChunkLayers.Values)
             {

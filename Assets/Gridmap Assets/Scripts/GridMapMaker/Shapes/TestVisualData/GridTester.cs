@@ -87,8 +87,6 @@ namespace Assets.Gridmap_Assets.Scripts.GridMapMaker.Shapes.TestVisualData
 
             TimeLogger.StartTimer(-1502, "Insert Block");
 
-            MeshLayer.hitCount = 0;
-
             gridManager.InsertPosition_Block(mapData.Item1, mapData.Item2, layerId);
             //  GridManager.InsertPosition_Block(mapData.Item1, mapData.Item2, layerId2);
 
@@ -102,7 +100,7 @@ namespace Assets.Gridmap_Assets.Scripts.GridMapMaker.Shapes.TestVisualData
             }
             else
             {
-                gridManager.UpdateGrid();
+                gridManager.DrawGrid();
             }
             
             TimeLogger.StopTimer(-415);
@@ -110,14 +108,12 @@ namespace Assets.Gridmap_Assets.Scripts.GridMapMaker.Shapes.TestVisualData
             TimeLogger.StopAllTimers();
 
             TimeLogger.LogAll(gridManager.GetMapDescription());
-
-            Debug.Log("Insert Hit Count: " + MeshLayer.hitCount);
         }
         public void UpdateMap()
         {
             gridManager.SetVisualEquality(useVe, layerId);
             gridManager.RedrawLayer(layerId);
-            gridManager.UpdateGrid();
+            gridManager.DrawGrid();
         }
 
         public void ClearGrid()
@@ -163,7 +159,7 @@ namespace Assets.Gridmap_Assets.Scripts.GridMapMaker.Shapes.TestVisualData
             
             gridManager.InsertVisualData(InputHex, data, layerId);
 
-            gridManager.UpdateGrid();
+            gridManager.DrawGrid();
 
             TimeLogger.StopTimer(4816);
 
@@ -178,7 +174,7 @@ namespace Assets.Gridmap_Assets.Scripts.GridMapMaker.Shapes.TestVisualData
 
             SortingLayerInfo sl = new SortingLayerInfo(layerName, order);
 
-            gridManager.SortMeshLayers();
+            gridManager.ValidateOrientation();
         }
 
         public void RemoveVisualData()

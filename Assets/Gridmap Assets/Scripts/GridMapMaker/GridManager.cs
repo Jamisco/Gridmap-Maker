@@ -197,7 +197,6 @@ namespace Assets.Scripts.GridMapMaker
 
             DestroyImmediate(prefab.gameObject);
 
-            Debug.Log("Chunks Created: " + count);
         }
         private void AddLayerToAllGridChunks(string layerId, GridShape shape, bool useVisualEquality = false)
         {
@@ -294,7 +293,7 @@ namespace Assets.Scripts.GridMapMaker
 
             TimeLogger.StopTimer(42);
 
-            UpdateGrid();
+            DrawGrid();
 
             void MakeRandomData()
             {
@@ -365,7 +364,7 @@ namespace Assets.Scripts.GridMapMaker
             {
                 defaultLayerId = layerInfo.LayerId;
 
-                UpdateChunkLocalPosition();
+                ValidateChunkPositions();
             }
 
             return true;
@@ -585,7 +584,7 @@ namespace Assets.Scripts.GridMapMaker
         }
 
         /// <summary>
-        /// Set whether to use visual equality at the given layer. Note, that you will have to reinsert the visual data so that the changes take effect. It is not enough to call UpdateGrid()
+        /// Set whether to use visual equality at the given layer. Note, that you will have to reinsert the visual data so that the changes take effect. It is not enough to call DrawGrid()
         /// </summary>
         /// <param name="useEquality"></param>
         public void SetVisualEquality(bool useEquality, string layerId = USE_DEFAULT_LAYER)
@@ -672,7 +671,7 @@ namespace Assets.Scripts.GridMapMaker
 
             if (chunk != null)
             {
-                chunk.UpdateLayers();
+                chunk.DrawLayers();
             }
         }
 
@@ -690,19 +689,42 @@ namespace Assets.Scripts.GridMapMaker
         /// <summary>
         /// Update the local position of all chunks. Call this when you have set or changed the defaultLayer
         /// </summary>
-        private void UpdateChunkLocalPosition()
+        private void ValidateChunkPositions()
         {
             foreach (GridChunk chunk in sortedChunks.Values)
             {
-                chunk.UpdateLocalPosition();
+                chunk.ValidateLocalPosition();
             }
         }
 
-        public void UpdateGrid()
+        public void ValidateOrientation()
+        {
+            TimeLogger.ClearTimers();
+            TimeLogger.StartTimer(67234, "Change Orientation");
+            // at all points in time all shapes should have thesame orientation, thus we can check the shapes at any index
+            if (gridShapes.First().ShapeOrientation != MapOrientation)
+            {
+                foreach (GridShape shape in gridShapes)
+                {
+                    shape.ShapeOrientation = MapOrientation;
+                }
+
+                foreach (GridChunk chunk in sortedChunks.Values)
+                {
+                    chunk.ChangeOrientation();
+                }
+            }
+
+            TimeLogger.StopTimer(67234);
+
+            TimeLogger.Log(67234);
+        }
+
+        public void DrawGrid()
         {
             foreach (GridChunk chunk in sortedChunks.Values)
             {
-                chunk.UpdateLayers();
+                chunk.DrawLayers();
             }
 
             MapisDrawn = true;
@@ -711,7 +733,7 @@ namespace Assets.Scripts.GridMapMaker
         }
 
         /// <summary>
-        /// Uses parallel processing to update the grid. This is faster than UpdateGrid() but because it uses parallel processing, user specific issues may arise
+        /// Uses parallel processing to update the grid. This is faster than DrawGrid() but because it uses parallel processing, user specific issues may arise
         /// </summary>
         public void UpdateGrid_Fast()
         {

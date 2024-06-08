@@ -10,6 +10,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
 using System.Threading;
+using System.Threading.Tasks;
 using Unity.Mathematics;
 using UnityEditor;
 using UnityEngine;
@@ -264,8 +265,6 @@ namespace Assets.Gridmap_Assets.Scripts.Mapmaker
                 CellGridPositions.Remove(hash);
             }
         }
-
-        public static int hitCount = 0;
         public void DeleteShape(Vector2Int gridPosition)
         {
             // We will straight up delete the mesh at the grid position
@@ -277,7 +276,6 @@ namespace Assets.Gridmap_Assets.Scripts.Mapmaker
 
             if (existing != null)
             {
-                hitCount++;
                 ShapeMeshFuser mf = null;
 
                bool isMat = MaterialVisualGroup.TryGetValue(existing, out mf);
@@ -363,8 +361,8 @@ namespace Assets.Gridmap_Assets.Scripts.Mapmaker
         public void FusedMeshGroups()
         {
             //TimeLogger.StartTimer(1516, "FusedMeshGroups");
+            List<SmallMesh> smallMeshes = new List<SmallMesh>();
 
-            smallMeshes.Clear();
             bool useMultiThread = gridChunk.GridManager.Multithread_Fuse;
             foreach (ShapeVisualData vData in MaterialVisualGroup.Keys)
             {
@@ -404,7 +402,45 @@ namespace Assets.Gridmap_Assets.Scripts.Mapmaker
             {
                 smallMeshes.Add(new SmallMesh(ShapeVisualData.GetDefaultVisual(), colorMeshes[i]));
             }
-            
+
+            smallMeshes.Sort((x, y) => x.VertexCount.CompareTo(y.VertexCount));
+
+            // remove empty meshes
+
+            for (int i = smallMeshes.Count - 1; i >= 0; i--)
+            {
+                if (smallMeshes[i].VertexCount == 0)
+                {
+                    smallMeshes.RemoveAt(i);
+                }
+            }
+
+            MaxMesh mm = MaxMesh.Default();
+
+            for (int i = 0; i < smallMeshes.Count; i++)
+            {
+                if (mm.CanAdd(smallMeshes[i].smallMesh))
+                {
+                    mm.Add(smallMeshes[i].vData, smallMeshes[i].smallMesh);
+                }
+                else
+                {
+                    maxMeshGroup.Add(mm);
+
+                    mm = MaxMesh.Default();
+
+                    mm.Add(smallMeshes[i].vData, smallMeshes[i].smallMesh);
+                }
+            }
+
+            if (mm.VertexCount > 0)
+            {
+                maxMeshGroup.Add(mm);
+            }
+
+            // save memory
+            smallMeshes.Clear();
+
             //TimeLogger.StopTimer(1516);
         }
         public void DrawFusedMesh()
@@ -424,65 +460,12 @@ namespace Assets.Gridmap_Assets.Scripts.Mapmaker
             //TimeLogger.StopTimer(71451);
         }
 
-        private GameObject CreateMeshHolder(string objName = "Layer Mesh")
-        {
-            GameObject meshHold = new GameObject(objName);
-            meshHold.transform.SetParent(transform);
-
-            meshHold.transform.localPosition = Vector3.zero;
-
-            // add mesh components
-
-            MeshFilter meshF = meshHold.AddComponent<MeshFilter>();
-            MeshRenderer meshR = meshHold.AddComponent<MeshRenderer>();
-
-            return meshHold;
-        }
-
-        private List<SmallMesh> smallMeshes = new List<SmallMesh>();
-
+        List<MaxMesh> maxMeshGroup = new List<MaxMesh>();
         // group meshes that are within the max vert limit, combined them, with sub meshes, use material from visual data  
         private void GroupAndDrawMeshes()
-        {
-            smallMeshes.Sort((x, y) => x.VertexCount.CompareTo(y.VertexCount));
-
-            // remove empty meshes
-
-            for (int i = smallMeshes.Count - 1; i >= 0; i--)
-            {
-                if (smallMeshes[i].VertexCount == 0)
-                {
-                    smallMeshes.RemoveAt(i);
-                }
-            }
-
-            MaxMesh mm = MaxMesh.Default();
-
-            List<MaxMesh> mmGroup = new List<MaxMesh>();
-
-            for (int i = 0; i < smallMeshes.Count; i++)
-            {
-                if (mm.CanAdd(smallMeshes[i].smallMesh))
-                {
-                    mm.Add(smallMeshes[i].vData, smallMeshes[i].smallMesh);
-                }
-                else
-                {
-                    mmGroup.Add(mm);
-
-                    mm = MaxMesh.Default();
-
-                    mm.Add(smallMeshes[i].vData, smallMeshes[i].smallMesh);
-                }
-            }
-
-            if (mm.VertexCount > 0)
-            {
-                mmGroup.Add(mm);
-            }
-
+        {      
             int x = 1;
-            foreach (MaxMesh m in mmGroup)
+            foreach (MaxMesh m in maxMeshGroup)
             {
                 GameObject meshHolder = CreateMeshHolder("Mesh " + x++);
                 layerMeshes.Add(meshHolder);
@@ -515,6 +498,85 @@ namespace Assets.Gridmap_Assets.Scripts.Mapmaker
 
                 meshHolder.GetComponent<MeshFilter>().sharedMesh = mesh;
             }
+
+            // save memory
+            maxMeshGroup.Clear();
+        }
+        private GameObject CreateMeshHolder(string objName = "Layer Mesh")
+        {
+            GameObject meshHold = new GameObject(objName);
+            meshHold.transform.SetParent(transform);
+
+            meshHold.transform.localPosition = Vector3.zero;
+
+            // add mesh components
+
+            MeshFilter meshF = meshHold.AddComponent<MeshFilter>();
+            MeshRenderer meshR = meshHold.AddComponent<MeshRenderer>();
+
+            return meshHold;
+        }
+        public void ChangeOrientation()
+        {
+            List<MeshData> meshDatas = new List<MeshData>();
+
+            foreach (GameObject item in layerMeshes)
+            {
+                MeshFilter mf = item.GetComponent<MeshFilter>();
+                meshDatas.Add(new MeshData(mf.sharedMesh));
+            }
+
+            // convert to normal for
+
+            foreach (MeshData data in meshDatas)
+            {
+                for (int x = 0; x < data.vertexCount; x++)
+                {
+                    data.Vertices[x] = data.Vertices[x].SwapYZ();
+                }
+            }
+
+            for (int i = 0; i < layerMeshes.Count; i++)
+            {
+                GameObject item = layerMeshes[i];
+                MeshFilter mf = item.GetComponent<MeshFilter>();
+                mf.sharedMesh = meshDatas[i].GetMesh();
+            }
+
+            meshDatas.Clear();
+        }
+        public void ChangeOrientation_Fast()
+        {
+            TimeLogger.StartTimer(8741, "Change Orientation");
+            Mesh first = new Mesh();
+
+            List<MeshData> meshDatas = new List<MeshData>();
+
+            foreach (GameObject item in layerMeshes)
+            {
+                MeshFilter mf = item.GetComponent<MeshFilter>();
+                meshDatas.Add(new MeshData(mf.sharedMesh));
+                first = mf.sharedMesh;
+            }
+
+            Parallel.ForEach(meshDatas, data =>
+            {
+                Parallel.For(0, data.vertexCount, x =>
+                {
+                    data.Vertices[x] = data.Vertices[x].SwapYZ();
+                });
+            });
+
+            for (int i = 0; i < layerMeshes.Count; i++)
+            {
+                GameObject item = layerMeshes[i];
+                MeshFilter mf = item.GetComponent<MeshFilter>();
+                mf.sharedMesh = meshDatas[i].GetMesh();
+            }
+
+            meshDatas.Clear();
+
+            TimeLogger.StopTimer(8741);
         }
 
         /// <summary>

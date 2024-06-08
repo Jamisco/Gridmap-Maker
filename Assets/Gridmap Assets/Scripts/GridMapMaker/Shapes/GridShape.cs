@@ -65,13 +65,13 @@ namespace Assets.Gridmap_Assets.Scripts.GridMapMaker.Shapes
         /// <summary>
         /// The default orientation of the Shape when its vertices are created in editor
         /// </summary>
-        protected virtual Orientation BaseOrientation
+        public virtual Orientation BaseOrientation
         {
             get
             {
                 return baseOrientation;
             }
-            set
+            protected set
             {
                 baseOrientation = value;
             }
