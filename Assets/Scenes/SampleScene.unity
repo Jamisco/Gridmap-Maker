@@ -543,6 +543,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   gridSize: {x: 100, y: 100}
   chunkSize: {x: 50, y: 50}
+  shapeScale: {x: 1, y: 1}
   CellGap: {x: 0, y: 0}
   MapOrientation: 0
   visualContainer: {fileID: 11400000, guid: f86be30bed6200949b8f23ed3f86025a, type: 2}

@@ -166,6 +166,11 @@ namespace Assets.Gridmap_Assets.Scripts.GridMapMaker.Shapes.TestVisualData
             TimeLogger.LogAll();
         }
 
+        public void SpriteSpawner()
+        {
+            gridManager.SpawnSprite(InputHex, sprite);
+        }
+
         public string layerName = "";
         public int order = 1;
         public void Miscellaneous()
@@ -230,6 +235,11 @@ namespace Assets.Gridmap_Assets.Scripts.GridMapMaker.Shapes.TestVisualData
                 if (GUILayout.Button("Remove Visual Hex"))
                 {
                     exampleScript.RemoveVisualData();
+                }
+
+                if (GUILayout.Button("Sprite Spawner"))
+                {
+                    exampleScript.Miscellaneous();
                 }
 
                 if (GUILayout.Button("Miscellaneous"))

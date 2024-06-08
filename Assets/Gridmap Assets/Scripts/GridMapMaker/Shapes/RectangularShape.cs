@@ -14,24 +14,21 @@ namespace Assets.Gridmap_Assets.Scripts.GridMapMaker.Shapes
     [CreateAssetMenu(fileName = "RectangularShape", menuName = MenuName + "Rectangle")]
     public class RectangularShape : GridShape
     {
-        public float Width;
-        public float Height;
+        public float Width { get => Scale.x; }
+        public float Height { get => Scale.y; }
 
         private void OnValidate()
         {
-            UpdateShape();
+            SetBaseValues();
         }
 
-        public override void Initialize()
-        {
-            UpdateShape();
-            BaseOrientation = Orientation.XZ;
-        }
-        private void UpdateShape()
+        protected override void SetBaseValues()
         {
             SetBaseVertices();
             SetBaseTriangles();
             SetBaseUVs();
+
+            BaseOrientation = Orientation.XZ;
         }
         private void SetBaseVertices()
         {

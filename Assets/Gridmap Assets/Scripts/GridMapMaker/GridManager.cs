@@ -33,6 +33,9 @@ namespace Assets.Scripts.GridMapMaker
         [SerializeField]
         private Vector2Int chunkSize;
 
+        [SerializeField]
+        private Vector2 shapeScale = Vector2.one;
+
         private string defaultLayerId;
         public string DefaultLayer { get { return defaultLayerId; } }
 
@@ -354,6 +357,9 @@ namespace Assets.Scripts.GridMapMaker
                 gridShape = Instantiate(layerInfo.Shape);
                 gridShape.CellGap = CellGap;
                 gridShape.ShapeOrientation = MapOrientation;
+                gridShape.Scale = shapeScale;
+                
+                gridShape.UpdateShape();
                 
                 layerInfo.Shape = gridShape;
                 

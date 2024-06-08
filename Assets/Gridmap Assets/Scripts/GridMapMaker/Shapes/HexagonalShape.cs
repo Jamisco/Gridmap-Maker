@@ -14,20 +14,20 @@ namespace Assets.Gridmap_Assets.Scripts.GridMapMaker.Shapes
     [CreateAssetMenu(fileName = "HexagonalShape", menuName = MenuName + "Hexagon")]
     public class HexagonalShape : GridShape
     {
-        [SerializeField]
-        public float Width;
+        public float Width { get => Scale.x; }
+        public float Depth { get => Scale.y; }
         
-        [SerializeField]
-        public float Depth;
         private void OnValidate()
         {
-            ValidateShape();
+            SetBaseValues();
         }
-        private void ValidateShape()
+        protected override void SetBaseValues()
         {
             SetBaseVertices();
             SetBaseTriangles();
             SetBaseUVs();
+            
+            BaseOrientation = Orientation.XZ;
         }
         private void SetBaseVertices()
         {
@@ -117,12 +117,6 @@ namespace Assets.Gridmap_Assets.Scripts.GridMapMaker.Shapes
                 // this should never run
                 return closest;
             }
-        }
-
-        public override void Initialize()
-        {
-            ValidateShape();
-            BaseOrientation = Orientation.XZ;
         }
     }
 }

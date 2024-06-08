@@ -29,10 +29,10 @@ namespace Assets.Gridmap_Assets.Scripts.GridMapMaker.Shapes
 
         [SerializeField]
         private List<int> baseTriangles;
+        public virtual Vector2 Scale { get; set; } = Vector2.one;
 
         protected Vector2 cellGap;
-
-        /// <summary>
+       /// <summary>
         /// This will contain the edge/bounds basePosition of the Shape.
         /// It is used to find/calculate the bounds and tesselated basePosition of a Shape
         /// </summary>
@@ -149,9 +149,19 @@ namespace Assets.Gridmap_Assets.Scripts.GridMapMaker.Shapes
         }
 
         /// <summary>
-        /// Initialize is the first method called when the Gridshape is instantiated
+        /// Sets all the fields and properties of your shape to their base values. This method is the first method called whenever the shape is updated.
         /// </summary>
-        public abstract void Initialize();
+        protected abstract void SetBaseValues();
+
+        public void UpdateShape()
+        {
+            SetBaseValues();
+
+            SetBounds();
+            SetBaseMeshData();
+            // updating orientation will set the shapeMesh
+            UpdateOrientation();
+        }
 
         /// <summary>
         /// The method will return the basePosition of a Shape on the grid given its coordinates denoted x, y. Your calculation should give the basePosition respective to the BaseOrientation
@@ -190,7 +200,8 @@ namespace Assets.Gridmap_Assets.Scripts.GridMapMaker.Shapes
         public void UpdateOrientation()
         {
             List<Vector3> verts = new List<Vector3>(BaseVertices);
-            
+            shapeMesh = BaseMeshData;
+
             if (shapeOrientation != BaseOrientation)
             {
                 SwapYZ();
@@ -205,8 +216,7 @@ namespace Assets.Gridmap_Assets.Scripts.GridMapMaker.Shapes
                 }
             }
         }
-
-        /// <summary>
+    /// <summary>
         /// Will set the bounds of the shape. Bounds of the shape are used to calculate the bounds of the gridmap or small part of the gridmap
         /// </summary>
         /// <param timerName="top"></param>
@@ -329,18 +339,7 @@ namespace Assets.Gridmap_Assets.Scripts.GridMapMaker.Shapes
             return shapeBounds.Contains(other.ShapeBounds);
         }
 
-        /// <summary>
-        /// This is the method that will be called when the object is instantiated
-        /// </summary>
-        private void Awake()
-        {
-            Initialize();
-            SetBounds();
-            SetBaseMeshData();
-            shapeMesh = BaseMeshData;
-        }
-
-
+        
         public bool Equals(GridShape other)
         {
             // compare names
