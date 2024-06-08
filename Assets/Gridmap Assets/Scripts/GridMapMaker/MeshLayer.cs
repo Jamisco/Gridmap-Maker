@@ -17,6 +17,7 @@ using UnityEngine;
 using static Assets.Gridmap_Assets.Scripts.GridMapMaker.Shapes.TestVisualData.ShapeVisualData;
 using static Assets.Scripts.GridMapMaker.GridManager;
 using static Assets.Scripts.Miscellaneous.ExtensionMethods;
+using static UnityEngine.Rendering.DebugUI;
 using Debug = UnityEngine.Debug;
 
 namespace Assets.Gridmap_Assets.Scripts.Mapmaker
@@ -37,15 +38,14 @@ namespace Assets.Gridmap_Assets.Scripts.Mapmaker
         const int MAX_VERTICES = 65534;
         GridChunk gridChunk;
 
-        [SerializeField]
-        private bool useVisualEquality;
         public bool UseVisualEquality
         {
-            get => useVisualEquality;
+            get
+            {
+                return visualDataComparer.UseVisualHash;
+            }
             set
             {
-                useVisualEquality = value;
-
                 visualDataComparer.UseVisualHash = value;
             }
         }
@@ -122,28 +122,6 @@ namespace Assets.Gridmap_Assets.Scripts.Mapmaker
             
             LayerGridShape = gridShape;
         }
-
-        public void Initialize(string layerId, GridChunk chunk, GridShape gridShape, bool useVisualEquality = true)
-        {
-            gridChunk = chunk;
-            
-            Initialize(gridShape);
-
-            gameObject.name = layerId;
-
-            this.layerId = layerId;
-            this.useVisualEquality = useVisualEquality;
-            visualDataComparer.UseVisualHash = useVisualEquality;
-
-            chunkOffset = gridShape.GetTesselatedPosition(chunk.StartPosition);
-
-            MaterialVisualGroup = new Dictionary<ShapeVisualData, ShapeMeshFuser>(visualDataComparer);
-
-            ColorVisualGroup = new ShapeMeshFuser(LayerGridShape, chunkOffset);
-            
-            SetLayerBounds();
-        }
-
         public void Initialize(MeshLayerInfo layerInfo, GridChunk chunk)
         {
             gridChunk = chunk;
@@ -151,16 +129,17 @@ namespace Assets.Gridmap_Assets.Scripts.Mapmaker
 
             Initialize(layerInfo.Shape);
 
+            layerId = layerInfo.LayerId;
+
             gameObject.name = layerId;
 
-            layerId = layerInfo.LayerId;
-            useVisualEquality = layerInfo.UseVisualEquality;
+            chunkOffset = LayerGridShape.GetTesselatedPosition(chunk.StartPosition);
 
-            visualDataComparer.UseVisualHash = useVisualEquality;
+            visualDataComparer.UseVisualHash = layerInfo.UseVisualEquality;
 
             MaterialVisualGroup = new Dictionary<ShapeVisualData, ShapeMeshFuser>(visualDataComparer);
 
-            chunkOffset = LayerGridShape.GetTesselatedPosition(chunk.StartPosition);
+            ColorVisualGroup = new ShapeMeshFuser(LayerGridShape, chunkOffset);
 
             SetLayerBounds();
         }
@@ -513,6 +492,7 @@ namespace Assets.Gridmap_Assets.Scripts.Mapmaker
 
             MeshFilter meshF = meshHold.AddComponent<MeshFilter>();
             MeshRenderer meshR = meshHold.AddComponent<MeshRenderer>();
+            MeshCollider meshC = meshHold.AddComponent<MeshCollider>();
 
             return meshHold;
         }
@@ -578,8 +558,7 @@ namespace Assets.Gridmap_Assets.Scripts.Mapmaker
 
             TimeLogger.StopTimer(8741);
         }
-
-        /// <summary>
+      /// <summary>
         /// When redrawing the mesh, we want to skip various checks to expediate the process
         /// </summary>
         bool reInsertMode = false;
@@ -632,8 +611,6 @@ namespace Assets.Gridmap_Assets.Scripts.Mapmaker
             ColorVisualGroup = null;
             MaterialVisualGroup = null;
             LayerGridShape = null;
-
-            useVisualEquality = false;
 
             SharedMaterials.Clear();
             PropertyBlocks.Clear();
@@ -759,6 +736,4 @@ namespace Assets.Gridmap_Assets.Scripts.Mapmaker
         /// </summary>
        
     }
-
-   
 }

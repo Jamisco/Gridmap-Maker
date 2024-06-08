@@ -169,8 +169,8 @@ namespace Assets.Scripts.GridMapMaker
         {
             Clear();
             
-            int xCount = Mathf.CeilToInt(GridSize.x / ChunkSize.x);
-            int yCount = Mathf.CeilToInt(GridSize.y / ChunkSize.y);
+            int xCount = Mathf.CeilToInt((float)GridSize.x / ChunkSize.x);
+            int yCount = Mathf.CeilToInt((float)GridSize.y / ChunkSize.y);
 
             GridChunk prefab = new GameObject().AddComponent<GridChunk>();
 
@@ -198,11 +198,11 @@ namespace Assets.Scripts.GridMapMaker
             DestroyImmediate(prefab.gameObject);
 
         }
-        private void AddLayerToAllGridChunks(string layerId, GridShape shape, bool useVisualEquality = false)
+        private void AddLayerToAllGridChunks(MeshLayerInfo layerInfo)
         {
             foreach (GridChunk chunk in sortedChunks.Values)
             {
-                chunk.AddLayer(layerId, shape, useVisualEquality);
+                chunk.AddLayer(layerInfo);
             }
         }
 
@@ -354,11 +354,13 @@ namespace Assets.Scripts.GridMapMaker
                 gridShape = Instantiate(layerInfo.Shape);
                 gridShape.CellGap = CellGap;
                 gridShape.ShapeOrientation = MapOrientation;
-
+                
+                layerInfo.Shape = gridShape;
+                
                 gridShapes.Add(gridShape);
             }
 
-            AddLayerToAllGridChunks(layerInfo.LayerId, gridShape, layerInfo.UseVisualEquality);
+            AddLayerToAllGridChunks(layerInfo);
 
             if (setBaselayer || meshLayerInfos.Count == 1)
             {
@@ -470,7 +472,6 @@ namespace Assets.Scripts.GridMapMaker
         public void InsertVisualData(Vector2Int gridPosition, ShapeVisualData data, 
                             string layerId = USE_DEFAULT_LAYER)
         {
-
             ValidateLayerId(ref layerId);
             
             GridChunk chunk = GetHexChunk(gridPosition);

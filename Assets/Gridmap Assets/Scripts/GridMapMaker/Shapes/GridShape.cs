@@ -143,7 +143,7 @@ namespace Assets.Gridmap_Assets.Scripts.GridMapMaker.Shapes
             meshData.Uvs = BaseUVs;
             meshData.Triangles = BaseTriangles;
 
-            ExtensionMethods.SetFullColor(meshData, Color.white);
+            ExtensionMethods.SetFullColor(ref meshData, Color.white);
 
             BaseMeshData = meshData;
         }

@@ -142,18 +142,19 @@ namespace Assets.Scripts.GridMapMaker
             
             return newLayer;
         }
-        public void AddLayer(string uniqueID, GridShape shape, bool useVisualEquality = false)
+        public void AddLayer(MeshLayerInfo layerInfo)
         {
-            if (!ChunkLayers.ContainsKey(uniqueID))
+            if (!ChunkLayers.ContainsKey(layerInfo.LayerId))
             {
                 MeshLayer newLayer = CreateLayer(transform);
 
-                newLayer.Initialize(uniqueID, this, shape, useVisualEquality);
-                ChunkLayers.Add(uniqueID, newLayer);
+                newLayer.Initialize(layerInfo, this);
+                ChunkLayers.Add(layerInfo.LayerId, newLayer);
 
-                spriteLayer.Initialize("Sprite Layer", shape);
+                spriteLayer.Initialize("Sprite Layer", layerInfo.Shape);
             }
         }
+
         private void AddLayer(MeshLayer layer)
         {
             if (!ChunkLayers.ContainsKey(layer.LayerId))

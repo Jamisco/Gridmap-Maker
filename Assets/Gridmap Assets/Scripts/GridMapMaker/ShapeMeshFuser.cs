@@ -246,7 +246,7 @@ namespace Assets.Gridmap_Assets.Scripts.GridMapMaker
             //{
             //    List<int> subMeshGroups = new List<int>();
 
-            //    for (int i = subMeshCount; i < shapePositions.Count + subMeshCount; i += subMeshCount)
+            //    for (int i = positionStop; i < shapePositions.Count + positionStop; i += positionStop)
             //    {
             //        finalMeshData.Add(ExtractMeshData(i));
             //    }
@@ -259,13 +259,13 @@ namespace Assets.Gridmap_Assets.Scripts.GridMapMaker
             //MeshData ExtractMeshData(int i)
             //{
             //    MeshData meshData = new MeshData();
-            //    meshData.Vertices = cMesh.Vertices.GetRange(i * shapeMeshSize.vertexCount, subMeshCount * shapeMeshSize.vertexCount);
+            //    meshData.Vertices = cMesh.Vertices.GetRange(i * shapeMeshSize.vertexCount, positionStop * shapeMeshSize.vertexCount);
 
-            //    meshData.Uvs = cMesh.Uvs.GetRange(i * shapeMeshSize.vertexCount, subMeshCount * shapeMeshSize.vertexCount);
+            //    meshData.Uvs = cMesh.Uvs.GetRange(i * shapeMeshSize.vertexCount, positionStop * shapeMeshSize.vertexCount);
 
-            //    meshData.Colors = cMesh.Colors.GetRange(i * shapeMeshSize.vertexCount, subMeshCount * shapeMeshSize.vertexCount);
+            //    meshData.Colors = cMesh.Colors.GetRange(i * shapeMeshSize.vertexCount, positionStop * shapeMeshSize.vertexCount);
 
-            //    meshData.Triangles = cMesh.Triangles.GetRange(i * shapeMeshSize.triangleCount, subMeshCount * shapeMeshSize.triangleCount);
+            //    meshData.Triangles = cMesh.Triangles.GetRange(i * shapeMeshSize.triangleCount, positionStop * shapeMeshSize.triangleCount);
 
             //    return meshData;
             //}
@@ -286,12 +286,12 @@ namespace Assets.Gridmap_Assets.Scripts.GridMapMaker
 
                 for (int j = 0; j < shapeMeshSize.triangleCount; j++)
                 {
-                    Triangles.Add(shapeMesh.Triangles[j] + (subMeshGroup * shapeMeshSize.vertexCount));
+                    Triangles.Add(shapeMesh.Triangles[j] + (currPosition * shapeMeshSize.vertexCount));
                 }
 
-                subMeshGroup++;
+                currPosition++;
 
-                if (subMeshGroup == subMeshCount)
+                if (currPosition == positionStop)
                 {
                     meshData.Vertices = Vertices;
                     meshData.Colors  = Colors;
@@ -307,10 +307,10 @@ namespace Assets.Gridmap_Assets.Scripts.GridMapMaker
                     Colors.Clear();
                     Uvs.Clear();
 
-                    subMeshCount += subMeshCount;
-                    subMeshGroup = 0;
+                    positionStop += positionStop;
+                    currPosition = 0;
 
-                    subMeshCount = Mathf.Min(shapePositions.Count - 1, subMeshCount);
+                    positionStop = Mathf.Min(shapePositions.Count - 1, positionStop);
                 }
             }
             */
@@ -333,9 +333,11 @@ namespace Assets.Gridmap_Assets.Scripts.GridMapMaker
             int numOfMeshes = Mathf.CeilToInt((shapePositions.Count * shapeMeshSize.vertexCount) /
                 (float)MAX_VERTICES);
 
-            int subMeshCount = shapePositions.Count / numOfMeshes;
+            // the position where a sub mesh will stop
+            int positionStop = shapePositions.Count / numOfMeshes;
 
-            int subMeshGroup = 0;
+            // the current position of the submesh. If u have 2 submeshes, this will reset back to zero at some point
+            int currPosition = 0;
 
             MeshData meshData = new MeshData();
 
@@ -354,12 +356,12 @@ namespace Assets.Gridmap_Assets.Scripts.GridMapMaker
 
                 for (int j = 0; j < shapeMeshSize.triangleCount; j++)
                 {
-                    Triangles.Add(shapeMesh.Triangles[j] + (subMeshGroup * shapeMeshSize.vertexCount));
+                    Triangles.Add(shapeMesh.Triangles[j] + (currPosition * shapeMeshSize.vertexCount));
                 }
 
-                subMeshGroup++;
+                currPosition++;
 
-                if (subMeshGroup == subMeshCount)
+                if (currPosition == positionStop)
                 {
                     meshData.Vertices = Vertices;
                     meshData.Colors = Colors;
@@ -375,9 +377,8 @@ namespace Assets.Gridmap_Assets.Scripts.GridMapMaker
                     Colors.Clear();
                     Uvs.Clear();
 
-                    subMeshCount += subMeshCount;
-
-                    subMeshCount = Mathf.Min(shapePositions.Count - 1, subMeshCount);
+                    currPosition = 0;
+                    positionStop = Mathf.Min(shapePositions.Count - 1, positionStop);
                 }
             }
 

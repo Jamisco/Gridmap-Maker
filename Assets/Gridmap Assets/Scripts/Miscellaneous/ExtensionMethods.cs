@@ -287,7 +287,7 @@ namespace Assets.Scripts.Miscellaneous
             mesh.colors = colors.ToArray();
         }
 
-        public static void SetFullColor(this MeshData mesh, Color color)
+        public static void SetFullColor(ref this MeshData mesh, Color color)
         {
             List<Color> colors = new List<Color>();
 

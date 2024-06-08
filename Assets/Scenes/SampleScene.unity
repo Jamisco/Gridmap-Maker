@@ -541,13 +541,13 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 4e3aed3303379304582644023e611b2e, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  gridSize: {x: 10, y: 10}
+  gridSize: {x: 100, y: 100}
   chunkSize: {x: 50, y: 50}
   CellGap: {x: 0, y: 0}
   MapOrientation: 0
   visualContainer: {fileID: 11400000, guid: f86be30bed6200949b8f23ed3f86025a, type: 2}
-  Multithread_Chunk: 0
-  Multithread_Fuse: 0
+  Multithread_Chunk: 1
+  Multithread_Fuse: 1
   saveLoc: Assets/Gridmap Assets/Saved Maps/map.txt
 --- !u!1660057539 &9223372036854775807
 SceneRoots:
