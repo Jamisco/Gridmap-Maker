@@ -51,10 +51,14 @@ namespace Assets.Gridmap_Assets.Scripts.GridMapMaker.Shapes.TestVisualData
         public string layerId = "Layer 1";
         public string layerId2 = "Layer 2";
 
-        (List<Vector2Int>, List<ShapeVisualData>) mapData;
+        public (List<Vector2Int>, List<ShapeVisualData>) mapData;
             
         [SerializeField]
         bool useVe = false;
+
+        [SerializeField]
+        bool colorOnly = false;
+
         public void GenerateGrid()
         {
             TimeLogger.ClearTimers();
@@ -78,7 +82,7 @@ namespace Assets.Gridmap_Assets.Scripts.GridMapMaker.Shapes.TestVisualData
          
             if (mapData.Item1 == null || mapData.Item1.Count != gridManager.GridSize.x * gridManager.GridSize.y)
             {
-                mapData = gridManager.GenerateRandomMap(true);
+                mapData = gridManager.GenerateRandomMap(colorOnly);
             }
             
             TimeLogger.StartTimer(451);
@@ -166,9 +170,22 @@ namespace Assets.Gridmap_Assets.Scripts.GridMapMaker.Shapes.TestVisualData
             TimeLogger.LogAll();
         }
 
-        public void SpriteSpawner()
+        [SerializeField]
+        public int sizeX;
+
+        
+        [SerializeField]
+        public int sizeY;
+        public void SpawnSprite()
         {
-            gridManager.SpawnSprite(InputHex, sprite);
+            for (int i = 0; i < sizeX; i++)
+            {
+                for (int j = 0; j < sizeY; j++)
+                {
+                    gridManager.SpawnSprite(new Vector2Int(i, j), sprite);
+                }
+                gridManager.SpawnSprite(InputHex, sprite);
+            }
         }
 
         public string layerName = "";
@@ -237,9 +254,9 @@ namespace Assets.Gridmap_Assets.Scripts.GridMapMaker.Shapes.TestVisualData
                     exampleScript.RemoveVisualData();
                 }
 
-                if (GUILayout.Button("Sprite Spawner"))
+                if (GUILayout.Button("Spawn Sprite"))
                 {
-                    exampleScript.Miscellaneous();
+                    exampleScript.SpawnSprite();
                 }
 
                 if (GUILayout.Button("Miscellaneous"))
@@ -255,6 +272,12 @@ namespace Assets.Gridmap_Assets.Scripts.GridMapMaker.Shapes.TestVisualData
                 if (GUILayout.Button("Clear Grid"))
                 {
                     exampleScript.ClearGrid();
+                }
+
+                if (GUILayout.Button("Clear array"))
+                {
+                    exampleScript.mapData.Item1 = null;
+                    exampleScript.mapData.Item2 = null;
                 }
 
                 if (GUILayout.Button("Save Map"))

@@ -8,15 +8,16 @@ using System.Text;
 using System.Threading.Tasks;
 using UnityEngine;
 using static Assets.Gridmap_Assets.Scripts.GridMapMaker.Shapes.TestVisualData.ShapeVisualData;
+using UnityEngine.UIElements;
 
 namespace Assets.Gridmap_Assets.Scripts.GridMapMaker
 {
-    public class SpriteLayer : MonoBehaviour
+    /// <summary>
+    /// A simple helper class to spawn sprites
+    /// </summary>
+    public class SpriteSpawner : MonoBehaviour
     {
         public GridShape LayerGridShape { get; private set; }
-
-        private Dictionary<Vector2Int, GameObject> SpawnedSprites
-                              = new Dictionary<Vector2Int, GameObject>();
 
         private string layerName;
 
@@ -24,52 +25,25 @@ namespace Assets.Gridmap_Assets.Scripts.GridMapMaker
         {
             this.layerName = name;
             this.LayerGridShape = gridShape;
+            gameObject.name = name;
         }
-
-        private GameObject InstatiateSprite(Sprite sprite)
+        private GameObject InstantiateSprite(Sprite sprite)
         {
             GameObject spriteObject = new GameObject();
             spriteObject.AddComponent<SpriteRenderer>().sprite = sprite;
-
+            
             return spriteObject;
         }
 
         public void InsertSprite(Vector2Int position, Sprite sprite)
         {
-            if (SpawnedSprites.ContainsKey(position))
-            {
-                return;
-            }
-
-            GameObject spriteObject = InstatiateSprite(sprite);
+            GameObject spriteObject = InstantiateSprite(sprite);
 
             spriteObject.transform.position = LayerGridShape.GetTesselatedPosition(position);
 
-            SpawnedSprites.Add(position, spriteObject);
-        }
+            spriteObject.transform.parent = transform;
 
-        public void RemoveSprite(Vector2Int position)
-        {
-            if (!SpawnedSprites.ContainsKey(position))
-            {
-                return;
-            }
-
-            GameObject spriteObject = SpawnedSprites[position];
-            Destroy(spriteObject);
-
-            SpawnedSprites.Remove(position);
-        }
-
-
-        public void Clear()
-        {
-            foreach (var sprite in SpawnedSprites)
-            {
-                DestroyImmediate(sprite.Value);
-            }
-
-            SpawnedSprites.Clear();
+            spriteObject.name = sprite.name;
         }
     }
 }

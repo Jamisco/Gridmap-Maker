@@ -38,7 +38,7 @@ namespace Assets.Gridmap_Assets.Scripts.GridMapMaker.Shapes
         /// </summary>
         private ShapeVertexBounds svb;
 
-        public virtual Vector2 CellGap
+        public Vector2 CellGap
         {
             get { return cellGap; }
             set { cellGap = value; }
@@ -56,16 +56,14 @@ namespace Assets.Gridmap_Assets.Scripts.GridMapMaker.Shapes
         private Orientation baseOrientation;
 
         private Orientation shapeOrientation;
-
         /// <summary>
         /// The orientation of the Shape when being displayed in a gridmap. XY means the Shape is displayed in the XY plane, XZ means the Shape is displayed in the XZ plane
         /// </summary>
         public enum Orientation { XY, XZ };
-
         /// <summary>
         /// The default orientation of the Shape when its vertices are created in editor
         /// </summary>
-        public virtual Orientation BaseOrientation
+        public Orientation BaseOrientation
         {
             get
             {
@@ -80,7 +78,7 @@ namespace Assets.Gridmap_Assets.Scripts.GridMapMaker.Shapes
         /// <summary>
         /// The orientation of the Shape when being displayed in a gridmap
         /// </summary>
-        public virtual Orientation ShapeOrientation
+        public Orientation ShapeOrientation
         {
             get
             {
@@ -133,7 +131,6 @@ namespace Assets.Gridmap_Assets.Scripts.GridMapMaker.Shapes
         {
             get => shapeMesh; private set => shapeMesh = value;
         }
-
         public MeshData BaseMeshData { get; private set; }
         private void SetBaseMeshData()
         {
