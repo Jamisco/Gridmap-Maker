@@ -86,8 +86,12 @@ namespace Assets.Gridmap_Assets.Scripts.GridMapMaker.Shapes
             }
             set
             {
-                shapeOrientation = value;
-                UpdateOrientation();
+                if(shapeOrientation != value)
+                {
+                    shapeOrientation = value;
+                    UpdateOrientation();
+                }
+
             }
         }
 
@@ -336,7 +340,11 @@ namespace Assets.Gridmap_Assets.Scripts.GridMapMaker.Shapes
             return shapeBounds.Contains(other.ShapeBounds);
         }
 
-        
+
+        public override int GetHashCode()
+        {
+            return uniqueShapeName.GetHashCode();
+        }
         public bool Equals(GridShape other)
         {
             // compare names

@@ -72,7 +72,7 @@ namespace Assets.Gridmap_Assets.Scripts.GridMapMaker.Shapes.TestVisualData
             MeshLayerInfo layerInfo2 = new MeshLayerInfo(layerId2, aShape, useVe, 1);
 
             gridManager.CreateLayer(layerInfo);
-            gridManager.CreateLayer(layerInfo2);
+           // gridManager.CreateLayer(layerInfo2);
 
             gridManager.SetVisualContainer(visualContainer);
 
@@ -96,17 +96,10 @@ namespace Assets.Gridmap_Assets.Scripts.GridMapMaker.Shapes.TestVisualData
 
             TimeLogger.StopTimer(-1502);
 
-            TimeLogger.StartTimer(-415, "Update Grid");
+            TimeLogger.StartTimer(-415, "Draw Grid");
 
-            if(gridManager.Multithread_Chunk)
-            {
-                gridManager.UpdateGrid_Fast();
-            }
-            else
-            {
-                gridManager.DrawGrid();
-            }
-            
+            gridManager.DrawGrid();
+
             TimeLogger.StopTimer(-415);
 
             TimeLogger.StopAllTimers();

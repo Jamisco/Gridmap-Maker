@@ -17,14 +17,11 @@ namespace Assets.Gridmap_Assets.Scripts.GridMapMaker
     /// </summary>
     public class SpriteSpawner : MonoBehaviour
     {
-        public GridShape LayerGridShape { get; private set; }
-
         private string layerName;
 
-        public void Initialize(string name, GridShape gridShape)
+        public void Initialize(string name)
         {
             this.layerName = name;
-            this.LayerGridShape = gridShape;
             gameObject.name = name;
         }
         private GameObject InstantiateSprite(Sprite sprite)
@@ -35,11 +32,11 @@ namespace Assets.Gridmap_Assets.Scripts.GridMapMaker
             return spriteObject;
         }
 
-        public void InsertSprite(Vector2Int position, Sprite sprite)
+        public void InsertSprite(Vector2Int position, GridShape shape, Sprite sprite)
         {
             GameObject spriteObject = InstantiateSprite(sprite);
 
-            spriteObject.transform.position = LayerGridShape.GetTesselatedPosition(position);
+            spriteObject.transform.position = shape.GetTesselatedPosition(position);
 
             spriteObject.transform.parent = transform;
 

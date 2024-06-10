@@ -64,8 +64,7 @@ namespace Assets.Scripts.GridMapMaker
             {
                 return transform.position;
             }
-        }
-
+        } 
         public bool MapisDrawn { get; private set; } = false;
 
         private void OnValidate()
@@ -91,8 +90,6 @@ namespace Assets.Scripts.GridMapMaker
 
         public Vector2Int GridSize { get => gridSize; set => gridSize = value; }
         public Vector2Int ChunkSize { get => chunkSize; set => chunkSize = value; }
-
-        private GridComparer chunkComparer = new GridComparer();
         /// <summary>
         /// Sorts chunks based on their start position.
         /// Bottom Left to Top Right, Horizontally
@@ -115,19 +112,15 @@ namespace Assets.Scripts.GridMapMaker
 
             return start;
         }
-        private BoundsInt GetChunkBounds(Vector2Int gridPosition)
-        {
-            Vector3Int start = GetChunkStartPosition(gridPosition).ToBoundsPos();
-
-            return new BoundsInt(start, ChunkSize.ToBoundsPos());
-        }
         private GridChunk CreateHexChunk(Vector2Int gridPosition, GridChunk prefab)
         {
             GridChunk chunk;
 
-            BoundsInt chunkBounds = GetChunkBounds(gridPosition);
-            
-            chunk = Instantiate(prefab, transform);
+            Vector3Int start = GetChunkStartPosition(gridPosition).ToBoundsPos();
+
+            BoundsInt chunkBounds = new BoundsInt(start, ChunkSize.ToBoundsPos());
+
+            chunk = Instantiate(prefab, transform, true);
 
             // the transform is always relative to the parent such that if the parent is moved, the child moves with it
 
@@ -199,14 +192,6 @@ namespace Assets.Scripts.GridMapMaker
             }
 
             DestroyImmediate(prefab.gameObject);
-
-        }
-        private void AddLayerToAllGridChunks(MeshLayerInfo layerInfo)
-        {
-            foreach (GridChunk chunk in sortedChunks.Values)
-            {
-                chunk.AddLayer(layerInfo);
-            }
         }
 
         public (List<Vector2Int>, List<ShapeVisualData>) GenerateRandomMap(bool colorOnly = false)
@@ -366,7 +351,11 @@ namespace Assets.Scripts.GridMapMaker
                 gridShapes.Add(gridShape);
             }
 
-            AddLayerToAllGridChunks(layerInfo);
+            // add layer to all grid chunks
+            foreach (GridChunk chunk in sortedChunks.Values)
+            {
+                chunk.AddLayer(layerInfo);
+            }
 
             if (setBaselayer || meshLayerInfos.Count == 1)
             {
@@ -383,10 +372,6 @@ namespace Assets.Scripts.GridMapMaker
 
             return meshLayerInfos[layerId];
             
-        }
-        public void SetLayerInfo(string layerId, MeshLayerInfo mli)
-        {
-            meshLayerInfos[layerId] = mli;
         }
         public enum SortAxis { X, Y, Z }
         public void SortMeshLayers()
@@ -603,6 +588,15 @@ namespace Assets.Scripts.GridMapMaker
                 c.SetVisualEquality(layerId, useEquality);
             }
         }
+        public void SetGridShape(GridShape shape, string layerId = USE_DEFAULT_LAYER)
+        {
+            ValidateLayerId(ref layerId);
+
+            foreach (GridChunk c in sortedChunks.Values)
+            {
+                c.SetGridShape(layerId, shape);
+            }
+        }
 
         /// <summary>
         /// Set whether to use visual equality at the given layer
@@ -707,7 +701,7 @@ namespace Assets.Scripts.GridMapMaker
         public void ValidateOrientation()
         {
             TimeLogger.ClearTimers();
-            TimeLogger.StartTimer(67234, "Change Orientation");
+            TimeLogger.StartTimer(67234, "Validate Orientation");
             // at all points in time all shapes should have thesame orientation, thus we can check the shapes at any index
             if (gridShapes.First().ShapeOrientation != MapOrientation)
             {
@@ -715,45 +709,62 @@ namespace Assets.Scripts.GridMapMaker
                 {
                     shape.ShapeOrientation = MapOrientation;
                 }
-
-                foreach (GridChunk chunk in sortedChunks.Values)
+      
+                if (Multithread_Chunk)
                 {
-                    chunk.ChangeOrientation();
+                    Parallel.ForEach(sortedChunks.Values, chunk =>
+                    {
+                        chunk.ValidateOrientation();
+                    });
+
+                    foreach (GridChunk chunk in sortedChunks.Values)
+                    {
+                        chunk.SwapLocalPosition();
+                        chunk.DrawFusedMesh();
+                    }
+                }
+                else
+                {
+                    foreach (GridChunk chunk in sortedChunks.Values)
+                    {
+                        chunk.SwapLocalPosition();
+                        chunk.ValidateOrientation();
+                        chunk.DrawFusedMesh();
+                    }
                 }
             }
 
             TimeLogger.StopTimer(67234);
 
-            TimeLogger.Log(67234);
-        }
-
-        public void DrawGrid()
-        {
-            foreach (GridChunk chunk in sortedChunks.Values)
-            {
-                chunk.DrawLayers();
-            }
-
-            MapisDrawn = true;
-
-            SortMeshLayers();
+            TimeLogger.LogAll();
         }
 
         /// <summary>
         /// Uses parallel processing to update the grid. This is faster than DrawGrid() but because it uses parallel processing, user specific issues may arise
         /// </summary>
-        public void UpdateGrid_Fast()
+        public void DrawGrid()
         {
-            Parallel.ForEach(sortedChunks.Values, chunk =>
+            if (Multithread_Chunk)
             {
-                chunk.FusedMeshGroups();
-            });
+                Parallel.ForEach(sortedChunks.Values, chunk =>
+                {
+                    chunk.FusedMeshGroups();
+                });
 
-            foreach (GridChunk chunk in sortedChunks.Values)
-            {
-                chunk.DrawFusedMesh();
+                foreach (GridChunk chunk in sortedChunks.Values)
+                {
+                    chunk.DrawFusedMesh();
+                }
+
             }
-
+            else
+            {
+                foreach (GridChunk chunk in sortedChunks.Values)
+                {
+                    chunk.RedrawChunk();
+                }
+            }
+            
             MapisDrawn = true;
 
             SortMeshLayers();
@@ -762,7 +773,6 @@ namespace Assets.Scripts.GridMapMaker
         public bool Multithread_Chunk = true;
 
         public bool Multithread_Fuse = true;
-
         public void RedrawLayer(string layerId = USE_DEFAULT_LAYER)
         {
             ValidateLayerId(ref layerId);
@@ -975,13 +985,15 @@ namespace Assets.Scripts.GridMapMaker
 
         #region Sprite Spawning
 
-        public void SpawnSprite(Vector2Int gridPosition, Sprite sprite)
+        public void SpawnSprite(Vector2Int gridPosition, Sprite sprite, string layerId = USE_DEFAULT_LAYER)
         {
+            ValidateLayerId(ref layerId);
+
             GridChunk chunk = GetHexChunk(gridPosition);
 
             if (chunk != null)
             {
-                chunk.SpawnSprite(gridPosition, sprite);
+                chunk.SpawnSprite(gridPosition, sprite, layerId);
             }
         }
         #endregion
@@ -1081,7 +1093,6 @@ namespace Assets.Scripts.GridMapMaker
         }
         
         #endregion
-
         public string GetMapDescription()
         {
             string s1 = "Map size(Chunk Size): " + gridSize.x + " X " + gridSize.y;
@@ -1090,7 +1101,6 @@ namespace Assets.Scripts.GridMapMaker
             string s4 = "\nMultithreaded Fuse: " + Multithread_Fuse;
 
             return s1 + s2 + s3 + s4;
-
         }
     }
 

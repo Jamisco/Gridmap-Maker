@@ -26,7 +26,18 @@ namespace Assets.Gridmap_Assets.Scripts.GridMapMaker
         private Vector3 positionOffset;
 
         public List<Vector2Int> InsertedPositions => shapePositions.Values.ToList();
-        public Vector3 PositionOffset => positionOffset;
+        public Vector3 PositionOffset
+        {
+            get
+            {
+                return positionOffset;
+            }
+            set
+            {
+                positionOffset = value;
+                pendingUpdate = true;
+            }
+        }
 
         private List<Vector3> Vertices;
         private List<int> Triangles;
@@ -36,9 +47,17 @@ namespace Assets.Gridmap_Assets.Scripts.GridMapMaker
         private MeshData shapeMesh;
         private (int vertexCount, int triangleCount) shapeMeshSize;
 
-        private List<MeshData> finalMeshData = new List<MeshData>();
         private GridShape gridShape;
-        public GridShape GridShape => gridShape;
+        public GridShape GridShape
+        {
+            get { return gridShape; }
+            set
+            {
+                gridShape = value;
+                shapeMesh = gridShape.ShapeMesh;
+                shapeMeshSize = (shapeMesh.vertexCount, shapeMesh.Triangles.Count());
+            }
+        }
         public int VertexCount { get { return Vertices.Count; } }
         public int TriangleCount { get { return Triangles.Count; } }
         public bool IsEmpty { get { return shapePositions.Count == 0; } }
@@ -70,6 +89,11 @@ namespace Assets.Gridmap_Assets.Scripts.GridMapMaker
                 InsertHelper(item.GetHashCode_Unique(), item, Color.white);
             }
         }
+        public void ValidateShapeMesh()
+        {
+            shapeMesh = gridShape.ShapeMesh;
+            shapeMeshSize = (shapeMesh.vertexCount, shapeMesh.Triangles.Count());
+        }
 
         /// <summary>
         /// This will insert a position into the fuser. There is no error checking for duplicates
@@ -84,7 +108,6 @@ namespace Assets.Gridmap_Assets.Scripts.GridMapMaker
             
             pendingUpdate = true;
         }
-
         private void RemoveHelper(int hash, Vector2Int position)
         {
             shapePositions.Remove(hash);
@@ -92,7 +115,6 @@ namespace Assets.Gridmap_Assets.Scripts.GridMapMaker
 
             pendingUpdate = true;
         }
-
         public void InsertPosition(int hash, Vector2Int position, Color color = default)
         {
             if (shapePositions.ContainsKey(hash))
@@ -102,7 +124,6 @@ namespace Assets.Gridmap_Assets.Scripts.GridMapMaker
 
             InsertHelper(hash, position, color);
         }
-
         public void InsertPosition(Vector2Int position, Color color = default)
         {
             int hash = position.GetHashCode_Unique();
@@ -114,7 +135,6 @@ namespace Assets.Gridmap_Assets.Scripts.GridMapMaker
 
             InsertHelper(hash, position, color);
         }
-
         public void RemovePosition(Vector2Int position)
         {
             int hash = position.GetHashCode_Unique();
@@ -124,7 +144,6 @@ namespace Assets.Gridmap_Assets.Scripts.GridMapMaker
                 RemoveHelper(hash, position);
             }
         }
-
         public void RemovePosition(int hash)
         {
             if (shapePositions.ContainsKey(hash))
@@ -132,7 +151,6 @@ namespace Assets.Gridmap_Assets.Scripts.GridMapMaker
                 RemoveHelper(hash, shapePositions[hash]);
             }
         }
-
 
         /// <summary>
         /// Will combine the given fuser with this fuser. Note that positions that already exist will be ignored
@@ -156,18 +174,14 @@ namespace Assets.Gridmap_Assets.Scripts.GridMapMaker
         /// <summary>
         /// Fuses the mesh. Uses multithreading for faster processing
         /// </summary>
-        public void FuseMesh_Fast()
+        public List<MeshData> GetFuseMesh_Fast()
         {
-            if (!pendingUpdate)
+            if (shapePositions.Count == 0)
             {
-                return;
+                return new List<MeshData>();
             }
-
-            finalMeshData.Clear();
-            Vertices.Clear();
-            Triangles.Clear();
-            Colors.Clear();
-            Uvs.Clear();
+            
+            List<MeshData> finalMeshData = new List<MeshData>();
 
             int numOfMeshes = Mathf.CeilToInt((shapePositions.Count * shapeMeshSize.vertexCount) /
                 (float)MAX_VERTICES);
@@ -240,95 +254,23 @@ namespace Assets.Gridmap_Assets.Scripts.GridMapMaker
             Colors.Clear();
             Uvs.Clear();
 
-            // i have a list of x length, im dividing the list into groups of 3, give list of numbers that denote the end index of each group
-
-            //if (numOfMeshes > 1)
-            //{
-            //    List<int> subMeshGroups = new List<int>();
-
-            //    for (int i = positionStop; i < shapePositions.Count + positionStop; i += positionStop)
-            //    {
-            //        finalMeshData.Add(ExtractMeshData(i));
-            //    }
-            //}
-            //else
-            //{
-            //    finalMeshData.Add(cMesh);
-            //}
-
-            //MeshData ExtractMeshData(int i)
-            //{
-            //    MeshData meshData = new MeshData();
-            //    meshData.Vertices = cMesh.Vertices.GetRange(i * shapeMeshSize.vertexCount, positionStop * shapeMeshSize.vertexCount);
-
-            //    meshData.Uvs = cMesh.Uvs.GetRange(i * shapeMeshSize.vertexCount, positionStop * shapeMeshSize.vertexCount);
-
-            //    meshData.Colors = cMesh.Colors.GetRange(i * shapeMeshSize.vertexCount, positionStop * shapeMeshSize.vertexCount);
-
-            //    meshData.Triangles = cMesh.Triangles.GetRange(i * shapeMeshSize.triangleCount, positionStop * shapeMeshSize.triangleCount);
-
-            //    return meshData;
-            //}
-
-            /*
-            foreach (int key in shapePositions.Keys)
-            {
-                Vector2Int pos = shapePositions[key];
-                Vector3 offset = gridShape.GetBaseTesselatedPosition(pos) - positionOffset;
-                Color color = positionColors[key];
-                
-                for (int j = 0; j < shapeMeshSize.vertexCount; j++)
-                {
-                    Vertices.Add(shapeMesh.Vertices[j] + offset);
-                    Colors.Add(color);
-                    Uvs.Add(shapeMesh.Uvs[j]);
-                }
-
-                for (int j = 0; j < shapeMeshSize.triangleCount; j++)
-                {
-                    Triangles.Add(shapeMesh.Triangles[j] + (currPosition * shapeMeshSize.vertexCount));
-                }
-
-                currPosition++;
-
-                if (currPosition == positionStop)
-                {
-                    meshData.Vertices = Vertices;
-                    meshData.Colors  = Colors;
-                    meshData.Uvs = Uvs;
-                    meshData.Triangles = Triangles;
-
-                    finalMeshData.Add(meshData);
-
-                    meshData = new MeshData();
-
-                    Vertices.Clear();
-                    Triangles.Clear();
-                    Colors.Clear();
-                    Uvs.Clear();
-
-                    positionStop += positionStop;
-                    currPosition = 0;
-
-                    positionStop = Mathf.Min(shapePositions.Count - 1, positionStop);
-                }
-            }
-            */
-
             pendingUpdate = false;
-        }
-        public void FuseMesh()
-        {
-            if (!pendingUpdate)
-            {
-                return;
-            }
 
-            finalMeshData.Clear();
+            return finalMeshData;
+        }
+        public List<MeshData> GetFuseMesh()
+        {
+            if (shapePositions.Count == 0)
+            {
+                return new List<MeshData>();
+            }
+            
             Vertices.Clear();
             Triangles.Clear();
             Colors.Clear();
             Uvs.Clear();
+
+            List<MeshData> finalMeshData = new List<MeshData>();
 
             int numOfMeshes = Mathf.CeilToInt((shapePositions.Count * shapeMeshSize.vertexCount) /
                 (float)MAX_VERTICES);
@@ -383,10 +325,7 @@ namespace Assets.Gridmap_Assets.Scripts.GridMapMaker
             }
 
             pendingUpdate = false;
-        }
 
-        public List<MeshData> GetFusedMeshes()
-        {
             return finalMeshData;
         }
         public void Clear()

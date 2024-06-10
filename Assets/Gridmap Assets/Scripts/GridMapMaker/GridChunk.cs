@@ -151,7 +151,7 @@ namespace Assets.Scripts.GridMapMaker
             newLayer.transform.parent = parent;
             // a layer will be directly over a chunk so, its local position is zero
             newLayer.transform.localPosition = Vector3.zero;
-            
+
             return newLayer;
         }
         public void AddLayer(MeshLayerInfo layerInfo)
@@ -162,8 +162,6 @@ namespace Assets.Scripts.GridMapMaker
 
                 newLayer.Initialize(layerInfo, this);
                 ChunkLayers.Add(layerInfo.LayerId, newLayer);
-
-                spriteLayer.Initialize("Sprite Layer", layerInfo.Shape);
             }
         }
 
@@ -172,7 +170,7 @@ namespace Assets.Scripts.GridMapMaker
             if (!ChunkLayers.ContainsKey(layer.LayerId))
             {
                 ChunkLayers.Add(layer.LayerId, layer);
-                layer.transform.SetParent(transform);
+                layer.transform.SetParent(transform, false);
             }
         }
 
@@ -201,7 +199,7 @@ namespace Assets.Scripts.GridMapMaker
 
             // a chunk local position is simply the position of the first cell in the chunk
             Vector3 pos = ChunkLayers[layer].LayerGridShape.GetTesselatedPosition(startPosition);
-
+            
             gameObject.transform.localPosition = pos;
         }
         public void InsertVisualData(Vector2Int gridPosition, ShapeVisualData visualProp, string layerId)
@@ -300,6 +298,20 @@ namespace Assets.Scripts.GridMapMaker
             foreach (MeshLayer layer in ChunkLayers.Values)
             {
                 layer.UseVisualEquality = useVisualEquality;
+            }
+        }
+        public void SetGridShape(string layerId, GridShape shape)
+        {
+            if (ChunkLayers.ContainsKey(layerId))
+            {
+                ChunkLayers[layerId].LayerGridShape = shape;
+            }
+        }
+        public void SetGridShape(GridShape shape)
+        {
+            foreach (MeshLayer layer in ChunkLayers.Values)
+            {
+                layer.LayerGridShape = shape;
             }
         }
 
@@ -464,23 +476,28 @@ namespace Assets.Scripts.GridMapMaker
         /// <summary>
         /// Will swap the Y and Z axis of the chunk, and all its layers. There is no check for the validity of the swap, so be sure to only call this when needed.
         /// </summary>
-        public void ChangeOrientation()
+        public void ValidateOrientation()
         {
-            gameObject.transform.localPosition = gameObject.transform.localPosition.SwapYZ();
-
             foreach (MeshLayer layer in ChunkLayers.Values)
             {
-                layer.ChangeOrientation_Fast();
+                layer.ValidateOrientation();
             }
         }
 
+        /// <summary>
+        /// Call this when you change the orientation so that you can change the starting posuition of the chunk
+        /// </summary>
+        public void SwapLocalPosition()
+        {
+            // the reason we call this in its own fucntion is bcuz ValidateOrientation is something called from another thread, and the below line needs to be called from the main thread.
+            gameObject.transform.localPosition = gameObject.transform.localPosition.SwapYZ();
+        }
 
         public void DrawLayers()
         {
             foreach (MeshLayer layer in ChunkLayers.Values)
             {
-                layer.FusedMeshGroups();
-                layer.DrawFusedMesh();
+                layer.RedrawLayer();
             }
         }
 
@@ -491,7 +508,6 @@ namespace Assets.Scripts.GridMapMaker
                 layer.FusedMeshGroups();
             }
         }
-
         public void DrawFusedMesh()
         {
             foreach (MeshLayer layer in ChunkLayers.Values)
@@ -499,28 +515,31 @@ namespace Assets.Scripts.GridMapMaker
                 layer.DrawFusedMesh();
             }
         }
-
         public void UpdateLayer(string layerId)
         {
             ChunkLayers[layerId].DrawFusedMesh();
         }
-
         public void RedrawLayer(string layerId)
         {
-            ChunkLayers[layerId].ReInsertPositions();
+            ChunkLayers[layerId].RedrawLayer();
         }
-
         public void RedrawChunk()
         {
             foreach (MeshLayer layer in ChunkLayers.Values)
             {
-                layer.ReInsertPositions();
+                layer.RedrawLayer();
             }
         }
 
-        public void SpawnSprite(Vector2Int position, Sprite sprite)
+        public void SpawnSprite(Vector2Int position, Sprite sprite, string layerId)
         {
-            spriteLayer.InsertSprite(position, sprite);
+            GridShape shape = null;
+
+            if(ChunkLayers.ContainsKey(layerId))
+            {
+                shape = ChunkLayers[layerId].LayerGridShape;
+                spriteLayer.InsertSprite(position, shape, sprite);
+            }
         }
 
         public void Clear()

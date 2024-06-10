@@ -405,7 +405,7 @@ Transform:
   m_GameObject: {fileID: 1966707204}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 0, y: 0, z: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 5}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -460,14 +460,14 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 4e3aed3303379304582644023e611b2e, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  gridSize: {x: 100, y: 100}
-  chunkSize: {x: 50, y: 50}
-  shapeScale: {x: 5, y: 5}
+  gridSize: {x: 0, y: 0}
+  chunkSize: {x: 0, y: 0}
+  shapeScale: {x: 1, y: 1}
   CellGap: {x: 1, y: 1}
   MapOrientation: 1
   visualContainer: {fileID: 11400000, guid: f86be30bed6200949b8f23ed3f86025a, type: 2}
-  Multithread_Chunk: 1
-  Multithread_Fuse: 1
+  Multithread_Chunk: 0
+  Multithread_Fuse: 0
   saveLoc: Assets/Gridmap Assets/Saved Maps/map.txt
 --- !u!1660057539 &9223372036854775807
 SceneRoots:

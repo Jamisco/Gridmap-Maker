@@ -47,14 +47,36 @@ namespace Assets.Gridmap_Assets.Scripts.Mapmaker
             set
             {
                 visualDataComparer.UseVisualHash = value;
+                VisualEqualityChanged();
             }
         }
-        
-        public GridShape LayerGridShape { get; private set; }
+
+        private GridShape layerGridShape;
+        public GridShape LayerGridShape
+        {
+            get
+            {
+                return layerGridShape;
+            }
+            set
+            {
+                if(layerGridShape != value)
+                {
+                    layerGridShape = value;
+
+                    foreach (ShapeMeshFuser fuser in MaterialVisualGroup.Values)
+                    {
+                        fuser.GridShape = layerGridShape;
+                    }
+
+                    ColorVisualGroup.GridShape = layerGridShape;
+
+                    RedrawLayer();
+                }
+            }
+        }
 
         VisualDataComparer visualDataComparer = new VisualDataComparer();
-
-        private ShapeVisualData defaultVisualProp;
 
         /// <summary>
         // The grouping of visual datas that are used to make a mesh.
@@ -62,7 +84,6 @@ namespace Assets.Gridmap_Assets.Scripts.Mapmaker
         /// </summary>
         private Dictionary<ShapeVisualData, ShapeMeshFuser> MaterialVisualGroup;
         private ShapeMeshFuser ColorVisualGroup;
-
         /// <summary>
         /// The original visualData used for each cell. We store this so we can redraw the mesh if need be
         /// </summary>
@@ -97,7 +118,7 @@ namespace Assets.Gridmap_Assets.Scripts.Mapmaker
         }
         public void SortLayer(SortAxis axis, float offset)
         {
-            Vector3 pos = gameObject.transform.position;
+            Vector3 pos = gameObject.transform.localPosition;
 
             switch (axis)
             {
@@ -114,32 +135,32 @@ namespace Assets.Gridmap_Assets.Scripts.Mapmaker
                     break;
             }
 
-            gameObject.transform.position = pos;
+            gameObject.transform.localPosition = pos;
         }
         private void Initialize(GridShape gridShape)
         {
             Clear();
             
-            LayerGridShape = gridShape;
+            layerGridShape = gridShape;
         }
         public void Initialize(MeshLayerInfo layerInfo, GridChunk chunk)
         {
+            Clear();
+            
             gridChunk = chunk;
-            LayerGridShape = layerInfo.Shape;
-
-            Initialize(layerInfo.Shape);
+            layerGridShape = layerInfo.Shape;
 
             layerId = layerInfo.LayerId;
 
             gameObject.name = layerId;
 
-            chunkOffset = LayerGridShape.GetTesselatedPosition(chunk.StartPosition);
+            chunkOffset = layerGridShape.GetTesselatedPosition(chunk.StartPosition);
 
             visualDataComparer.UseVisualHash = layerInfo.UseVisualEquality;
 
             MaterialVisualGroup = new Dictionary<ShapeVisualData, ShapeMeshFuser>(visualDataComparer);
 
-            ColorVisualGroup = new ShapeMeshFuser(LayerGridShape, chunkOffset);
+            ColorVisualGroup = new ShapeMeshFuser(layerGridShape, chunkOffset);
 
             SetLayerBounds();
         }
@@ -346,17 +367,16 @@ namespace Assets.Gridmap_Assets.Scripts.Mapmaker
             foreach (ShapeVisualData vData in MaterialVisualGroup.Keys)
             {
                 ShapeMeshFuser m = MaterialVisualGroup[vData];
-
-                if(useMultiThread)
+                List<MeshData> tempMeshes;
+                
+                if (useMultiThread)
                 {
-                    m.FuseMesh_Fast();
+                    tempMeshes = m.GetFuseMesh_Fast();
                 }
                 else
                 {
-                    m.FuseMesh();
+                    tempMeshes = m.GetFuseMesh();
                 }
-
-                List<MeshData> tempMeshes = m.GetFusedMeshes();
 
                 for (int i = 0; i < tempMeshes.Count; i++)
                 {
@@ -366,16 +386,16 @@ namespace Assets.Gridmap_Assets.Scripts.Mapmaker
 
             // Color Visual Group
 
+            List<MeshData> colorMeshes;
+            
             if (useMultiThread)
             {
-                ColorVisualGroup.FuseMesh_Fast();
+                colorMeshes = ColorVisualGroup.GetFuseMesh_Fast();
             }
             else
             {
-                ColorVisualGroup.FuseMesh();
+                colorMeshes = ColorVisualGroup.GetFuseMesh();
             } 
-
-            List<MeshData> colorMeshes = ColorVisualGroup.GetFusedMeshes();
 
             for (int i = 0; i < colorMeshes.Count; i++)
             {
@@ -524,11 +544,30 @@ namespace Assets.Gridmap_Assets.Scripts.Mapmaker
             }
 
             meshDatas.Clear();
-        }
-        public void ChangeOrientation_Fast()
+        }      
+        private void PrepareForOrientation()
         {
-            TimeLogger.StartTimer(8741, "Change Orientation");
-            Mesh first = new Mesh();
+            chunkOffset = layerGridShape.GetTesselatedPosition(gridChunk.StartPosition);
+
+            foreach (ShapeMeshFuser fuser in MaterialVisualGroup.Values)
+            {
+                fuser.PositionOffset = chunkOffset;
+                // whenever the orientation is changed, the shape mesh needs to be validated because its vertices have also changed
+                fuser.ValidateShapeMesh();
+            }
+
+            ColorVisualGroup.PositionOffset = chunkOffset;
+        }
+        public void ValidateOrientation()
+        {
+            PrepareForOrientation();
+
+            FusedMeshGroups();
+        }
+
+        public void ValidateOrientation_Fast1()
+        {
+            PrepareForOrientation();
 
             List<MeshData> meshDatas = new List<MeshData>();
 
@@ -536,7 +575,34 @@ namespace Assets.Gridmap_Assets.Scripts.Mapmaker
             {
                 MeshFilter mf = item.GetComponent<MeshFilter>();
                 meshDatas.Add(new MeshData(mf.sharedMesh));
-                first = mf.sharedMesh;
+            }
+
+            foreach (MeshData data in meshDatas)
+            {
+                for (int x = 0; x < data.vertexCount; x++)
+                {
+                    data.Vertices[x] = data.Vertices[x].SwapYZ();
+                }
+            }
+
+            for (int i = 0; i < layerMeshes.Count; i++)
+            {
+                GameObject item = layerMeshes[i];
+                MeshFilter mf = item.GetComponent<MeshFilter>();
+                mf.sharedMesh = meshDatas[i].GetMesh();
+            }
+
+            meshDatas.Clear();
+        }
+        public void ValidateOrientation_Fast()
+        {
+            PrepareForOrientation();
+
+            List<MeshData> meshDatas = new List<MeshData>();
+
+            foreach (GameObject item in layerMeshes)
+            {
+                MeshFilter mf = item.GetComponent<MeshFilter>();
             }
 
             Parallel.ForEach(meshDatas, data =>
@@ -555,23 +621,22 @@ namespace Assets.Gridmap_Assets.Scripts.Mapmaker
             }
 
             meshDatas.Clear();
-
-            TimeLogger.StopTimer(8741);
         }
       /// <summary>
         /// When redrawing the mesh, we want to skip various checks to expediate the process
         /// </summary>
         bool reInsertMode = false;
-        
-        /// <summary>
+     /// <summary>
         /// Clears the mesh and reinserts all visual data back into the layer. This is useful when the equality comparison for the visual properties has been changed.
         /// </summary>
-        public void ReInsertPositions()
+        private void VisualEqualityChanged()
         {
+            // when the visual equality changes, we have to reinsert all positiosn inorder to regroup them appriopriately
             // because we are reinserting all the data back, we have to cache the visual data and grid visual ids and then clear them, then as we call insertVisualData, the method will reinsert the data back
             
             MaterialVisualGroup.Clear();
-
+            ColorVisualGroup.Clear();
+            
             reInsertMode = true;
             foreach (int hash in CellVisualDatas.Keys)
             {
@@ -582,7 +647,16 @@ namespace Assets.Gridmap_Assets.Scripts.Mapmaker
                 
                 InsertVisualData(gridPosition, visual);
             }
+
             reInsertMode = false;
+
+            RedrawLayer();
+        }
+        public void RedrawLayer()
+        {
+            FusedMeshGroups();
+
+            DrawFusedMesh();
         }
         public void Clear()
         {
@@ -610,7 +684,7 @@ namespace Assets.Gridmap_Assets.Scripts.Mapmaker
 
             ColorVisualGroup = null;
             MaterialVisualGroup = null;
-            LayerGridShape = null;
+            layerGridShape = null;
 
             SharedMaterials.Clear();
             PropertyBlocks.Clear();
