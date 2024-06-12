@@ -12,6 +12,7 @@ using UnityEditor;
 using UnityEngine;
 using UnityEngine.InputSystem;
 using UnityEngine.Rendering;
+using UnityEngine.UIElements;
 
 namespace Assets.Gridmap_Assets.Scripts.GridMapMaker.Shapes.TestVisualData
 {
@@ -45,7 +46,18 @@ namespace Assets.Gridmap_Assets.Scripts.GridMapMaker.Shapes.TestVisualData
             if(DisableUnseenChunk)
             {
                 DisableUnseenChunks();
-            }        
+            }
+
+            // on mouse click
+
+            if (Mouse.current.leftButton.wasPressedThisFrame)
+            {
+                MouseClick(0);
+            }
+            else if (Mouse.current.rightButton.wasPressedThisFrame)
+            {
+                MouseClick(1);
+            }
         }
         
         public string layerId = "Layer 1";
@@ -82,7 +94,7 @@ namespace Assets.Gridmap_Assets.Scripts.GridMapMaker.Shapes.TestVisualData
          
             if (mapData.Item1 == null || mapData.Item1.Count != gridManager.GridSize.x * gridManager.GridSize.y)
             {
-                mapData = gridManager.GenerateRandomMap(colorOnly);
+                mapData = GenerateRandomMap(colorOnly);
             }
             
             TimeLogger.StartTimer(451);
@@ -91,7 +103,7 @@ namespace Assets.Gridmap_Assets.Scripts.GridMapMaker.Shapes.TestVisualData
 
             TimeLogger.StartTimer(-1502, "Insert Block");
 
-            gridManager.InsertPosition_Block(mapData.Item1, mapData.Item2, layerId);
+            gridManager.InsertPositionBlock(mapData.Item1, mapData.Item2, layerId);
             //  GridManager.InsertPosition_Block(mapData.Item1, mapData.Item2, layerId2);
 
             TimeLogger.StopTimer(-1502);
@@ -185,19 +197,54 @@ namespace Assets.Gridmap_Assets.Scripts.GridMapMaker.Shapes.TestVisualData
         public int order = 1;
         public void Miscellaneous()
         {
-            // GridManager.SpawnSprite(InputHex, sprite);
-
-            SortingLayerInfo sl = new SortingLayerInfo(layerName, order);
+            Vector2Int gridPos = InputHex;
 
             gridManager.ValidateOrientation();
+
         }
+
+        public void MouseClick(int c)
+        {
+            Vector3 pos = Vector3.zero;
+
+            if (GetMousePosition(out pos) == false)
+            {
+                return;
+            }
+            Color cc = Color.green;
+
+            if(c > 0)
+            {
+                cc = Color.red;
+            }
+
+            if (gridManager.ContainsWorldPosition(pos) == false)
+            {
+                Debug.LogError("Mouse Position is not in grid");
+                return;
+            }
+
+            Vector2Int gridPos = gridManager.WorldToGridPosition(pos);
+
+            Vector3 worldPos = gridManager.GridToWorldPostion(gridPos);
+
+            gridManager.InsertVisualData(gridPos, cc);
+            gridManager.UpdatePosition(gridPos);
+
+            float distance = Vector3.Distance(pos, worldPos);
+
+            string data = "World Clicked Position:\t" + pos + "\n" +
+                          "Local Clicked Position:\t" + gridManager.transform.InverseTransformPoint(pos) + "\n" +
+                        "Grid Position:\t\t" + gridPos + "\n" +
+                        "World Position:\t\t" + worldPos + "\n" +
+                        "Distance:\t\t" + distance;
+
+            Debug.Log(data);
+        }
+
 
         public void RemoveVisualData()
         {
-            Vector3 pos = GetMousePosition();
-
-            Debug.Log("Clicked Position: " + pos);
-
             Vector2Int gridPos = InputHex;
 
             gridManager.RemoveVisualData(gridPos);
@@ -205,19 +252,72 @@ namespace Assets.Gridmap_Assets.Scripts.GridMapMaker.Shapes.TestVisualData
 
             Debug.Log("Removed Visual: " + gridPos);
         }
-        private Vector3 GetMousePosition()
+        private bool GetMousePosition(out Vector3 position)
         {
+            position = Camera.main.ScreenToWorldPoint(Mouse.current.position.ReadValue());
+
+            return true;
+
             Ray ray = Camera.main.ScreenPointToRay(Mouse.current.position.ReadValue());
 
+            //Initialise the enter variable
             if (Physics.Raycast(ray, out RaycastHit hit))
             {
-                // The ray hit something, return the point in world space
-                return hit.point;
+                position = hit.point;
+                return true;
             }
-            else
+
+            position = Vector3.left;
+            return false;
+        }
+        public (List<Vector2Int>, List<ShapeVisualData>) GenerateRandomMap(bool colorOnly = false)
+        {
+            List<Vector2Int> positions = new List<Vector2Int>();
+            List<ShapeVisualData> visualData = new List<ShapeVisualData>();
+
+            BasicVisual data;
+
+            Material material = visualContainer.GetRandomObject<Material>();
+
+            for (int x = 0; x < gridManager.GridSize.x; x++)
             {
-                // The ray didn't hit anything, you might return a default position or handle it as needed
-                return Vector3.negativeInfinity;
+                MakeRandomData();
+
+                for (int y = 0; y < gridManager.GridSize.y; y++)
+                {
+                    positions.Add(new Vector2Int(x, y));
+                    visualData.Add(data);
+                }
+            }
+
+            TimeLogger.StopTimer(42);
+
+            return (positions, visualData);
+
+            void MakeRandomData()
+            {
+                bool texture = UnityEngine.Random.Range(0, 2) == 0 ? true : true;
+
+                if (colorOnly)
+                {
+                    texture = false;
+                }
+
+                if (texture)
+                {
+                    Texture2D T = visualContainer.GetRandomObject<Texture2D>();
+
+                    data = new BasicVisual(material, T, Color.white);
+                }
+                else
+                {
+                    Color C = UnityEngine.Random.ColorHSV();
+                    data = new BasicVisual(material, null, C);
+
+                    data.ShapeRenderMode = ShapeVisualData.RenderMode.MeshColor;
+                }
+
+                data.ValidateVisualHash();
             }
         }
 

@@ -32,12 +32,12 @@ namespace Assets.Gridmap_Assets.Scripts.GridMapMaker.Shapes
         }
         private void SetBaseVertices()
         {
-            BaseVertices = new List<Vector3>
+            BaseVertices = new List<Vector2>
             {
-                new Vector3(- (Width / 2), 0f, (Height / 2)),
-                new Vector3(Width / 2, 0f, Height / 2),
-                new Vector3((Width / 2), 0f, - (Height / 2)),
-                new Vector3(-(Width / 2), 0f, - (Height / 2)),
+                new Vector2(- (Width / 2), (Height / 2)),
+                new Vector2(Width / 2, Height / 2),
+                new Vector2((Width / 2), - (Height / 2)),
+                new Vector2(-(Width / 2), - (Height / 2)),
             };
         }
         private void SetBaseTriangles()
@@ -60,16 +60,15 @@ namespace Assets.Gridmap_Assets.Scripts.GridMapMaker.Shapes
             };
         }
 
-        protected override Vector3 GetBaseTesselatedPosition(int x, int y)
+        protected override Vector2 GetBaseTesselatedPosition(int x, int y)
         {
-            return new Vector3(x * Width + (x * cellGap.x), 0f,
-                               y * Height + (y * cellGap.y));
+            return new Vector2(x * Width, y * Height);
         }
 
-        public override Vector2Int GetGridCoordinate(Vector3 localPosition)
+        protected override Vector2Int GetBaseGridCoordinate(Vector2 localPosition)
         {
-            return new Vector2Int(Mathf.CeilToInt(localPosition.x / Width), 
-                Mathf.CeilToInt(localPosition.z / Height));
+            return new Vector2Int(Mathf.CeilToInt(localPosition.x / (Width + cellGap.x)), 
+                Mathf.CeilToInt(localPosition.y / (Height + cellGap.y)));
         }
     }
 }

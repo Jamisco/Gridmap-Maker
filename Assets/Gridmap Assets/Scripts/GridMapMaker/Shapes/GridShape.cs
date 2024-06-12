@@ -10,6 +10,8 @@ using UnityEditor.ShaderGraph.Internal;
 using UnityEngine;
 using UnityEngine.TextCore.Text;
 using static Assets.Scripts.Miscellaneous.HexFunctions;
+using static UnityEditor.PlayerSettings;
+using static UnityEditor.Searcher.SearcherWindow.Alignment;
 
 namespace Assets.Gridmap_Assets.Scripts.GridMapMaker.Shapes
 {
@@ -22,7 +24,7 @@ namespace Assets.Gridmap_Assets.Scripts.GridMapMaker.Shapes
         private string uniqueShapeName;
 
         [SerializeField]
-        private List<Vector3> baseVertices;
+        private List<Vector2> baseVertices;
 
         [SerializeField]
         private List<Vector2> baseUVs;
@@ -103,7 +105,7 @@ namespace Assets.Gridmap_Assets.Scripts.GridMapMaker.Shapes
         /// <summary>
         /// The minimum number of vertices required to make a Shape
         /// </summary>
-        public List<Vector3> BaseVertices
+        public List<Vector2> BaseVertices
         {
             get { return baseVertices; }
             set { baseVertices = value; }
@@ -135,18 +137,41 @@ namespace Assets.Gridmap_Assets.Scripts.GridMapMaker.Shapes
         {
             get => shapeMesh; private set => shapeMesh = value;
         }
-        public MeshData BaseMeshData { get; private set; }
-        private void SetBaseMeshData()
+        private List<Vector3> GetOrientedVertices()
+        {
+            List<Vector3> orientedVertices = new List<Vector3>();
+            
+            foreach (Vector3 vertex in BaseVertices)
+            {
+                Vector3 orientedVertex = new Vector3();
+                
+                switch (ShapeOrientation)
+                {
+                    case Orientation.XY:
+                        orientedVertex = new Vector3(vertex.x, vertex.y, 0);
+                        break;
+                    case Orientation.XZ:
+                        orientedVertex = new Vector3(vertex.x, 0, vertex.y);
+                        break;
+                }
+                
+                orientedVertices.Add(orientedVertex);
+            }
+            
+            return orientedVertices;
+        }
+  
+        private void SetShapeMeshData()
         {
             MeshData meshData = new MeshData();
             
-            meshData.Vertices = BaseVertices;
+            meshData.Vertices = GetOrientedVertices();
             meshData.Uvs = BaseUVs;
             meshData.Triangles = BaseTriangles;
 
             ExtensionMethods.SetFullColor(ref meshData, Color.white);
 
-            BaseMeshData = meshData;
+            shapeMesh = meshData;
         }
 
         /// <summary>
@@ -159,7 +184,7 @@ namespace Assets.Gridmap_Assets.Scripts.GridMapMaker.Shapes
             SetBaseValues();
 
             SetBounds();
-            SetBaseMeshData();
+            SetShapeMeshData();
             // updating orientation will set the shapeMesh
             UpdateOrientation();
         }
@@ -170,9 +195,9 @@ namespace Assets.Gridmap_Assets.Scripts.GridMapMaker.Shapes
         /// <param timerName="cx">X coordinate on the grid</param>
         /// <param timerName="cy">Y coordinate on the grid</param>
         /// <returns></returns>
-        protected abstract Vector3 GetBaseTesselatedPosition(int x, int y);
+        protected abstract Vector2 GetBaseTesselatedPosition(int x, int y);
         /// <summary>
-        /// The method will return the basePosition of a Shape on the grid given its coordinates denoted in Vector2Int
+        /// The method will return the adjusted local position, denoting where to draw the shape. This method takes into account the orientation, cell gap and other settings of the shape
         /// </summary>
         ///  <param timerName="gridPosition">The grid basePosition of the Shape</param>
         /// <returns></returns>
@@ -180,42 +205,70 @@ namespace Assets.Gridmap_Assets.Scripts.GridMapMaker.Shapes
         {
             return GetTesselatedPosition(gridPosition.x, gridPosition.y);
         }
-        public Vector3 GetTesselatedPosition(int x, int y)
+
+        /// <summary>
+        /// The method will return the adjusted local position, denoting where to draw the shape. This method takes into account the orientation, cell gap and other settings of the shape
+        /// </summary>
+        /// <param name="x"></param>
+        /// <param name="y"></param>
+        /// <returns></returns>
+        public virtual Vector3 GetTesselatedPosition(int x, int y)
         {
-            Vector3 position = GetBaseTesselatedPosition(x, y);
+            Vector2 pos = GetBaseTesselatedPosition(x, y);
+                
+            pos.x += (x * cellGap.x);
+            pos.y += (x * cellGap.y);
 
-            if (shapeOrientation != baseOrientation)
+            if (shapeOrientation == Orientation.XY)
             {
-                position = position.SwapYZ();
+                return new Vector3(pos.x, pos.y, 0);
             }
+            else
+            {
+                return new Vector3(pos.x, 0, pos.y);
+            }
+        }
+        /// <summary>
+        /// Thesame as the gettesselated method, but will not change from vector2 to vector3.
+        /// </summary>
+        /// <param name="x"></param>
+        /// <param name="y"></param>
+        /// <returns></returns>
+        private Vector2 GetTesselatedPosition_V2(int x, int y)
+        {
+            Vector2 pos = GetBaseTesselatedPosition(x, y);
 
-            return position;
+            pos.x += (x * cellGap.x);
+            pos.y += (x * cellGap.y);
+
+            return pos;
         }
 
         /// <summary>
-        /// Given a local basePosition, the method will return the grid coordinate of the basePosition
+        /// Given a local basePosition, the method will return the grid coordinate of the basePosition. Your calculation should give the grid coordinate respective to the BaseOrientation
         /// </summary>
         /// <param timerName="localPosition"></param>
         /// <returns></returns>
-        public abstract Vector2Int GetGridCoordinate(Vector3 localPosition);
+        protected abstract Vector2Int GetBaseGridCoordinate(Vector2 localPosition);
+        public Vector2Int GetGridCoordinate(Vector3 localPosition)
+        {
+            Vector2 pos;
+
+            if (shapeOrientation == Orientation.XY)
+            {
+                pos = new Vector2(localPosition.x, localPosition.y);
+            }
+            else
+            {
+                pos = new Vector2(localPosition.x, localPosition.z);
+            }
+
+
+            return GetBaseGridCoordinate(pos);
+        }
         public void UpdateOrientation()
         {
-            List<Vector3> verts = new List<Vector3>(BaseVertices);
-            shapeMesh = BaseMeshData;
-
-            if (shapeOrientation != BaseOrientation)
-            {
-                SwapYZ();
-                shapeMesh.Vertices = verts;
-            }
-            
-            void SwapYZ()
-            {
-                for (int i = 0; i < verts.Count; i++)
-                {
-                    verts[i] = verts[i].SwapYZ();
-                }
-            }
+            SetShapeMeshData();
         }
     /// <summary>
         /// Will set the bounds of the shape. Bounds of the shape are used to calculate the bounds of the gridmap or small part of the gridmap
@@ -226,23 +279,13 @@ namespace Assets.Gridmap_Assets.Scripts.GridMapMaker.Shapes
         /// <param timerName="right"></param>
         protected void SetBounds()
         {
-            Vector3 top = baseVertices[0];
-            Vector3 bot = baseVertices[0];
-            Vector3 left = baseVertices[0];
-            Vector3 right = baseVertices[0];
+            Vector2 top = baseVertices[0];
+            Vector2 bot = baseVertices[0];
+            Vector2 left = baseVertices[0];
+            Vector2 right = baseVertices[0];
 
-            foreach (Vector3 vertex in baseVertices)
+            foreach (Vector2 vertex in baseVertices)
             {
-                if (vertex.z > top.z)
-                {
-                    top = vertex;
-                }
-
-                if (vertex.z < bot.z)
-                {
-                    bot = vertex;
-                }
-
                 if (vertex.x < left.x)
                 {
                     left = vertex;
@@ -251,6 +294,16 @@ namespace Assets.Gridmap_Assets.Scripts.GridMapMaker.Shapes
                 if (vertex.x > right.x)
                 {
                     right = vertex;
+                }
+
+                if (vertex.y > top.y)
+                {
+                    top = vertex;
+                }
+
+                if (vertex.y < bot.y)
+                {
+                    bot = vertex;
                 }
             }
 
@@ -263,22 +316,18 @@ namespace Assets.Gridmap_Assets.Scripts.GridMapMaker.Shapes
 
             svb.leftF = left.x;
             svb.rightF = right.x;
-            svb.topF = top.z;
-            svb.botF = bot.z;
+            svb.topF = top.y;
+            svb.botF = bot.y;
 
-            SetShapeBounds();
-        }
-        protected void SetShapeBounds()
-        {
             // we then gridOffset the tesselated positions by the vertex positions to give us the bounds/edges
-            Vector3 min = new Vector3(svb.leftF, 0, svb.botF);
-            Vector3 max = new Vector3(svb.rightF, 0, svb.topF);
+            Vector2 min = new Vector3(svb.leftF, svb.botF);
+            Vector2 max = new Vector3(svb.rightF, svb.topF);
 
             shapeBounds = new Bounds((min + max) / 2, max - min);
         }
 
         /// <summary>
-        /// If tesselation is Uniform, such as it is with rectangles, we can simply multiple the gridPosition gridOffset directly to the Shape bounds without having to get the tesselated position of each cell. THIS WILL NOT WORK FOR UN-UNIFORM TESSELATION SUCH AS HEXES
+        /// If tesselation is Uniform, such as it is with rectangles, we can simply multiple the gridPosition gridOffset directly to the Shape bounds without having to get the tesselated localPosition of each cell. THIS WILL NOT WORK FOR UN-UNIFORM TESSELATION SUCH AS HEXES
         /// </summary>
         /// <param name="minGridPosition"></param>
         /// <param name="maxGridPosition"></param>
@@ -317,22 +366,32 @@ namespace Assets.Gridmap_Assets.Scripts.GridMapMaker.Shapes
         //}
 
         public virtual Bounds GetGridBounds(Vector2Int minGridPosition,
-                                Vector2Int maxGridPosition, Vector3 gridOffset = new())
+                                Vector2Int maxGridPosition)
         {
             // we have to get the tesselatedPosition on the map,
             // we must also account for the gridOffset, that is the current basePosition of the grid. A cell at 0,0 will have a tesselated basePosition of 0,0, but if the entire grid is shifted 5 units to the right, then the tesselated basePosition of the cell at 0,0 will be 5,0
 
-            Vector3 botTes = GetTesselatedPosition(minGridPosition) + gridOffset;
-            Vector3 topTes = GetTesselatedPosition(maxGridPosition) + gridOffset;
+            Vector3 botTes = GetTesselatedPosition(minGridPosition);
+            Vector3 topTes = GetTesselatedPosition(maxGridPosition);
 
             // we then offset the tesselated positions by the Shape edge positions to give us the precise positions of the edge
-            Vector3 min = new Vector3(botTes.x + svb.leftF, 0,
-                                      botTes.z + svb.botF);
+            Vector3 min;
+            Vector3 max;
 
-            Vector3 max = new Vector3(topTes.x + svb.rightF, 0,
-                                      topTes.z + svb.topF);
+            float maxOffset = .01f;
+            if (shapeOrientation == Orientation.XZ)
+            {
+                min = new Vector3(botTes.x + svb.leftF, 0, botTes.z + svb.botF);
+                max = new Vector3(topTes.x + svb.rightF, maxOffset, topTes.z + svb.topF);
+            }
+            else
+            {
+                min = new Vector3(botTes.x + svb.leftF, botTes.y + svb.botF, 0);
+                max = new Vector3(topTes.x + svb.rightF, topTes.y + svb.topF, maxOffset);
+            }
 
             Bounds b1 = new Bounds((min + max) / 2, max - min);
+            
             return b1;
         }
         public virtual bool WithinShapeBounds(GridShape other)
@@ -340,6 +399,56 @@ namespace Assets.Gridmap_Assets.Scripts.GridMapMaker.Shapes
             return shapeBounds.Contains(other.ShapeBounds);
         }
 
+        /// <summary>
+        /// Given a local position, and a grid coordinate, check if said local position is in the shape at the given coordinate. This is useful when you want to map a local position to a grid position. It is quite expensive so only use this if you are unable to map local to grid position on your own accord
+        /// </summary>
+        /// <param name="localPosition"></param>
+        /// <param name="x"></param>
+        /// <param name="y"></param>
+        /// <returns></returns>
+        public bool IsLocalPositionInShape(Vector2 localPosition, int x, int y)
+        {
+            List<Vector2> vertices = new List<Vector2>();
+
+            Vector2 offset = GetTesselatedPosition_V2(x, y);
+
+            for (int j = 0; j < BaseVertices.Count; j++)
+            {
+                vertices.Add(BaseVertices[j] + offset);
+            }
+
+            double minX = vertices[0].x;
+            double maxX = vertices[0].x;
+            double minY = vertices[0].y;
+            double maxY = vertices[0].y;
+
+            for (int i = 1; i < vertices.Count; i++)
+            {
+                Vector2 q = vertices[i];
+                minX = Math.Min(q.x, minX);
+                maxX = Math.Max(q.x, maxX);
+                minY = Math.Min(q.y, minY);
+                maxY = Math.Max(q.y, maxY);
+            }
+
+            if (localPosition.x < minX || localPosition.x > maxX || localPosition.y < minY || localPosition.y > maxY)
+            {
+                return false;
+            }
+
+            // https://wrf.ecse.rpi.edu/Research/Short_Notes/pnpoly.html
+            bool inside = false;
+            for (int i = 0, j = vertices.Count - 1; i < vertices.Count; j = i++)
+            {
+                if ((vertices[i].y > localPosition.y) != (vertices[j].y > localPosition.y) &&
+                     localPosition.x < (vertices[j].x - vertices[i].x) * (localPosition.y - vertices[i].y) / (vertices[j].y - vertices[i].y) + vertices[i].x)
+                {
+                    inside = !inside;
+                }
+            }
+
+            return inside;
+        }
 
         public override int GetHashCode()
         {
@@ -353,10 +462,10 @@ namespace Assets.Gridmap_Assets.Scripts.GridMapMaker.Shapes
         }
         private struct ShapeVertexBounds
         {
-            public Vector3 top;
-            public Vector3 bot;
-            public Vector3 left;
-            public Vector3 right;
+            public Vector2 top;
+            public Vector2 bot;
+            public Vector2 left;
+            public Vector2 right;
 
             public float topF;
             public float botF;

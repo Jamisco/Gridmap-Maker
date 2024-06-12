@@ -36,7 +36,7 @@ namespace Assets.Scripts.GridMapMaker
         private BoundsInt chunkGridBounds;
 
         /// <summary>
-        /// Start grid position of the chunk gridBounds
+        /// Start grid position of the chunk localBounds
         /// </summary>
         /// 
         public Vector2Int StartPosition { get { return startPosition; } }
@@ -44,86 +44,18 @@ namespace Assets.Scripts.GridMapMaker
         public Vector2Int EndPosition { get { return endPosition; } }
 
         public BoundsInt ChunkGridBounds { get { return chunkGridBounds; } }
-        
-        //public void CreateLayer(string uniqueID, GridShape Shape)
-        //{         
-        //    if (!ChunkLayers.ContainsKey(uniqueID))
-        //    {
-        //        LayeredMesh newLayer = new GameObject(timerName).AddComponent<LayeredMesh>();
-        //        newLayer.transform.parent = transform;
-        //        newLayer.gameObject.timerName = $"Layer {ChunkLayers.Count}";
-        //        newLayer.Deserialize(uniqueID, Shape);
-        //        ChunkLayers.Add(uniqueID, newLayer);
-        //    }
-        //}
 
-        //public void InsertVisualData(string uniqueID, Vector2Int gridPosition, 
-        //                                    ShapeRenderData visualProp)
-        //{
-        //    if (ChunkLayers.ContainsKey(uniqueID))
-        //    {
-        //        ChunkLayers[uniqueID].InsertVisualData(visualProp, gridPosition);
-        //        ValidatePosition(uniqueID);
-        //    }
-
-
-        //}
-
-        //public bool ShapeExist(string uniqueID, Vector2Int gridPosition)
-        //{
-        //    //if (ChunkLayers.ContainsKey(uniqueID))
-        //    //{
-        //    //    return ChunkLayers[uniqueID].HasShape(gridPosition);
-        //    //}
-
-        //    return false;
-        //}
-
-        //public void RemoveShape(string uniqueID, Vector2Int gridPosition,
-        //                                         ShapeRenderData visualProp)
-        //{
-        //    //if (ChunkLayers.ContainsKey(uniqueID))
-        //    //{
-        //    //    ChunkLayers[uniqueID].RemoveVisualData(visualProp, gridPosition);
-        //    //    ValidatePosition(uniqueID);
-        //    //}
-        //}
-
-        //public void RemoveLayer(string uniqueID)
-        //{
-        //    if (ChunkLayers.ContainsKey(uniqueID))
-        //    {
-        //        ChunkLayers[uniqueID].Clear();
-        //        ChunkLayers.Remove(uniqueID);
-        //        Destroy(ChunkLayers[uniqueID].gameObject);
-        //    }
-        //}
-
-        //private void ValidatePosition(string uniqueID)
-        //{
-        //    LayeredMesh layer = ChunkLayers[uniqueID];
-
-        //    if (layer.SmallestPosition.IsLessThan(smallestPosition))
-        //    {
-        //        smallestPosition = layer.SmallestPosition;
-        //    }
-
-        //    if (layer.LargestPosition.IsGreaterThan(largestPosition))
-        //    {
-        //        largestPosition = layer.LargestPosition;
-        //    }
-        //}
         public void Initialize(GridManager grid, BoundsInt gridBounds)
         {
             GridManager = grid;
-            
-            startPosition = gridBounds.min.ToGridPos();
-            endPosition = gridBounds.max.ToGridPos();
+
+            startPosition = (Vector2Int) gridBounds.min;
+            endPosition = (Vector2Int) gridBounds.max;
 
             chunkGridBounds = gridBounds;
 
-            chunkGridBounds.yMin = 0;
-            chunkGridBounds.yMax = 1;
+            chunkGridBounds.zMin = 0;
+            chunkGridBounds.zMax = 1;
 
             CreateSpriteLayer();
 
@@ -142,7 +74,6 @@ namespace Assets.Scripts.GridMapMaker
             newLayer.transform.parent = transform;
             newLayer.name = "Sprite Layer";
         }
-
         private static MeshLayer CreateLayer(Transform parent = null)
         {
             MeshLayer newLayer
@@ -173,12 +104,19 @@ namespace Assets.Scripts.GridMapMaker
                 layer.transform.SetParent(transform, false);
             }
         }
-
         public bool HasLayer(string layerId)
         {
             return ChunkLayers.ContainsKey(layerId);
         }
-
+        public void RemoveLayer(string uniqueID)
+        {
+            if (ChunkLayers.ContainsKey(uniqueID))
+            {
+                ChunkLayers[uniqueID].Clear();
+                ChunkLayers.Remove(uniqueID);
+                Destroy(ChunkLayers[uniqueID].gameObject);
+            }
+        }
         public MeshLayer GetMeshLayer(string layerId)
         {
             if (ChunkLayers.ContainsKey(layerId))
@@ -188,6 +126,7 @@ namespace Assets.Scripts.GridMapMaker
 
             return null;
         }
+
         public void ValidateLocalPosition()
         {
             string layer = GridManager.DefaultLayer;
@@ -226,6 +165,14 @@ namespace Assets.Scripts.GridMapMaker
         public void QuickInsertVisualData(Vector2Int gridPosition, ShapeVisualData visualProp, string layerId)
         {
             ChunkLayers[layerId].InsertVisualData(gridPosition, visualProp);
+        }
+
+        public void SetColor(Vector2Int gridPosition, Color color, string layerId)
+        {
+            if (ChunkLayers.ContainsKey(layerId) && ContainsPosition(gridPosition))
+            {
+                ChunkLayers[layerId].InsertVisualData(gridPosition, color);
+            }
         }
 
         public bool CanInsert(Vector2Int gridPosition, string layerId)
@@ -317,7 +264,7 @@ namespace Assets.Scripts.GridMapMaker
 
         public bool ContainsPosition(Vector2Int gridPosition)
         {
-            Vector3Int boundsPosition = gridPosition.ToBoundsPos();
+            Vector3Int boundsPosition = (Vector3Int)gridPosition;
 
             if (ChunkGridBounds.Contains(boundsPosition))
             {
@@ -347,7 +294,7 @@ namespace Assets.Scripts.GridMapMaker
         {
             if (ChunkLayers.ContainsKey(layerId))
             {
-                return ChunkLayers[layerId].GetBounds(GridManager.WorldPosition);
+                return ChunkLayers[layerId].LayerBounds;
             }
 
             return new Bounds();
@@ -380,7 +327,7 @@ namespace Assets.Scripts.GridMapMaker
         //    return new Bounds();
         //}
 
-        /// <summary>
+/// <summary>
         /// Will Find the first layer with the given Id, and return its Shape
         /// </summary>
         /// <param timerName="Shape"></param>
@@ -472,32 +419,16 @@ namespace Assets.Scripts.GridMapMaker
                 ChunkLayers[layerId].SortLayer(axis, offset);
             }
         }
-
-        /// <summary>
+/// <summary>
         /// Will swap the Y and Z axis of the chunk, and all its layers. There is no check for the validity of the swap, so be sure to only call this when needed.
         /// </summary>
         public void ValidateOrientation()
         {
+            gameObject.transform.localPosition = gameObject.transform.localPosition.SwapYZ();
+            
             foreach (MeshLayer layer in ChunkLayers.Values)
             {
                 layer.ValidateOrientation();
-            }
-        }
-
-        /// <summary>
-        /// Call this when you change the orientation so that you can change the starting posuition of the chunk
-        /// </summary>
-        public void SwapLocalPosition()
-        {
-            // the reason we call this in its own fucntion is bcuz ValidateOrientation is something called from another thread, and the below line needs to be called from the main thread.
-            gameObject.transform.localPosition = gameObject.transform.localPosition.SwapYZ();
-        }
-
-        public void DrawLayers()
-        {
-            foreach (MeshLayer layer in ChunkLayers.Values)
-            {
-                layer.RedrawLayer();
             }
         }
 
@@ -515,29 +446,27 @@ namespace Assets.Scripts.GridMapMaker
                 layer.DrawFusedMesh();
             }
         }
-        public void UpdateLayer(string layerId)
+        public void DrawLayer(string layerId)
         {
-            ChunkLayers[layerId].DrawFusedMesh();
+            if (ChunkLayers.ContainsKey(layerId))
+            {
+                ChunkLayers[layerId].DrawLayer();
+            }
         }
-        public void RedrawLayer(string layerId)
-        {
-            ChunkLayers[layerId].RedrawLayer();
-        }
-        public void RedrawChunk()
+
+        public void DrawChunk()
         {
             foreach (MeshLayer layer in ChunkLayers.Values)
             {
-                layer.RedrawLayer();
+                layer.DrawLayer();
             }
         }
 
         public void SpawnSprite(Vector2Int position, Sprite sprite, string layerId)
         {
-            GridShape shape = null;
-
             if(ChunkLayers.ContainsKey(layerId))
             {
-                shape = ChunkLayers[layerId].LayerGridShape;
+                GridShape shape = ChunkLayers[layerId].LayerGridShape;
                 spriteLayer.InsertSprite(position, shape, sprite);
             }
         }

@@ -21,6 +21,10 @@ namespace Assets.Gridmap_Assets.Scripts.GridMapMaker.Shapes
         {
             SetBaseValues();
         }
+
+
+        float xTesselationConstant;
+        float yTesselationConstant;
         protected override void SetBaseValues()
         {
             SetBaseVertices();
@@ -28,18 +32,21 @@ namespace Assets.Gridmap_Assets.Scripts.GridMapMaker.Shapes
             SetBaseUVs();
             
             BaseOrientation = Orientation.XZ;
+
+            xTesselationConstant = (Width / 2.0f);
+            yTesselationConstant = (Depth - Depth / 4.0f);
         }
         private void SetBaseVertices()
         {
-            BaseVertices = new List<Vector3>
+            BaseVertices = new List<Vector2>
             {
-                new Vector3(0f, 0f, Depth / 2),
-                new Vector3(Width / 2, 0f, 0.25f * Depth),
-                new Vector3(Width / 2, 0f, -0.25f * Depth),
+                new Vector2(0f, Depth / 2),
+                new Vector2(Width / 2, 0.25f * Depth),
+                new Vector2(Width / 2, -0.25f * Depth),
                 
-                new Vector3(0f, 0f, - (Depth / 2)),
-                new Vector3(-(Width / 2), 0f, -(0.25f * Depth)),
-                new Vector3(-(Width / 2), 0f, (0.25f * Depth)),
+                new Vector2(0f, - (Depth / 2)),
+                new Vector2(-(Width / 2), -(0.25f * Depth)),
+                new Vector2(-(Width / 2), (0.25f * Depth)),
             };
         }
         private void SetBaseTriangles()
@@ -66,56 +73,65 @@ namespace Assets.Gridmap_Assets.Scripts.GridMapMaker.Shapes
             };   
         }
 
-        protected override Vector3 GetBaseTesselatedPosition(int x, int y)
+        protected override Vector2 GetBaseTesselatedPosition(int x, int y)
         {
-            Vector3 position = new Vector3();
+            Vector2 position = new Vector2();
             // Calculate the center of each hexagon
-            position.x = x * Width + (y % 2) * (Width / 2.0f) + (x * cellGap.x);
-            position.y = 0;
-            position.z = y * (Depth - Depth / 4.0f) + (y * cellGap.y); ;
+            position.x = x * Width + ((y % 2) * (xTesselationConstant));
+            position.y = y * yTesselationConstant;
 
             return position;
         }
-        public override Vector2Int GetGridCoordinate(Vector3 localPosition)
+
+        protected override Vector2Int GetBaseGridCoordinate(Vector2 localPosition)
         {
-            localPosition.y = 0;
+            // this function works as follows
+            // we get a ball park estimate of the grid coordinate
+            // then we iterate over the surrounding grid coordinates within a certain range
+            // denoted by count variable
+            // we calculate the distance of each grid coordinate from the local position
+            // and return the grid coordinate with the smallest distance
 
-            float x = localPosition.x / Width;
-            float z = localPosition.z / Depth;
+            //float x = localPosition.x / (Width + cellGap.x);
 
-            int x1 = Mathf.CeilToInt(x);
-            int z1 = Mathf.CeilToInt(z);
+            //// revese the function from getbasetesselation
+            //float z = localPosition.y / (Depth + cellGap.y);
 
-            return GetClosestGrid(x1, z1);
+            float y = localPosition.y / (yTesselationConstant + cellGap.y);
+            int y1 = Mathf.RoundToInt(y);
+            
+            // given a  position, choose random x postion, compare only y values
+            float x = (localPosition.x - (y1 % 2) * (xTesselationConstant)) / (Width + cellGap.x);
+
+            int x1 = Mathf.RoundToInt(x);
+
+            // because of the way hexes are shaped, multiple grids can share thesame x or y world position. So when we narrow the world position to a specific grid position, we then check the surrounding positions to get the precise grid positions
+
+            return GetClosestGrid(x1, y1);
 
             Vector2Int GetClosestGrid(int maxX, int maxZ)
-            {
-                Vector2Int closest = Vector2Int.left;
-                float prevDistance = float.MaxValue;
-                float distance = -1;
-
-                int count = 2;
+            { 
+                int count = 1;
 
                 int xMin = Mathf.Max(0, maxX - count);
                 int zMin = Mathf.Max(0, maxZ - count);
+
+                maxX += count;
+                maxZ += count;
 
                 for (int x = maxX; x >= xMin; x--)
                 {
                     for (int z = maxZ; z >= zMin; z--)
                     {
-                        Vector3 pos = GetBaseTesselatedPosition(x, z);
-                        distance = Vector3.Distance(pos, localPosition);
-
-                        if (distance < prevDistance)
+                        if (IsLocalPositionInShape(localPosition, x, z))
                         {
-                            prevDistance = distance;
-                            closest = new Vector2Int(x, z);
+                            return new Vector2Int(x, z);
                         }
                     }
                 }
 
                 // this should never run
-                return closest;
+                return Vector2Int.left;
             }
         }
     }

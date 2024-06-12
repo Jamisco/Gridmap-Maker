@@ -58,12 +58,6 @@ namespace Assets.Gridmap_Assets.Scripts.GridMapMaker.Shapes.TestVisualData
             return copy as T;
         }
 
-        public static DefaultVisual CreateDefaultVisual
-            (Color color = new Color())
-        {
-            return new DefaultVisual(spritesDefault, color);
-        }
-
         [Serializable]
         public struct SerializedDefaultVisual : ISerializedVisual
         {

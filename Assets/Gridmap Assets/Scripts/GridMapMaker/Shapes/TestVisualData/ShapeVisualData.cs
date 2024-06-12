@@ -80,21 +80,31 @@ namespace Assets.Gridmap_Assets.Scripts.GridMapMaker.Shapes.TestVisualData
         /// <summary>
         /// The Color Shader is the default shader used to render the color of the mesh. It is a simple shader that instructs the meshlayer to color the vertices of the mesh.Calling this method will make sure it is initialized
         /// </summary>
-        public static void CreateDefaultVisual()
+        public static void CreateDefaultVisual(Color defaultShapeColor)
         {
             if (colorShader == null)
             {
                 colorShader = Shader.Find("GridMapMaker/MeshColorShader");
             }
 
-            singletonInstance = new ColorVisualData();
+            singletonInstance = new ColorVisualData(defaultShapeColor);
             singletonInstance.sharedMaterial = new Material(colorShader);
         }
 
         private static ShapeVisualData singletonInstance;
         public static ShapeVisualData GetDefaultVisual()
         {
+            if(singletonInstance == null)
+            {
+                CreateDefaultVisual(Color.white);
+            }
+            
             return singletonInstance;
+        }
+
+        public static ShapeVisualData GetColorVisualData(Color color)
+        {
+            return new ColorVisualData(color);
         }
 
         /// <summary>
@@ -222,16 +232,14 @@ namespace Assets.Gridmap_Assets.Scripts.GridMapMaker.Shapes.TestVisualData
         private class ColorVisualData : ShapeVisualData
         {
             protected override ISerializedVisual SerializedData => null;
-
-            public ColorVisualData()
+            public ColorVisualData(Color mainColor)
             {
                 ShapeRenderMode = RenderMode.MeshColor;
+                this.mainColor = mainColor;
             }
-
-            public static ColorVisualData SingletonInstance;
             public override T DeepCopy<T>()
             {
-                ColorVisualData clone = new ColorVisualData();
+                ColorVisualData clone = new ColorVisualData(mainColor);
                 return clone as T;
             }
             public override void SetMaterialPropertyBlock()

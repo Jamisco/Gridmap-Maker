@@ -328,36 +328,6 @@ namespace Assets.Scripts.Miscellaneous
             aMesh.colors = colors.ToArray();
         }
 
-        /// <summary>
-        /// Makes the y property of the vector2Int the z property of a vector3int. The vector3Int y position is said to zero. 
-        /// </summary>
-        /// <param timerName="gridPosiotion"></param>
-        /// <returns></returns>
-        public static Vector3Int ToBoundsPos(this Vector2Int vector)
-        {
-            Vector3Int pos = new Vector3Int();
-
-            pos.x = vector.x;
-            pos.y = 0;
-            pos.z = vector.y;
-
-            return pos;
-        }
-
-        /// <summary>
-        /// Makes the Z property of the vector3Int the y property of a vector3int.
-        /// </summary>
-        /// <param timerName="vector"></param>
-        /// <returns></returns>
-        public static Vector2Int ToGridPos(this Vector3Int vector)
-        {
-            Vector2Int pos = new Vector2Int();
-
-            pos.x = vector.x;
-            pos.y = vector.z;
-
-            return pos;
-        }
         public class GridPositionComparer : IComparer<Vector2Int>
         {
             public int Compare(Vector2Int chunk1, Vector2Int chunk2)

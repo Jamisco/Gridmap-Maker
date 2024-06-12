@@ -12,6 +12,9 @@ using Debug = UnityEngine.Debug;
 using Assets.Gridmap_Assets.Scripts.Miscellaneous;
 using System.Collections.Concurrent;
 using System.Threading.Tasks;
+using static UnityEditor.PlayerSettings;
+using Plane = UnityEngine.Plane;
+using static UnityEditor.Experimental.GraphView.GraphView;
 
 #if UNITY_EDITOR
 using UnityEditor;
@@ -36,8 +39,14 @@ namespace Assets.Scripts.GridMapMaker
         [SerializeField]
         private Vector2 shapeScale = Vector2.one;
 
-        private string defaultLayerId;
-        public string DefaultLayer { get { return defaultLayerId; } }
+        private Bounds localBounds;
+        public Bounds LocalBounds => localBounds;
+
+        private BoundsInt gridBounds;
+        public BoundsInt GridBounds => gridBounds;
+
+        private string baseLayerId;
+        public string DefaultLayer { get { return baseLayerId; } }
 
         public Vector2 CellGap;
         
@@ -65,8 +74,10 @@ namespace Assets.Scripts.GridMapMaker
                 return transform.position;
             }
         } 
-        public bool MapisDrawn { get; private set; } = false;
-
+        /// <summary>
+        /// When the grid is doing various operations such as fusing and drawing the meshes, we can use multithreading to speed up the process. This may be stable on a case by case basis. So as long as you are not using Unity objects outside of main thread, you should be fine.
+        /// </summary>
+        public bool UseMultithreading = true;
         private void OnValidate()
         {
             if (sortedChunks == null)
@@ -87,7 +98,6 @@ namespace Assets.Scripts.GridMapMaker
                 return ChunkSize.x * ChunkSize.y;
             }
         }
-
         public Vector2Int GridSize { get => gridSize; set => gridSize = value; }
         public Vector2Int ChunkSize { get => chunkSize; set => chunkSize = value; }
         /// <summary>
@@ -116,9 +126,9 @@ namespace Assets.Scripts.GridMapMaker
         {
             GridChunk chunk;
 
-            Vector3Int start = GetChunkStartPosition(gridPosition).ToBoundsPos();
+            Vector3Int start = (Vector3Int) GetChunkStartPosition(gridPosition);
 
-            BoundsInt chunkBounds = new BoundsInt(start, ChunkSize.ToBoundsPos());
+            BoundsInt chunkBounds = new BoundsInt(start, (Vector3Int)ChunkSize);
 
             chunk = Instantiate(prefab, transform, true);
 
@@ -151,8 +161,7 @@ namespace Assets.Scripts.GridMapMaker
             }
 
             return null;
-        }
-      
+        }    
         private void ValidateChunkSize()
         {
             // If the chunk size is less than or equal to 0, then the chunk size is the same as the grid size, else if the chunk size is greater than the grid size, then the chunk size is the grid size
@@ -160,6 +169,11 @@ namespace Assets.Scripts.GridMapMaker
             int y = (chunkSize.y <= 0) ? gridSize.y : (chunkSize.y > gridSize.y) ? gridSize.y : chunkSize.y;
 
             chunkSize = new Vector2Int(x, y);
+
+            gridBounds = new BoundsInt(Vector3Int.zero, (Vector3Int) gridSize);
+
+            gridBounds.zMin = 0;
+            gridBounds.zMax = 1;
         }
         private void CreateGridChunks()
         {
@@ -194,117 +208,6 @@ namespace Assets.Scripts.GridMapMaker
             DestroyImmediate(prefab.gameObject);
         }
 
-        public (List<Vector2Int>, List<ShapeVisualData>) GenerateRandomMap(bool colorOnly = false)
-        {
-            List<Vector2Int> positions = new List<Vector2Int>();
-            List<ShapeVisualData> visualData = new List<ShapeVisualData>();
-
-            BasicVisual data;
-
-            Material material = visualContainer.GetRandomObject<Material>();
-
-            for(int x = 0; x < gridSize.x; x++)
-            {
-                MakeRandomData();
-                
-                for (int y = 0; y < gridSize.y; y++)
-                {
-                    positions.Add(new Vector2Int(x, y));
-                    visualData.Add(data);
-                }
-            }
-
-            TimeLogger.StopTimer(42);
-
-            return (positions, visualData);
-
-            void MakeRandomData()
-            {
-                bool texture = UnityEngine.Random.Range(0, 2) == 0 ? true : true;
-
-                if (colorOnly)
-                {
-                    texture = false;
-                }
-
-                if (texture)
-                {
-                    Texture2D T = visualContainer.GetRandomObject<Texture2D>();
-
-                    data = new BasicVisual(material, T, Color.white);
-                }
-                else
-                {
-                    Color C = UnityEngine.Random.ColorHSV();
-                    data = new BasicVisual(material, null, C);
-
-                    data.ShapeRenderMode = ShapeVisualData.RenderMode.MeshColor;
-                }
-
-                data.ValidateVisualHash();
-            }
-        }
-        public void FillGridChunks_TestMethod(string layerId = USE_DEFAULT_LAYER)
-        {
-            TimeLogger.StartTimer(42, "Filling Grid Chunks");
-            
-            ValidateLayerId(ref layerId);
-            
-            BasicVisual data;
-
-            Material material = visualContainer.GetRandomObject<Material>();
-
-            MakeRandomData();
-
-            foreach (GridChunk chunk in sortedChunks.Values)
-            {
-                int startX = chunk.StartPosition.x;
-                int startY = chunk.StartPosition.y;
-                
-                int xCount = startX + Mathf.Min(ChunkSize.x, GridSize.x - chunk.StartPosition.x);
-                int yCount =  startY + Mathf.Min(ChunkSize.y, GridSize.y - chunk.StartPosition.y);
-
-                Vector2Int gridPosition;
-
-                MakeRandomData();
-
-                for (int x = startX; x < xCount; x++)
-                {
-                    for (int y = startY; y < yCount; y++)
-                    {                
-                        gridPosition = new Vector2Int(x, y);
-                        chunk.InsertVisualData(gridPosition, data, layerId);
-                        visualProps.Add(data);
-                    } 
-                }   
-            }
-
-            TimeLogger.StopTimer(42);
-
-            DrawGrid();
-
-            void MakeRandomData()
-            {
-                bool texture = UnityEngine.Random.Range(0, 2) == 0 ? true : true;
-                texture = false;
-                
-                if (texture)
-                {
-                    Texture2D T = visualContainer.GetRandomObject<Texture2D>();
-
-                    data = new BasicVisual(material, T, Color.white);
-                }
-                else
-                {
-                    Color C = UnityEngine.Random.ColorHSV();
-                    data = new BasicVisual(material, null, C);
-                }
-
-                data.ValidateVisualHash();
-            }
-        }
-
-
         #endregion
         
         #region Grid Manipulation
@@ -317,17 +220,16 @@ namespace Assets.Scripts.GridMapMaker
             ValidateChunkSize();
             CreateGridChunks();
             
-            ShapeVisualData.CreateDefaultVisual();
-
+            ShapeVisualData.CreateDefaultVisual(Color.white);
         }
         public void Initialize(Vector2Int gridSize, Vector2Int chunkSize)
         {
             GridSize = gridSize;
             ChunkSize = chunkSize;
-            
-            ValidateChunkSize();
-            CreateGridChunks();
+
+            Initialize();
         }
+
         public bool CreateLayer(MeshLayerInfo layerInfo, bool setBaselayer = false)
         {
             if (meshLayerInfos.TryAdd(layerInfo.LayerId, layerInfo) == false)
@@ -359,9 +261,10 @@ namespace Assets.Scripts.GridMapMaker
 
             if (setBaselayer || meshLayerInfos.Count == 1)
             {
-                defaultLayerId = layerInfo.LayerId;
+                baseLayerId = layerInfo.LayerId;
 
                 ValidateChunkPositions();
+                ValidateGridBounds();
             }
 
             return true;
@@ -376,7 +279,7 @@ namespace Assets.Scripts.GridMapMaker
         public enum SortAxis { X, Y, Z }
         public void SortMeshLayers()
         {
-            if(!MapisDrawn)
+            if (meshLayerInfos.Count == 0)
             {
                 return;
             }
@@ -473,7 +376,25 @@ namespace Assets.Scripts.GridMapMaker
                 visualProps.Add(data);
             }
         }
-        public void InsertPosition_Block(List<Vector2Int> positions, List<ShapeVisualData> datas, string layerId = USE_DEFAULT_LAYER)
+
+        /// <summary>
+        /// Will create a visual data which will render the shape at the given position the given color
+        /// </summary>
+        /// <param name="gridPosition"></param>
+        /// <param name="color"></param>
+        /// <param name="layerId"></param>
+        public void InsertVisualData(Vector2Int gridPosition, Color color, string layerId = USE_DEFAULT_LAYER)
+        {
+            ValidateLayerId(ref layerId);
+
+            GridChunk chunk = GetHexChunk(gridPosition);
+
+            if (chunk != null)
+            {
+                chunk.SetColor(gridPosition, color, layerId);
+            }
+        }
+        private void InsertPositionBlock_Fast(List<Vector2Int> positions, List<ShapeVisualData> datas, string layerId = USE_DEFAULT_LAYER)
         {
             ValidateLayerId(ref layerId);
 
@@ -499,12 +420,9 @@ namespace Assets.Scripts.GridMapMaker
 
                 if (chunk != null)
                 {
-                    if (chunk.ContainsPosition(positions[i]))
+                    if (chunkIndex.TryGetValue(chunk, out ConcurrentBag<int> indexList))
                     {
-                        if (chunkIndex.TryGetValue(chunk, out ConcurrentBag<int> indexList))
-                        {
-                            indexList.Add(i);
-                        }
+                        indexList.Add(i);
                     }
                 }
             });
@@ -523,6 +441,62 @@ namespace Assets.Scripts.GridMapMaker
                 }
             });
         }
+
+        public void InsertPositionBlock(List<Vector2Int> positions, List<ShapeVisualData> datas, string layerId = USE_DEFAULT_LAYER)
+        {
+            if(UseMultithreading)
+            {
+                InsertPositionBlock_Fast(positions, datas, layerId);
+
+                return;
+            }
+
+            ValidateLayerId(ref layerId);
+
+            if (positions.Count != datas.Count)
+            {
+                Debug.LogError("When Inserting as Block, The number of positions and datas must be the same");
+                return;
+            }
+
+            Dictionary<GridChunk, List<int>> chunkIndex = new Dictionary<GridChunk, List<int>>();
+
+            foreach (GridChunk item in sortedChunks.Values)
+            {
+                if (item.HasLayer(layerId))
+                {
+                    chunkIndex.Add(item, new List<int>());
+                }
+            }
+
+            for (int i = 0; i < positions.Count; i++)
+            {
+                GridChunk chunk = GetHexChunk(positions[i]);
+
+                if (chunk != null)
+                {
+                    if (chunkIndex.TryGetValue(chunk, out List<int> indexList))
+                    {
+                        indexList.Add(i);
+                    }
+                }
+            }
+
+            // remove empty values from chunkIndex
+            chunkIndex = chunkIndex.Where(x => x.Value.Count > 0).ToDictionary(x => x.Key, x => x.Value);
+
+            foreach (var item in chunkIndex)
+            {
+                GridChunk chunk = item.Key;
+                List<int> indexList = item.Value;
+
+                foreach (int i in indexList)
+                {
+                    chunk.QuickInsertVisualData(positions[i], datas[i], layerId);
+                }
+            }
+        }
+
 
         /// <summary>
         /// Removes the visual data at the given grid position from the given layer
@@ -555,7 +529,7 @@ namespace Assets.Scripts.GridMapMaker
 
         public void DeletePosition(Vector2Int gridPosition)
         {
-            ValidateLayerId(ref defaultLayerId);
+            ValidateLayerId(ref baseLayerId);
 
             foreach (GridChunk chunk in sortedChunks.Values)
             {
@@ -588,15 +562,6 @@ namespace Assets.Scripts.GridMapMaker
                 c.SetVisualEquality(layerId, useEquality);
             }
         }
-        public void SetGridShape(GridShape shape, string layerId = USE_DEFAULT_LAYER)
-        {
-            ValidateLayerId(ref layerId);
-
-            foreach (GridChunk c in sortedChunks.Values)
-            {
-                c.SetGridShape(layerId, shape);
-            }
-        }
 
         /// <summary>
         /// Set whether to use visual equality at the given layer
@@ -607,6 +572,15 @@ namespace Assets.Scripts.GridMapMaker
             GridChunk c = sortedChunks.Values.First();
 
             c.SetVisualEquality(useEquality);
+        }
+        public void SetGridShape(GridShape shape, string layerId = USE_DEFAULT_LAYER)
+        {
+            ValidateLayerId(ref layerId);
+
+            foreach (GridChunk c in sortedChunks.Values)
+            {
+                c.SetGridShape(layerId, shape);
+            }
         }
 
         /// <summary>
@@ -672,18 +646,22 @@ namespace Assets.Scripts.GridMapMaker
 
             if (chunk != null)
             {
-                chunk.DrawLayers();
+                chunk.DrawChunk();
             }
         }
 
-        // Update a specific layer at a given position
+        /// <summary>
+        /// Update a specific layer of a specific chunk at the given position
+        /// </summary>
+        /// <param name="gridPosition"></param>
+        /// <param name="layerId"></param>
         public void UpdatePosition(Vector2Int gridPosition, string layerId = USE_DEFAULT_LAYER)
         {
             GridChunk chunk = GetHexChunk(gridPosition);
 
             if (chunk != null)
             {
-                chunk.UpdateLayer(layerId);
+                chunk.DrawLayer(layerId);
             }
         }
 
@@ -697,7 +675,6 @@ namespace Assets.Scripts.GridMapMaker
                 chunk.ValidateLocalPosition();
             }
         }
-
         public void ValidateOrientation()
         {
             TimeLogger.ClearTimers();
@@ -709,42 +686,33 @@ namespace Assets.Scripts.GridMapMaker
                 {
                     shape.ShapeOrientation = MapOrientation;
                 }
-      
-                if (Multithread_Chunk)
-                {
-                    Parallel.ForEach(sortedChunks.Values, chunk =>
-                    {
-                        chunk.ValidateOrientation();
-                    });
 
-                    foreach (GridChunk chunk in sortedChunks.Values)
-                    {
-                        chunk.SwapLocalPosition();
-                        chunk.DrawFusedMesh();
-                    }
-                }
-                else
+                foreach (GridChunk chunk in sortedChunks.Values)
                 {
-                    foreach (GridChunk chunk in sortedChunks.Values)
-                    {
-                        chunk.SwapLocalPosition();
-                        chunk.ValidateOrientation();
-                        chunk.DrawFusedMesh();
-                    }
+                    chunk.ValidateOrientation();
                 }
             }
 
+            SortMeshLayers();
+            
             TimeLogger.StopTimer(67234);
 
             TimeLogger.LogAll();
         }
+        private void ValidateGridBounds()
+        {
+            Vector2Int min = Vector2Int.zero;
+            Vector2Int max = gridSize;
 
-        /// <summary>
-        /// Uses parallel processing to update the grid. This is faster than DrawGrid() but because it uses parallel processing, user specific issues may arise
-        /// </summary>
+            GridShape shape = null;
+
+            sortedChunks.Values.First().TryGetLayerShape(baseLayerId, out shape);
+
+            localBounds = shape.GetGridBounds(min, max);
+        }
         public void DrawGrid()
         {
-            if (Multithread_Chunk)
+            if (UseMultithreading)
             {
                 Parallel.ForEach(sortedChunks.Values, chunk =>
                 {
@@ -755,42 +723,28 @@ namespace Assets.Scripts.GridMapMaker
                 {
                     chunk.DrawFusedMesh();
                 }
-
             }
             else
             {
                 foreach (GridChunk chunk in sortedChunks.Values)
                 {
-                    chunk.RedrawChunk();
+                    chunk.DrawChunk();
                 }
             }
             
-            MapisDrawn = true;
-
             SortMeshLayers();
         }
-
-        public bool Multithread_Chunk = true;
-
-        public bool Multithread_Fuse = true;
         public void RedrawLayer(string layerId = USE_DEFAULT_LAYER)
         {
             ValidateLayerId(ref layerId);
 
             foreach (GridChunk chunk in sortedChunks.Values)
             {
-                chunk.RedrawLayer(layerId);
+                chunk.DrawLayer(layerId);
             }
-        }
 
-        public void RedrawGrid()
-        {
-            foreach (GridChunk chunk in sortedChunks.Values)
-            {
-                chunk.RedrawChunk();
-            }
+            SortMeshLayers();
         }
-
         public void Clear()
         {
             
@@ -813,8 +767,6 @@ namespace Assets.Scripts.GridMapMaker
             visualProps.Clear();
             meshLayerInfos.Clear();
             gridShapes.Clear();
-
-            MapisDrawn = false;
         }
         #endregion
 
@@ -890,8 +842,37 @@ namespace Assets.Scripts.GridMapMaker
         }
 
         // use base layer for these positions
+
+        public bool ContainsLocalPosition(Vector3 localPosition)
+        {
+            if (MapOrientation == GridShape.Orientation.XY)
+            {
+                localPosition = new Vector3(localPosition.x, localPosition.y, 0);
+            }
+            else
+            {
+                localPosition = new Vector3(localPosition.x, 0, localPosition.z);
+            }
+            
+            return localBounds.Contains(localPosition);
+        }
+
+        public bool ContainsWorldPosition(Vector3 worldPosition)
+        {
+            Vector3 localPosition = transform.InverseTransformPoint(worldPosition);
+
+            return ContainsLocalPosition(localPosition);
+        }
+
+        public bool ContainsGridPosition(Vector2Int gridPosition)
+        {
+            return gridBounds.Contains((Vector3Int) gridPosition);
+        }
+
         public Vector2Int LocalToGridPosition(Vector3 localPosition, string layerId = USE_DEFAULT_LAYER)
         {
+            ValidateLayerId(ref layerId);
+
             GridChunk chunk = GetHexChunk(localPosition, layerId);
 
             Vector2Int gridPosition = Vector2Int.left;
@@ -903,10 +884,21 @@ namespace Assets.Scripts.GridMapMaker
 
             return gridPosition;
         }
+
+        public Plane plane = new Plane(Vector3.up, Vector3.zero);
         public Vector2Int WorldToGridPosition(Vector3 worldPosition)
         {
             Vector3 localPosition = transform.InverseTransformPoint(worldPosition);
 
+            if (MapOrientation == GridShape.Orientation.XY)
+            {
+                localPosition.z = 0;
+            }
+            else
+            {
+                localPosition.y = 0;
+            }
+            
             return LocalToGridPosition(localPosition);
         }
         public Vector3 WorldToLocalPosition(Vector3 worldPosition)
@@ -917,11 +909,19 @@ namespace Assets.Scripts.GridMapMaker
         {
             return transform.TransformPoint(localPosition);
         }
-        public Vector3 GetLocalPosition(Vector2Int gridPosition)
+        public Vector3 GridToLocalPosition(Vector2Int gridPosition)
         {
             GridShape shape = GetShape(gridPosition);
 
             return shape.GetTesselatedPosition(gridPosition);
+        }
+        public Vector3 GridToWorldPostion(Vector2Int gridPosition)
+        {
+            GridShape shape = GetShape(gridPosition);
+
+            Vector3 local = shape.GetTesselatedPosition(gridPosition);
+
+            return transform.TransformPoint(local);
         }
 
         /// <summary>
@@ -1097,10 +1097,9 @@ namespace Assets.Scripts.GridMapMaker
         {
             string s1 = "Map size(Chunk Size): " + gridSize.x + " X " + gridSize.y;
             string s2 = "(" + chunkSize.x + " X " + chunkSize.y + ")";
-            string s3 = "\nMultithreaded Chunks: " + Multithread_Chunk;
-            string s4 = "\nMultithreaded Fuse: " + Multithread_Fuse;
+            string s3 = "\nUses Multithreaded Chunks: " + UseMultithreading;
 
-            return s1 + s2 + s3 + s4;
+            return s1 + s2 + s3;
         }
     }
 
@@ -1110,14 +1109,15 @@ namespace Assets.Scripts.GridMapMaker
 
         public string LayerId { get; private set; }
         public GridShape Shape { get; set; }
-        public bool UseVisualEquality { get; set; }
         public int OrderInLayer { get; set; }
+
+        public bool UseVisualEquality { get; set; }
         public MeshLayerInfo(string layerId, GridShape shape, bool useVisualEquality = false, int orderInLayer = 0)
         {
             LayerId = layerId;
             Shape = shape;
-            UseVisualEquality = useVisualEquality;
             OrderInLayer = orderInLayer;
+            UseVisualEquality = useVisualEquality;
         }
 
         public override int GetHashCode()

@@ -71,7 +71,8 @@ namespace Assets.Gridmap_Assets.Scripts.Mapmaker
 
                     ColorVisualGroup.GridShape = layerGridShape;
 
-                    RedrawLayer();
+                    ValidateLayerBounds();
+                    DrawLayer();
                 }
             }
         }
@@ -93,7 +94,15 @@ namespace Assets.Gridmap_Assets.Scripts.Mapmaker
         private Dictionary<int, Vector2Int> CellGridPositions = new Dictionary<int, Vector2Int>();
 
         private Bounds layerBounds;
-       /// <summary>
+
+        public Bounds LayerBounds
+        {
+            get
+            {
+                return layerBounds;
+            }
+        }
+        /// <summary>
         /// This is use to offset the tesselated position so that the Shape is drawn with reference to the chunk. 
         /// For example, say we are drawing a cell at gridPosition 5, 0 and its tesselated position is (5, 0). if the chunk starts at gridPosition (3, 0), then the cell we are drawing will be the 3rd cell in the chunk. So we need to offset the tesselated position by 3 cells so that the cell is drawn at the correct position in the chunk.
         /// </summary>
@@ -162,10 +171,16 @@ namespace Assets.Gridmap_Assets.Scripts.Mapmaker
 
             ColorVisualGroup = new ShapeMeshFuser(layerGridShape, chunkOffset);
 
-            SetLayerBounds();
+            ValidateLayerBounds();
         }
 
-        private void SetLayerBounds()
+       private void ValidateAllSettings()
+        {
+            chunkOffset = layerGridShape.GetTesselatedPosition(gridChunk.StartPosition);
+            ValidateLayerBounds();
+        }
+
+        private void ValidateLayerBounds()
         {
             Vector2Int min = gridChunk.StartPosition;
             Vector2Int max = gridChunk.EndPosition;
@@ -173,14 +188,6 @@ namespace Assets.Gridmap_Assets.Scripts.Mapmaker
             layerBounds = LayerGridShape.GetGridBounds(min, max);
         }
 
-        public Bounds GetBounds(Vector3 gridWorldPosition = new Vector3())
-        {
-            Bounds bounds = layerBounds;
-
-            bounds.center += gridWorldPosition;
-
-            return bounds;
-        }
         void SetEvent(ShapeVisualData visualProp)
         {
             visualProp.VisualDataChange += VisualIdChanged;
@@ -237,6 +244,10 @@ namespace Assets.Gridmap_Assets.Scripts.Mapmaker
             //TimeLogger.StopTimer(2313);
         }
 
+        public void InsertVisualData(Vector2Int gridPosition, Color color)
+        {
+            InsertVisualData(gridPosition, GetColorVisualData(color));
+        }
         public void RemoveVisualData(Vector2Int gridPosition)
         {
             // removing a visual vData is thesame as inserting a default visual vData
@@ -245,7 +256,7 @@ namespace Assets.Gridmap_Assets.Scripts.Mapmaker
 
         private void DeleteShape(int hash)
         {
-            // We will straight up delete the mesh at the grid position
+            // We will straight up delete the mesh at the grid position. No visual data will be inserted
 
             ShapeVisualData existing = null;
 
@@ -253,12 +264,19 @@ namespace Assets.Gridmap_Assets.Scripts.Mapmaker
 
             if (existing != null)
             {
-                MaterialVisualGroup[existing].RemovePosition(hash);
-
-                if (MaterialVisualGroup[existing].IsEmpty)
+                if (MaterialVisualGroup.ContainsKey(existing))
                 {
-                    MaterialVisualGroup.Remove(existing);
-                    RemoveEvent(existing);
+                    MaterialVisualGroup[existing].RemovePosition(hash);
+
+                    if (MaterialVisualGroup[existing].IsEmpty)
+                    {
+                        MaterialVisualGroup.Remove(existing);
+                        RemoveEvent(existing);
+                    }
+                }
+                else
+                {
+                    ColorVisualGroup.RemovePosition(hash);
                 }
 
                 CellVisualDatas.Remove(hash);
@@ -363,7 +381,8 @@ namespace Assets.Gridmap_Assets.Scripts.Mapmaker
             //TimeLogger.StartTimer(1516, "FusedMeshGroups");
             List<SmallMesh> smallMeshes = new List<SmallMesh>();
 
-            bool useMultiThread = gridChunk.GridManager.Multithread_Fuse;
+            bool useMultiThread = gridChunk.GridManager.UseMultithreading;
+            
             foreach (ShapeVisualData vData in MaterialVisualGroup.Keys)
             {
                 ShapeMeshFuser m = MaterialVisualGroup[vData];
@@ -496,6 +515,7 @@ namespace Assets.Gridmap_Assets.Scripts.Mapmaker
                 }
 
                 meshHolder.GetComponent<MeshFilter>().sharedMesh = mesh;
+                meshHolder.GetComponent<MeshCollider>().sharedMesh = mesh;
             }
 
             // save memory
@@ -516,39 +536,44 @@ namespace Assets.Gridmap_Assets.Scripts.Mapmaker
 
             return meshHold;
         }
-        public void ChangeOrientation()
-        {
-            List<MeshData> meshDatas = new List<MeshData>();
 
-            foreach (GameObject item in layerMeshes)
-            {
-                MeshFilter mf = item.GetComponent<MeshFilter>();
-                meshDatas.Add(new MeshData(mf.sharedMesh));
-            }
+        // This method is much faster, about 5x the time it takes to fuse and draw the mesh, but it is buggy, I havent figured it out yet...
+        //public void ChangeOrientation()
+        //{
+        //    List<MeshData> meshDatas = new List<MeshData>();
 
-            // convert to normal for
+        //    foreach (GameObject item in layerMeshes)
+        //    {
+        //        MeshFilter mf = item.GetComponent<MeshFilter>();
+        //        meshDatas.Add(new MeshData(mf.sharedMesh));
+        //    }
 
-            foreach (MeshData data in meshDatas)
-            {
-                for (int x = 0; x < data.vertexCount; x++)
-                {
-                    data.Vertices[x] = data.Vertices[x].SwapYZ();
-                }
-            }
+        //    // convert to normal for
 
-            for (int i = 0; i < layerMeshes.Count; i++)
-            {
-                GameObject item = layerMeshes[i];
-                MeshFilter mf = item.GetComponent<MeshFilter>();
-                mf.sharedMesh = meshDatas[i].GetMesh();
-            }
+        //    foreach (MeshData data in meshDatas)
+        //    {
+        //        for (int x = 0; x < data.vertexCount; x++)
+        //        {
+        //            data.Vertices[x] = data.Vertices[x].SwapYZ();
+        //        }
+        //    }
 
-            meshDatas.Clear();
-        }      
+        //    for (int i = 0; i < layerMeshes.Count; i++)
+        //    {
+        //        GameObject item = layerMeshes[i];
+        //        MeshFilter mf = item.GetComponent<MeshFilter>();
+        //        mf.sharedMesh = meshDatas[i].GetMesh();
+        //    }
+
+        //    meshDatas.Clear();
+        //}
+        /// <summary>
+        /// This will modify various properties of the shape mesh fusers such that when we fuse the meshes, they will be oriented correctly
+        /// </summary>
         private void PrepareForOrientation()
         {
-            chunkOffset = layerGridShape.GetTesselatedPosition(gridChunk.StartPosition);
-
+            ValidateAllSettings();
+            
             foreach (ShapeMeshFuser fuser in MaterialVisualGroup.Values)
             {
                 fuser.PositionOffset = chunkOffset;
@@ -562,67 +587,40 @@ namespace Assets.Gridmap_Assets.Scripts.Mapmaker
         {
             PrepareForOrientation();
 
-            FusedMeshGroups();
+            DrawLayer(); 
         }
 
-        public void ValidateOrientation_Fast1()
-        {
-            PrepareForOrientation();
+        // this is a faster version of the ValidateOrientation method
+        // there currently a bug with this method, it is not working as expected
+        //private void ValidateOrientation_Fast()
+        //{
+        //    PrepareForOrientation();
 
-            List<MeshData> meshDatas = new List<MeshData>();
+        //    List<MeshData> meshDatas = new List<MeshData>();
 
-            foreach (GameObject item in layerMeshes)
-            {
-                MeshFilter mf = item.GetComponent<MeshFilter>();
-                meshDatas.Add(new MeshData(mf.sharedMesh));
-            }
+        //    foreach (GameObject item in layerMeshes)
+        //    {
+        //        MeshFilter mf = item.GetComponent<MeshFilter>();
+        //    }
 
-            foreach (MeshData data in meshDatas)
-            {
-                for (int x = 0; x < data.vertexCount; x++)
-                {
-                    data.Vertices[x] = data.Vertices[x].SwapYZ();
-                }
-            }
+        //    Parallel.ForEach(meshDatas, data =>
+        //    {
+        //        Parallel.For(0, data.vertexCount, x =>
+        //        {
+        //            data.Vertices[x] = data.Vertices[x].SwapYZ();
+        //        });
+        //    });
 
-            for (int i = 0; i < layerMeshes.Count; i++)
-            {
-                GameObject item = layerMeshes[i];
-                MeshFilter mf = item.GetComponent<MeshFilter>();
-                mf.sharedMesh = meshDatas[i].GetMesh();
-            }
+        //    for (int i = 0; i < layerMeshes.Count; i++)
+        //    {
+        //        GameObject item = layerMeshes[i];
+        //        MeshFilter mf = item.GetComponent<MeshFilter>();
+        //        mf.sharedMesh = meshDatas[i].GetMesh();
+        //    }
 
-            meshDatas.Clear();
-        }
-        public void ValidateOrientation_Fast()
-        {
-            PrepareForOrientation();
-
-            List<MeshData> meshDatas = new List<MeshData>();
-
-            foreach (GameObject item in layerMeshes)
-            {
-                MeshFilter mf = item.GetComponent<MeshFilter>();
-            }
-
-            Parallel.ForEach(meshDatas, data =>
-            {
-                Parallel.For(0, data.vertexCount, x =>
-                {
-                    data.Vertices[x] = data.Vertices[x].SwapYZ();
-                });
-            });
-
-            for (int i = 0; i < layerMeshes.Count; i++)
-            {
-                GameObject item = layerMeshes[i];
-                MeshFilter mf = item.GetComponent<MeshFilter>();
-                mf.sharedMesh = meshDatas[i].GetMesh();
-            }
-
-            meshDatas.Clear();
-        }
-      /// <summary>
+        //    meshDatas.Clear();
+        //}
+        /// <summary>
         /// When redrawing the mesh, we want to skip various checks to expediate the process
         /// </summary>
         bool reInsertMode = false;
@@ -650,9 +648,9 @@ namespace Assets.Gridmap_Assets.Scripts.Mapmaker
 
             reInsertMode = false;
 
-            RedrawLayer();
+            DrawLayer();
         }
-        public void RedrawLayer()
+        public void DrawLayer()
         {
             FusedMeshGroups();
 
