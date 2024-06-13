@@ -67,8 +67,10 @@ namespace Assets.Gridmap_Assets.Scripts.GridMapMaker.Shapes
 
         protected override Vector2Int GetBaseGridCoordinate(Vector2 localPosition)
         {
-            return new Vector2Int(Mathf.CeilToInt(localPosition.x / (Width + cellGap.x)), 
-                Mathf.CeilToInt(localPosition.y / (Height + cellGap.y)));
+            int x =  Mathf.RoundToInt(localPosition.x / Width);
+            int y = Mathf.RoundToInt(localPosition.y / Height);
+
+            return new Vector2Int(x, y);
         }
     }
 }

@@ -189,8 +189,6 @@ namespace Assets.Gridmap_Assets.Scripts.GridMapMaker.Shapes
                 objectGuid.Add(obj, g);
                 guiDict.Add(g, obj);
             }
-
-            Debug.Log("Init dictionaries");
         }
         public void OnBeforeSerialize()
         {

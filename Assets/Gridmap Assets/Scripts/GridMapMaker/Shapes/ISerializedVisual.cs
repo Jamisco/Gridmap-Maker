@@ -8,6 +8,6 @@ namespace Assets.Gridmap_Assets.Scripts.GridMapMaker.Shapes
 {
     public interface ISerializedVisual
     {
-        
+
     }
 }

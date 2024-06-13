@@ -25,6 +25,11 @@ namespace Assets.Gridmap_Assets.Scripts.GridMapMaker.Shapes.TestVisualData
             return GridShapes.Where(x => x.UniqueShapeName == shapeId).FirstOrDefault();
         }
 
+        public List<GridShape> GetGridShapes()
+        {
+            return new List<GridShape>(GridShapes);
+        }
+
         public T GetRandomObject<T>() where T : Object
         {
             List<Object> objects

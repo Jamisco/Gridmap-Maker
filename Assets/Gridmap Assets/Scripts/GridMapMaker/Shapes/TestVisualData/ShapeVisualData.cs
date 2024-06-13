@@ -25,16 +25,28 @@ namespace Assets.Gridmap_Assets.Scripts.GridMapMaker.Shapes.TestVisualData
             get => visualName; protected set => visualName = value;
         }
 
-        /// <summary>
+        [SerializeField]
+        private string visualIdString;
+
+        public string VisualIdString => visualIdString;
+    /// <summary>
         /// Similar to getHashCode, if 2 visuals have thesame reference, they should be equal. This is a unique identifier for a visual data during serialization/deserilization
         /// </summary>
         public Guid VisualId { get; private set; }
+        /// <summary>
+        /// The hashcode of the visualID, cached for performance during insertion/comparisons
+        /// </summary>
+        /// 
+       
+        public int VisualIdHash { get; private set; }
 
+        [SerializeField]
+        private int visualHash;
         /// <summary>
         /// For faster comparison, Generate a visual hash code such that if two visual data are equal, they should have the same hash code.
         /// This Should return a hash code such that 2 visual data that look thesame should have thesame hash. Make sure the hashcode is unique only for a specific visual look.
         /// </summary>
-        protected virtual int VisualHash { get; private set; }
+        protected virtual int VisualHash { get => visualHash; private set => visualHash = value; }
 
         public delegate void VisualDataChanged(ShapeVisualData sender);
 
@@ -62,7 +74,7 @@ namespace Assets.Gridmap_Assets.Scripts.GridMapMaker.Shapes.TestVisualData
         [SerializeField]
         public Texture2D mainTexture;
 
-        public RenderMode ShapeRenderMode { get; set; } = RenderMode.Material;
+        public RenderMode DataRenderMode { get; set; } = RenderMode.Material;
         public enum RenderMode { Material, MeshColor };
         protected abstract ISerializedVisual SerializedData { get; }
 
@@ -73,11 +85,13 @@ namespace Assets.Gridmap_Assets.Scripts.GridMapMaker.Shapes.TestVisualData
         public ShapeVisualData()
         {
             VisualId = Guid.NewGuid();
+            visualIdString = VisualId.ToString();
 
-            VisualHash = DEFAULT_VISUAL_HASH;
+            VisualIdHash = VisualId.GetHashCode();
+            visualHash = DEFAULT_VISUAL_HASH;
         }
 
-        /// <summary>
+    /// <summary>
         /// The Color Shader is the default shader used to render the color of the mesh. It is a simple shader that instructs the meshlayer to color the vertices of the mesh.Calling this method will make sure it is initialized
         /// </summary>
         public static void CreateDefaultVisual(Color defaultShapeColor)
@@ -92,6 +106,7 @@ namespace Assets.Gridmap_Assets.Scripts.GridMapMaker.Shapes.TestVisualData
         }
 
         private static ShapeVisualData singletonInstance;
+
         public static ShapeVisualData GetDefaultVisual()
         {
             if(singletonInstance == null)
@@ -117,13 +132,13 @@ namespace Assets.Gridmap_Assets.Scripts.GridMapMaker.Shapes.TestVisualData
         /// </summary>
         public void ValidateVisualHash()
         {
-            int oldHash = VisualHash;
+            int oldHash = visualHash;
             int newHash = GetVisualHash();
 
             if (oldHash != newHash)
             {
                 OnVisualDataChanged(this);
-                VisualHash = newHash;
+                visualHash = newHash;
             }
         }
         protected virtual void OnVisualDataChanged(ShapeVisualData sender)
@@ -157,7 +172,7 @@ namespace Assets.Gridmap_Assets.Scripts.GridMapMaker.Shapes.TestVisualData
         }
         public override int GetHashCode()
         {
-            return VisualId.GetHashCode();
+            return VisualIdHash;
         }
 
         /// <summary>
@@ -182,13 +197,21 @@ namespace Assets.Gridmap_Assets.Scripts.GridMapMaker.Shapes.TestVisualData
         /// </summary>
         /// <param timerName="container"></param>
         public abstract void SetSerializeData(MapVisualContainer container);
-        public abstract void DeserializeData(MapVisualContainer container);
+        protected abstract void DeserializeVisualData(MapVisualContainer container);
+
+        public void DeserializeData(MapVisualContainer container)
+        {
+            VisualId = Guid.Parse(visualIdString);
+            VisualIdHash = VisualId.GetHashCode();
+            visualHash = DEFAULT_VISUAL_HASH;
+
+            DeserializeVisualData(container);
+        }
         public virtual bool Equals(ShapeVisualData other)
         {
-            return VisualId == other.VisualId;
+            return VisualIdHash == other.VisualIdHash;
         }
-
-        /// <summary>
+  /// <summary>
         /// Returns true if 2 visuals look thesame. This is a very expensive operation than the default equality check and should be used sparingly.
         /// Highly recommended to implement this if you also want to draw shapes that look the same as one. If implemented properly could significantly increase performance.
         /// If you implement this, you should also implement GetVisualEqualityHash too. 
@@ -197,7 +220,7 @@ namespace Assets.Gridmap_Assets.Scripts.GridMapMaker.Shapes.TestVisualData
         /// <returns></returns>
         public bool VisuallyEquals(ShapeVisualData other)
         {
-            return VisualHash == other.VisualHash;
+            return visualHash == other.visualHash;
         }
         
         /// <summary>
@@ -225,16 +248,17 @@ namespace Assets.Gridmap_Assets.Scripts.GridMapMaker.Shapes.TestVisualData
                 }
                 else
                 {
-                    return obj.GetHashCode();
+                    return obj.VisualIdHash;
                 }
             }
         }
         private class ColorVisualData : ShapeVisualData
         {
-            protected override ISerializedVisual SerializedData => null;
+            protected override ISerializedVisual SerializedData => serializedData;
+            private SerializedColorVisualData serializedData;
             public ColorVisualData(Color mainColor)
             {
-                ShapeRenderMode = RenderMode.MeshColor;
+                DataRenderMode = RenderMode.MeshColor;
                 this.mainColor = mainColor;
             }
             public override T DeepCopy<T>()
@@ -248,11 +272,21 @@ namespace Assets.Gridmap_Assets.Scripts.GridMapMaker.Shapes.TestVisualData
             }
             public override void SetSerializeData(MapVisualContainer container)
             {
-                // not needed
+                serializedData = new SerializedColorVisualData(this);
             }
-            public override void DeserializeData(MapVisualContainer container)
+            protected override void DeserializeVisualData(MapVisualContainer container)
             {
-                // not needed
+                mainColor = serializedData.mainColor;
+            }
+
+            [Serializable]
+            public struct SerializedColorVisualData : ISerializedVisual
+            {
+                public Color mainColor;
+                public SerializedColorVisualData(ColorVisualData col)
+                {
+                    this.mainColor = col.mainColor;
+                }
             }
         }
     }

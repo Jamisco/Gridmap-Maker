@@ -79,9 +79,9 @@ namespace Assets.Gridmap_Assets.Scripts.GridMapMaker.Shapes.TestVisualData
 
             gridManager.Initialize();
 
-            MeshLayerInfo layerInfo = new MeshLayerInfo(layerId, aShape, useVe, 0);
+            MeshLayerSettings layerInfo = new MeshLayerSettings(layerId, aShape, useVe, 0);
 
-            MeshLayerInfo layerInfo2 = new MeshLayerInfo(layerId2, aShape, useVe, 1);
+            MeshLayerSettings layerInfo2 = new MeshLayerSettings(layerId2, aShape, useVe, 1);
 
             gridManager.CreateLayer(layerInfo);
            // gridManager.CreateLayer(layerInfo2);
@@ -120,8 +120,6 @@ namespace Assets.Gridmap_Assets.Scripts.GridMapMaker.Shapes.TestVisualData
         }
         public void UpdateMap()
         {
-            gridManager.SetVisualEquality(useVe, layerId);
-            gridManager.RedrawLayer(layerId);
             gridManager.DrawGrid();
         }
 
@@ -129,15 +127,29 @@ namespace Assets.Gridmap_Assets.Scripts.GridMapMaker.Shapes.TestVisualData
         {
             gridManager.Clear();
         }
+
+        [SerializeField]
+        public string saveLocation;
         public void SaveMap()
         {
-            gridManager.SerializeMap();
-        }
-        public void LoadMap()
-        {
-            gridManager.DeserializeMap();
+            string save = gridManager.GetSerializeMap();
+            System.IO.File.WriteAllText(saveLocation, save);
+
+            Debug.Log("Map Saved");
         }
 
+        [SerializeField]
+        public bool useMt;
+        public void LoadMap()
+        {
+            TimeLogger.ClearTimers();
+            TimeLogger.StartTimer(-1523, "Load Map");
+            string json = System.IO.File.ReadAllText(saveLocation);
+            gridManager.DeserializeMap(json, useMt);
+            TimeLogger.StopTimer(-1523);
+
+            TimeLogger.Log(-1523, "Using MT: " + useMt + "\t");
+        }
         
         public bool status;
         public bool invert;
@@ -160,7 +172,7 @@ namespace Assets.Gridmap_Assets.Scripts.GridMapMaker.Shapes.TestVisualData
             
             TimeLogger.StartTimer(4816, "Highlight Shape");
             
-            BasicVisual data = gridManager.GetVisualProperties(Vector2Int.zero, layerId) as BasicVisual;
+            BasicVisual data = gridManager.GetVisualData(Vector2Int.zero, layerId) as BasicVisual;
 
             data = data.DeepCopy<BasicVisual>();
             data.mainColor = Color.green;
@@ -197,10 +209,39 @@ namespace Assets.Gridmap_Assets.Scripts.GridMapMaker.Shapes.TestVisualData
         public int order = 1;
         public void Miscellaneous()
         {
+            DeleteShape();
+        }
+        public void ChangeOrientation()
+        {
             Vector2Int gridPos = InputHex;
 
             gridManager.ValidateOrientation();
 
+        }
+
+        private void DeleteShape()
+        {
+            Vector2Int gridPos = InputHex;
+
+            gridManager.DeletePosition(gridPos);
+            gridManager.UpdatePosition(gridPos);
+
+            Debug.Log("Deleted Pos: " + gridPos);
+        }
+
+        private void TestVIdChange()
+        {
+            Vector2Int gridPos = InputHex;
+
+            ShapeVisualData vData = gridManager.GetVisualData(gridPos, layerId);
+
+            Texture2D old = vData.mainTexture;
+
+            vData.mainTexture = visualContainer.GetRandomObject<Texture2D>();
+
+            vData.ValidateVisualHash();
+
+            Debug.Log("Texture Changed: " + old + " -- " + vData.mainTexture);
         }
 
         public void MouseClick(int c)
@@ -241,8 +282,6 @@ namespace Assets.Gridmap_Assets.Scripts.GridMapMaker.Shapes.TestVisualData
 
             Debug.Log(data);
         }
-
-
         public void RemoveVisualData()
         {
             Vector2Int gridPos = InputHex;
@@ -314,7 +353,7 @@ namespace Assets.Gridmap_Assets.Scripts.GridMapMaker.Shapes.TestVisualData
                     Color C = UnityEngine.Random.ColorHSV();
                     data = new BasicVisual(material, null, C);
 
-                    data.ShapeRenderMode = ShapeVisualData.RenderMode.MeshColor;
+                    data.DataRenderMode = ShapeVisualData.RenderMode.MeshColor;
                 }
 
                 data.ValidateVisualHash();

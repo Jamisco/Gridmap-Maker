@@ -52,7 +52,7 @@ namespace Assets.Gridmap_Assets.Scripts.GridMapMaker.Shapes
         {
             serializedData = new SerializedBasicVisual(this, container);
         }
-        public override void DeserializeData(MapVisualContainer container)
+        protected override void DeserializeVisualData(MapVisualContainer container)
         {
             Guid mt = Guid.Parse(serializedData.mainTexture);
             Guid sm = Guid.Parse(serializedData.sharedMaterial);
@@ -85,7 +85,6 @@ namespace Assets.Gridmap_Assets.Scripts.GridMapMaker.Shapes
             public string mainTexture;
             public string sharedMaterial;
             public Color mainColor;
-
             public SerializedBasicVisual(BasicVisual basicVisual, MapVisualContainer container)
             {
                 mainColor = basicVisual.mainColor;

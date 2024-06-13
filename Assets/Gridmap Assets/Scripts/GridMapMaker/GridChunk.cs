@@ -85,7 +85,7 @@ namespace Assets.Scripts.GridMapMaker
 
             return newLayer;
         }
-        public void AddLayer(MeshLayerInfo layerInfo)
+        public void AddLayer(MeshLayerSettings layerInfo)
         {
             if (!ChunkLayers.ContainsKey(layerInfo.LayerId))
             {
@@ -93,15 +93,6 @@ namespace Assets.Scripts.GridMapMaker
 
                 newLayer.Initialize(layerInfo, this);
                 ChunkLayers.Add(layerInfo.LayerId, newLayer);
-            }
-        }
-
-        private void AddLayer(MeshLayer layer)
-        {
-            if (!ChunkLayers.ContainsKey(layer.LayerId))
-            {
-                ChunkLayers.Add(layer.LayerId, layer);
-                layer.transform.SetParent(transform, false);
             }
         }
         public bool HasLayer(string layerId)
@@ -397,7 +388,7 @@ namespace Assets.Scripts.GridMapMaker
             return false;
         }
 
-        public ShapeVisualData GetVisualProperties(Vector2Int gridPosition, string layerId)
+        public ShapeVisualData GetVisualData(Vector2Int gridPosition, string layerId)
         {
             if (!ContainsPosition(gridPosition))
             {
@@ -406,12 +397,12 @@ namespace Assets.Scripts.GridMapMaker
 
             if (ChunkLayers.ContainsKey(layerId))
             {
-                return ChunkLayers[layerId].GetVisualProperties(gridPosition);
+                return ChunkLayers[layerId].GetVisualData(gridPosition);
             }
 
             return null;
         }
-        
+
         public void SortLayer(string layerId, SortAxis axis, float offset)
         {
             if (ChunkLayers.ContainsKey(layerId))
@@ -453,7 +444,6 @@ namespace Assets.Scripts.GridMapMaker
                 ChunkLayers[layerId].DrawLayer();
             }
         }
-
         public void DrawChunk()
         {
             foreach (MeshLayer layer in ChunkLayers.Values)
@@ -461,7 +451,6 @@ namespace Assets.Scripts.GridMapMaker
                 layer.DrawLayer();
             }
         }
-
         public void SpawnSprite(Vector2Int position, Sprite sprite, string layerId)
         {
             if(ChunkLayers.ContainsKey(layerId))
@@ -470,7 +459,6 @@ namespace Assets.Scripts.GridMapMaker
                 spriteLayer.InsertSprite(position, shape, sprite);
             }
         }
-
         public void Clear()
         {
             try
@@ -487,52 +475,28 @@ namespace Assets.Scripts.GridMapMaker
 
             }
         }
-
-        public SerializedGridChunk SerializeChunk(MapVisualContainer container)
+        public SerializedGridChunk GetSerializedChunk()
         {
-            SerializedGridChunk serializedChunk = new SerializedGridChunk(this, container);
+            SerializedGridChunk serializedChunk = new SerializedGridChunk(this);
             return serializedChunk;
-        }
-
-        public static GridChunk DeserializeData(SerializedGridChunk data, MapVisualContainer visualContainer, List<ShapeVisualData> visualProps)
-        {
-            GridChunk chunk = new GameObject(data.name).AddComponent<GridChunk>();
-
-            chunk.startPosition = data.startPosition;
-
-            foreach (SerializedLayer item in data.serializedLayers)
-            {
-                MeshLayer newLayer = CreateLayer(chunk.transform);
-
-                newLayer.Deserialize(item, visualContainer, visualProps);
-                chunk.AddLayer(newLayer);
-            }
-
-            return chunk;
         }
 
         [Serializable]
         public struct SerializedGridChunk
         {
             [SerializeField]
-            public string name;
-
-            [SerializeField]
             public Vector2Int startPosition;
 
             [SerializeField]
-            public List<SerializedLayer> serializedLayers;
-
-            public SerializedGridChunk(GridChunk chunk, MapVisualContainer container)
+            public List<SeriializedMeshLayer> serializedLayers;
+            public SerializedGridChunk(GridChunk chunk)
             {
-                name = chunk.gameObject.name;
                 startPosition = chunk.startPosition;
-
-                serializedLayers = new List<SerializedLayer>();
+                serializedLayers = new List<SeriializedMeshLayer>();
 
                 foreach (MeshLayer item in chunk.ChunkLayers.Values)
                 {
-                    serializedLayers.Add(item.SerializeLayer(container));
+                    serializedLayers.Add(item.GetSerializedLayer());
                 }
             }
         }

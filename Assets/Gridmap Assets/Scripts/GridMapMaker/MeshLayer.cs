@@ -38,6 +38,13 @@ namespace Assets.Gridmap_Assets.Scripts.Mapmaker
         const int MAX_VERTICES = 65534;
         GridChunk gridChunk;
 
+        public MeshLayerSettings LayerSettings
+        {
+            get
+            {
+                return gridChunk.GridManager.GetLayerInfo(layerId);
+            }
+        }
         public bool UseVisualEquality
         {
             get
@@ -46,8 +53,11 @@ namespace Assets.Gridmap_Assets.Scripts.Mapmaker
             }
             set
             {
-                visualDataComparer.UseVisualHash = value;
-                VisualEqualityChanged();
+                if(visualDataComparer.UseVisualHash != value)
+                {
+                    visualDataComparer.UseVisualHash = value;
+                    VisualEqualityChanged();
+                } 
             }
         }
 
@@ -70,14 +80,13 @@ namespace Assets.Gridmap_Assets.Scripts.Mapmaker
                     }
 
                     ColorVisualGroup.GridShape = layerGridShape;
-
                     ValidateLayerBounds();
                     DrawLayer();
                 }
             }
         }
 
-        VisualDataComparer visualDataComparer = new VisualDataComparer();
+        private VisualDataComparer visualDataComparer = new VisualDataComparer();
 
         /// <summary>
         // The grouping of visual datas that are used to make a mesh.
@@ -118,9 +127,6 @@ namespace Assets.Gridmap_Assets.Scripts.Mapmaker
         public List<MaterialPropertyBlock> PropertyBlocks { get; private set; }
                                         = new List<MaterialPropertyBlock>();
 
-        [SerializeField]
-        private bool UpdateOnVisualChange;
-
         private void OnValidate()
         {
 
@@ -152,7 +158,7 @@ namespace Assets.Gridmap_Assets.Scripts.Mapmaker
             
             layerGridShape = gridShape;
         }
-        public void Initialize(MeshLayerInfo layerInfo, GridChunk chunk)
+        public void Initialize(MeshLayerSettings layerInfo, GridChunk chunk)
         {
             Clear();
             
@@ -173,13 +179,11 @@ namespace Assets.Gridmap_Assets.Scripts.Mapmaker
 
             ValidateLayerBounds();
         }
-
-       private void ValidateAllSettings()
+        private void ValidateAllSettings()
         {
             chunkOffset = layerGridShape.GetTesselatedPosition(gridChunk.StartPosition);
             ValidateLayerBounds();
         }
-
         private void ValidateLayerBounds()
         {
             Vector2Int min = gridChunk.StartPosition;
@@ -217,7 +221,7 @@ namespace Assets.Gridmap_Assets.Scripts.Mapmaker
 
             // Mesh that draw only their colors are inserted into 1 group.
             // This is because we can draw all the color meshes in one draw call by simply painting the mesh vertices themselves
-            if (visualProp.ShapeRenderMode == ShapeVisualData.RenderMode.MeshColor)
+            if (visualProp.DataRenderMode == ShapeVisualData.RenderMode.MeshColor)
             {
                 ColorVisualGroup.InsertPosition(hash, gridPosition, visualProp.mainColor);
                 return;
@@ -316,7 +320,7 @@ namespace Assets.Gridmap_Assets.Scripts.Mapmaker
         {
             return CellVisualDatas.ContainsKey(gridPosition.GetHashCode_Unique());
         }
-        public ShapeVisualData GetVisualProperties(Vector2Int gridPosition)
+        public ShapeVisualData GetVisualData(Vector2Int gridPosition)
         {
             ShapeVisualData existing = null;
 
@@ -327,7 +331,7 @@ namespace Assets.Gridmap_Assets.Scripts.Mapmaker
         public void VisualIdChanged(ShapeVisualData sender)
         {
             ShapeVisualData changedProp = MaterialVisualGroup.Keys.FirstOrDefault
-                                    (x => x == sender);
+                            (x => visualDataComparer.Equals(x, sender));
 
             // make sure the changedProp exists
             // if it doesn't, it means that the visual vData was never inserted in the first place or has been removed
@@ -336,7 +340,7 @@ namespace Assets.Gridmap_Assets.Scripts.Mapmaker
                 // When a visual prop has changed, we need to see if there is another visual prop that looks like it
 
                 ShapeVisualData identicalData = MaterialVisualGroup.Keys.FirstOrDefault
-                            (x => (x != changedProp && x.Equals(changedProp)));
+                            (x => visualDataComparer.Equals(x, changedProp));
 
                 // if there is a identicalData, combine it with the old vData
                 if (identicalData != null)
@@ -346,33 +350,33 @@ namespace Assets.Gridmap_Assets.Scripts.Mapmaker
                     ShapeMeshFuser changedPositions = MaterialVisualGroup[changedProp];
 
                     // remove the old fused mesh
-                    MaterialVisualGroup.Remove(changedProp);
-
                     prePositions.CombineFuser(changedPositions);
+
+                    MaterialVisualGroup.Remove(changedProp);
 
                     MaterialVisualGroup[identicalData] = prePositions;
                 }
 
+             // if we are in editor, the event was most likely raised during a serialization process, and we can't update the mesh during serialization. So we wait until the serialization process is done, then update the mesh. 
 
-#if UNITY_EDITOR
-                // if we are in editor, the event was most likely raised during a serialization process, and we can't update the mesh during serialization. So we wait until the serialization process is done, then update the mesh. 
-                if (UpdateOnVisualChange)
+                if (gridChunk.GridManager.RedrawOnVisualHashChanged)
                 {
+#if UNITY_EDITOR
                     EditorApplication.delayCall += () =>
                     {
-                        DrawFusedMesh();
+                        DrawLayer();
+                        return;
                     };
-                }
-#else
-                UpdateMesh();
 #endif
+                    DrawLayer();
+                }
             }
             else
             {
+                RemoveEvent(sender);
                 // this visualData does not exist in this layer, remove it
                 // this should never occur so as long as we are removing the event whenever we delete a position
             }
-
         }
 
         private List<GameObject> layerMeshes = new List<GameObject>();
@@ -536,8 +540,7 @@ namespace Assets.Gridmap_Assets.Scripts.Mapmaker
 
             return meshHold;
         }
-
-        // This method is much faster, about 5x the time it takes to fuse and draw the mesh, but it is buggy, I havent figured it out yet...
+// This method is much faster, about 5x the time it takes to fuse and draw the mesh, but it is buggy, I havent figured it out yet...
         //public void ChangeOrientation()
         //{
         //    List<MeshData> meshDatas = new List<MeshData>();
@@ -656,6 +659,12 @@ namespace Assets.Gridmap_Assets.Scripts.Mapmaker
 
             DrawFusedMesh();
         }
+
+        public SeriializedMeshLayer GetSerializedLayer()
+        {
+            return new SeriializedMeshLayer(this);
+        }
+
         public void Clear()
         {
             if (MaterialVisualGroup != null)
@@ -687,32 +696,6 @@ namespace Assets.Gridmap_Assets.Scripts.Mapmaker
             SharedMaterials.Clear();
             PropertyBlocks.Clear();
         }
-        public SerializedLayer SerializeLayer(MapVisualContainer container)
-        {
-            return new SerializedLayer(this, container);
-        }
-        public void Deserialize(SerializedLayer sLayer,
-                        MapVisualContainer container,
-                        List<ShapeVisualData> visualProps)
-        {
-            layerId = sLayer.layerId;
-
-            GridShape shape = container.GetGridShape(sLayer.shapeId);
-            Initialize(shape);
-
-            for (int i = 0; i < sLayer.gridPositions.Count; i++)
-            {
-                Vector2Int pos = sLayer.gridPositions[i];
-
-                Guid id = sLayer.gridVisualIds[i];
-                ShapeVisualData data
-                            = visualProps.First(x => x.VisualId == id);
-
-                InsertVisualData(pos, data);
-            }
-
-            DrawFusedMesh();
-        }
 
         private struct MaxMesh
         {
@@ -720,7 +703,6 @@ namespace Assets.Gridmap_Assets.Scripts.Mapmaker
             public List<MeshData> smallMesh;
 
             public int VertexCount;
-
             private void Init()
             {
                 vDatas = new List<ShapeVisualData>();
@@ -735,7 +717,6 @@ namespace Assets.Gridmap_Assets.Scripts.Mapmaker
 
                 VertexCount += fuser.vertexCount;
             }
-
             public bool CanAdd(MeshData fuser)
             {
                 if(VertexCount + fuser.vertexCount <= MAX_VERTICES)
@@ -747,7 +728,6 @@ namespace Assets.Gridmap_Assets.Scripts.Mapmaker
                     return false;
                 }
             }   
-
             public static MaxMesh Default()
             {
                 MaxMesh def = new MaxMesh();
@@ -756,8 +736,6 @@ namespace Assets.Gridmap_Assets.Scripts.Mapmaker
 
                 return def;
             }
-
-
         }
         private struct SmallMesh
         {
@@ -778,34 +756,30 @@ namespace Assets.Gridmap_Assets.Scripts.Mapmaker
         }
 
         [Serializable]
-        public struct SerializedLayer
+        public struct SeriializedMeshLayer
         {
             [SerializeField]
-            public string shapeId;
             public string layerId;
-            // the question now is should each layer stores its visual properties
-            // or should the visual properties be stored in a gridmanager class
+
+            [SerializeField]
             public List<Vector2Int> gridPositions;
-            public List<Guid> gridVisualIds;
+             
+            [SerializeField]
+            public List<string> visualDatas;
 
-            public SerializedLayer(MeshLayer layer, MapVisualContainer container)
+            public SeriializedMeshLayer(MeshLayer layer)
             {
-                shapeId = layer.LayerGridShape.UniqueShapeName;
                 layerId = layer.layerId;
+                gridPositions = new List<Vector2Int>();
+                visualDatas = new List<string>();
 
-                gridPositions = layer.CellGridPositions.Values.ToList();
-                gridVisualIds = new List<Guid>();
-
-                foreach (Vector2Int cell in gridPositions)
+                foreach (int hash in layer.CellVisualDatas.Keys)
                 {
-                    gridVisualIds.Add(layer.CellVisualDatas[cell.GetHashCode_Unique()].VisualId);
+                    gridPositions.Add(layer.CellGridPositions[hash]);
+                    visualDatas.Add(layer.CellVisualDatas[hash].VisualId.ToString());
                 }
             }
         }
-        
-        /// <summary>
-        /// Just used to quick create layers. Nothing majors
-        /// </summary>
-       
+
     }
 }

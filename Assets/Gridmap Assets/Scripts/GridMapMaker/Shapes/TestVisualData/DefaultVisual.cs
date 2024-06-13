@@ -43,7 +43,7 @@ namespace Assets.Gridmap_Assets.Scripts.GridMapMaker.Shapes.TestVisualData
         {
             serializedData = new SerializedDefaultVisual(this, container);
         }
-        public override void DeserializeData(MapVisualContainer container)
+        protected override void DeserializeVisualData(MapVisualContainer container)
         {
             Guid sm = Guid.Parse(serializedData.sharedMaterial);
 
@@ -63,7 +63,6 @@ namespace Assets.Gridmap_Assets.Scripts.GridMapMaker.Shapes.TestVisualData
         {
             public string sharedMaterial;
             public Color defaultColor;
-            
             
             public SerializedDefaultVisual(DefaultVisual defaultVisual, MapVisualContainer container)
             {
