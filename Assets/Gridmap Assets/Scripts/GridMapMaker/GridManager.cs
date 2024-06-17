@@ -16,6 +16,8 @@ using static UnityEditor.PlayerSettings;
 using Plane = UnityEngine.Plane;
 using static UnityEditor.Experimental.GraphView.GraphView;
 using static Assets.Gridmap_Assets.Scripts.Mapmaker.MeshLayer;
+using System.Collections.ObjectModel;
+
 
 
 #if UNITY_EDITOR
@@ -238,7 +240,7 @@ namespace Assets.Scripts.GridMapMaker
         }
         public bool CreateLayer(MeshLayerSettings layerInfo, bool setBaselayer = false)
         {
-            if (meshLayerInfos.TryAdd(layerInfo.LayerId, layerInfo) == false)
+            if (meshLayerInfos.ContainsKey(layerInfo.LayerId))
             {
                 return false;
             }
@@ -258,6 +260,8 @@ namespace Assets.Scripts.GridMapMaker
                 
                 gridShapes.Add(gridShape);
             }
+
+            meshLayerInfos.Add(layerInfo.LayerId, layerInfo);
 
             // add layer to all chunk chunks
             foreach (GridChunk chunk in sortedChunks.Values)
@@ -996,21 +1000,6 @@ namespace Assets.Scripts.GridMapMaker
 
         #endregion
 
-        #region Sprite Spawning
-
-        public void SpawnSprite(Vector2Int gridPosition, Sprite sprite, string layerId = USE_DEFAULT_LAYER)
-        {
-            ValidateLayerId(ref layerId);
-
-            GridChunk chunk = GetHexChunk(gridPosition);
-
-            if (chunk != null)
-            {
-                chunk.SpawnSprite(gridPosition, sprite, layerId);
-            }
-        }
-        #endregion
-
         #region Saving and Loading Map
 
         public string  GetSerializeMap()
@@ -1021,11 +1010,10 @@ namespace Assets.Scripts.GridMapMaker
 
             return json;
         }
-        public void DeserializeMap(string json, bool useMt = false)
+        public void DeserializeMap(string json)
         {
             SavedMap savedMap = JsonUtility.FromJson<SavedMap>(json);
 
-            savedMap.useMultiThreading = useMt;
             savedMap.DeserializeVisualProps(visualContainer);
 
             visualDatas = savedMap.visualDatas.ToHashSet();
@@ -1181,8 +1169,8 @@ namespace Assets.Scripts.GridMapMaker
                 useMultiThreading = gridManager.UseMultithreading;
                 redrawOnV = gridManager.RedrawOnVisualHashChanged;
                 baseLayerId = gridManager.DefaultLayer;
-                
-                layerSettings =  gridManager.meshLayerInfos.Values.ToList();
+
+                layerSettings = gridManager.meshLayerInfos.Values.ToList();
 
                 visualDatas = gridManager.visualDatas.ToList();
 
@@ -1228,17 +1216,21 @@ namespace Assets.Scripts.GridMapMaker
     {
         public static float SortStep = 0.0001f;
 
-        private GridShape shape;
-
-        [SerializeField]
-        private string shapeId;
         [SerializeField]
         private string layerId;
+
         [SerializeField]
         private int orderInLayer;
+
         [SerializeField]
         private bool useVisualEquality;
 
+        [SerializeField]
+        private GridShape shape;
+
+        [SerializeField]
+        [HideInInspector]
+        private string shapeId;
         public GridShape Shape
         {
             get
@@ -1271,6 +1263,15 @@ namespace Assets.Scripts.GridMapMaker
 
             this.orderInLayer = orderInLayer;
             this.useVisualEquality = useVisualEquality;
+        }
+
+        /// <summary>
+        /// Makes sure the shapeId is set.
+        /// This will need to be done if the shapeId is set via the inspector
+        /// </summary>
+        public void Validate()
+        {
+            shapeId = shape.UniqueShapeName;
         }
 
         public override int GetHashCode()

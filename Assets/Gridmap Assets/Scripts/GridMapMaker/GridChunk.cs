@@ -17,14 +17,11 @@ using static UnityEditor.PlayerSettings;
 
 namespace Assets.Scripts.GridMapMaker
 {
-    [RequireComponent(typeof(SpriteSpawner))]
     public class GridChunk : MonoBehaviour
     {
         public GridManager GridManager { get; private set; }
 
         Dictionary<string, MeshLayer> ChunkLayers = new Dictionary<string, MeshLayer>();
-
-        SpriteSpawner spriteLayer;
 
         [SerializeField]
         private Vector2Int startPosition;
@@ -57,23 +54,11 @@ namespace Assets.Scripts.GridMapMaker
             chunkGridBounds.zMin = 0;
             chunkGridBounds.zMax = 1;
 
-            CreateSpriteLayer();
-
             // a chunk local position is simply the position of the first cell in the chunk
             // thus, the chunk position can only be known after a layer has been added
             // see updatelocalposition method
         }
 
-        public void CreateSpriteLayer()
-        {
-            SpriteSpawner newLayer
-                    = new GameObject().AddComponent<SpriteSpawner>();
-            
-            spriteLayer = newLayer;
-
-            newLayer.transform.parent = transform;
-            newLayer.name = "Sprite Layer";
-        }
         private static MeshLayer CreateLayer(Transform parent = null)
         {
             MeshLayer newLayer
@@ -451,14 +436,7 @@ namespace Assets.Scripts.GridMapMaker
                 layer.DrawLayer();
             }
         }
-        public void SpawnSprite(Vector2Int position, Sprite sprite, string layerId)
-        {
-            if(ChunkLayers.ContainsKey(layerId))
-            {
-                GridShape shape = ChunkLayers[layerId].LayerGridShape;
-                spriteLayer.InsertSprite(position, shape, sprite);
-            }
-        }
+
         public void Clear()
         {
             try

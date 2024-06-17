@@ -19,32 +19,47 @@ MonoBehaviour:
   - {fileID: 2800000, guid: cf3bbd0ebaef60049beb69c7d04e56dc, type: 3}
   - {fileID: 2100000, guid: 1ce1c2e14903de741ae3026f3330e7bb, type: 2}
   - {fileID: 2800000, guid: 1d5fed1e3190ece4b8ca3a0ddb110423, type: 3}
+  - {fileID: 2800000, guid: 215e28c9c4a676747932d63132dd82bb, type: 3}
+  - {fileID: 2800000, guid: 19969405a0e4e3b4b99d3909aeaf7c47, type: 3}
+  - {fileID: 2800000, guid: f55770fe15bae1a4c97e5803d36adadf, type: 3}
   GridShapes:
   - {fileID: 11400000, guid: cd9fdc9a35c156445babc5ca32cc6806, type: 2}
   - {fileID: 11400000, guid: c00c4fea2af2cfb429605dd6fc801743, type: 2}
   matchingGuids:
-  - e9d83f55-5d40-42a1-9ce0-4b63cec8e349
-  - e1f7dcd3-2fa6-4eee-b145-52375b95d0f4
-  - 4191ed10-6589-4308-85e6-1931212bd4ce
-  - dc5db166-2b45-4503-bf42-df7c17feae28
-  - ebeab29d-6726-4f19-9772-a319bf912d31
-  - b13b20fa-1eee-4718-b6ba-1c2eb5792af2
+  - f5d5575d-b7d2-48b2-8f40-1b55f6adaa2f
+  - 5562c186-46e2-48c3-9dcb-ebf82cf59416
+  - f9c7e162-8375-4fd0-b774-d3907864d5fb
+  - e3a20f12-bc1b-4495-acba-3908839e7941
+  - 70050e64-ddad-4cb1-9789-be4b1e95e356
+  - 21760e12-089c-4286-bc14-41873f391bc3
+  - 2c2e92cc-4486-45cd-9ee2-c12f49066fae
+  - f7d8ebb4-aa3c-42ec-9b4e-1f710c3efbe9
+  - 14d25801-f89d-448e-bf88-9ac4578e7758
   visualObjects:
   - obj: {fileID: 2800000, guid: 597c788c377099f4cac099e7616ca8f1, type: 3}
     ObjectName: grass_01_diffuse (UnityEngine.Texture2D)
-    GidString: e9d83f55-5d40-42a1-9ce0-4b63cec8e349
+    GidString: f5d5575d-b7d2-48b2-8f40-1b55f6adaa2f
   - obj: {fileID: 2800000, guid: aa701e5be2dbcd24aad4fb9c3ca284da, type: 3}
     ObjectName: Vol_36_5_Base_Color (UnityEngine.Texture2D)
-    GidString: e1f7dcd3-2fa6-4eee-b145-52375b95d0f4
+    GidString: 5562c186-46e2-48c3-9dcb-ebf82cf59416
   - obj: {fileID: 2800000, guid: 51babd26549616d45ab9e445869bac3c, type: 3}
     ObjectName: grass_09_diffuse (UnityEngine.Texture2D)
-    GidString: 4191ed10-6589-4308-85e6-1931212bd4ce
+    GidString: f9c7e162-8375-4fd0-b774-d3907864d5fb
   - obj: {fileID: 2800000, guid: cf3bbd0ebaef60049beb69c7d04e56dc, type: 3}
     ObjectName: grass_06_diffuse (UnityEngine.Texture2D)
-    GidString: dc5db166-2b45-4503-bf42-df7c17feae28
+    GidString: e3a20f12-bc1b-4495-acba-3908839e7941
   - obj: {fileID: 2100000, guid: 1ce1c2e14903de741ae3026f3330e7bb, type: 2}
     ObjectName: BaseMaterial (UnityEngine.Material)
-    GidString: ebeab29d-6726-4f19-9772-a319bf912d31
+    GidString: 70050e64-ddad-4cb1-9789-be4b1e95e356
   - obj: {fileID: 2800000, guid: 1d5fed1e3190ece4b8ca3a0ddb110423, type: 3}
     ObjectName: square (UnityEngine.Texture2D)
-    GidString: b13b20fa-1eee-4718-b6ba-1c2eb5792af2
+    GidString: 21760e12-089c-4286-bc14-41873f391bc3
+  - obj: {fileID: 2800000, guid: 215e28c9c4a676747932d63132dd82bb, type: 3}
+    ObjectName: winterDirt_painted_diffuseOriginal (UnityEngine.Texture2D)
+    GidString: 2c2e92cc-4486-45cd-9ee2-c12f49066fae
+  - obj: {fileID: 2800000, guid: 19969405a0e4e3b4b99d3909aeaf7c47, type: 3}
+    ObjectName: grass_02_diffuse (UnityEngine.Texture2D)
+    GidString: f7d8ebb4-aa3c-42ec-9b4e-1f710c3efbe9
+  - obj: {fileID: 2800000, guid: f55770fe15bae1a4c97e5803d36adadf, type: 3}
+    ObjectName: grassGrounded_painted_diffuseOriginal (UnityEngine.Texture2D)
+    GidString: 14d25801-f89d-448e-bf88-9ac4578e7758

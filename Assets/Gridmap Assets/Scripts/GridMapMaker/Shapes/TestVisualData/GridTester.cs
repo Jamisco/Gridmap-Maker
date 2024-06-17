@@ -29,9 +29,6 @@ namespace Assets.Gridmap_Assets.Scripts.GridMapMaker.Shapes.TestVisualData
         GridShape aShape;
 
         [SerializeField]
-        BasicVisual basicVisual;
-
-        [SerializeField]
         public bool DisableUnseenChunk = false;
         private void OnValidate()
         {
@@ -59,64 +56,72 @@ namespace Assets.Gridmap_Assets.Scripts.GridMapMaker.Shapes.TestVisualData
                 MouseClick(1);
             }
         }
-        
-        public string layerId = "Layer 1";
-        public string layerId2 = "Layer 2";
 
         public (List<Vector2Int>, List<ShapeVisualData>) mapData;
             
         [SerializeField]
-        bool useVe = false;
+        bool generateOnlyColors = false;
 
         [SerializeField]
-        bool colorOnly = false;
+        public MeshLayerSettings baseLayer;
 
+        [SerializeField]
+        public MeshLayerSettings layer2Add;
+
+        public bool status;
+        public bool invert;
+
+        [SerializeField]
+        public Vector2Int InputHex;
+
+        [SerializeField]
+        public Sprite sprite2Spawn;
+
+        [SerializeField]
+        public string saveLocation;
+
+        public void AddCurrentLayer()
+        {
+            if(gridManager != null)
+            {
+                gridManager.CreateLayer(layer2Add);
+
+                (List<Vector2Int>, List<ShapeVisualData>) data = GenerateRandomMap(generateOnlyColors);
+
+                gridManager.InsertPositionBlock(data.Item1, data.Item2, layer2Add.LayerId);
+
+                gridManager.RedrawLayer(layer2Add.LayerId);
+            }       
+        }
         public void GenerateGrid()
         {
             TimeLogger.ClearTimers();
             
-            TimeLogger.StartTimer(451, "Generation Time");
+            TimeLogger.StartTimer(451, "Generate Map");
 
             gridManager.Initialize();
 
-            MeshLayerSettings layerInfo = new MeshLayerSettings(layerId, aShape, useVe, 0);
-
-            MeshLayerSettings layerInfo2 = new MeshLayerSettings(layerId2, aShape, useVe, 1);
-
-            gridManager.CreateLayer(layerInfo);
-           // gridManager.CreateLayer(layerInfo2);
+            gridManager.CreateLayer(baseLayer);
 
             gridManager.SetVisualContainer(visualContainer);
 
             TimeLogger.StartTimer(-345, "Generate Tiles");
-
-            TimeLogger.StopTimer(451);
          
             if (mapData.Item1 == null || mapData.Item1.Count != gridManager.GridSize.x * gridManager.GridSize.y)
             {
-                mapData = GenerateRandomMap(colorOnly);
+                mapData = GenerateRandomMap(generateOnlyColors);
             }
-            
-            TimeLogger.StartTimer(451);
 
             TimeLogger.StopTimer(-345);
 
-            TimeLogger.StartTimer(-1502, "Insert Block");
-
-            gridManager.InsertPositionBlock(mapData.Item1, mapData.Item2, layerId);
+            gridManager.InsertPositionBlock(mapData.Item1, mapData.Item2, baseLayer.LayerId);
             //  GridManager.InsertPosition_Block(mapData.Item1, mapData.Item2, layerId2);
-
-            TimeLogger.StopTimer(-1502);
-
-            TimeLogger.StartTimer(-415, "Draw Grid");
 
             gridManager.DrawGrid();
 
-            TimeLogger.StopTimer(-415);
-
             TimeLogger.StopAllTimers();
 
-            TimeLogger.LogAll(gridManager.GetMapDescription());
+            TimeLogger.LogAll();
         }
         public void UpdateMap()
         {
@@ -128,8 +133,6 @@ namespace Assets.Gridmap_Assets.Scripts.GridMapMaker.Shapes.TestVisualData
             gridManager.Clear();
         }
 
-        [SerializeField]
-        public string saveLocation;
         public void SaveMap()
         {
             string save = gridManager.GetSerializeMap();
@@ -137,22 +140,18 @@ namespace Assets.Gridmap_Assets.Scripts.GridMapMaker.Shapes.TestVisualData
 
             Debug.Log("Map Saved");
         }
-
-        [SerializeField]
-        public bool useMt;
         public void LoadMap()
         {
             TimeLogger.ClearTimers();
             TimeLogger.StartTimer(-1523, "Load Map");
             string json = System.IO.File.ReadAllText(saveLocation);
-            gridManager.DeserializeMap(json, useMt);
-            TimeLogger.StopTimer(-1523);
 
-            TimeLogger.Log(-1523, "Using MT: " + useMt + "\t");
+            gridManager.DeserializeMap(json);
+
+            TimeLogger.StopTimer(-1523);
+            TimeLogger.Log(-1523, "Using MT: " + gridManager.UseMultithreading + "\t");
         }
         
-        public bool status;
-        public bool invert;
         public void DisableUnseenChunks()
         {
             Bounds bounds = Camera.main.OrthographicBounds3D();
@@ -160,25 +159,19 @@ namespace Assets.Gridmap_Assets.Scripts.GridMapMaker.Shapes.TestVisualData
             gridManager.SetStatusIfChunkIsInBounds(bounds, status, invert);
         }
 
-        [SerializeField]
-        public Vector2Int InputHex;
-
-        [SerializeField]
-        public Sprite sprite;
-
         public void HighlightShape()
         {
             TimeLogger.ClearTimers();
             
             TimeLogger.StartTimer(4816, "Highlight Shape");
             
-            BasicVisual data = gridManager.GetVisualData(Vector2Int.zero, layerId) as BasicVisual;
+            BasicVisual data = gridManager.GetVisualData(Vector2Int.zero, baseLayer.LayerId) as BasicVisual;
 
             data = data.DeepCopy<BasicVisual>();
             data.mainColor = Color.green;
             data.ValidateVisualHash();
             
-            gridManager.InsertVisualData(InputHex, data, layerId);
+            gridManager.InsertVisualData(InputHex, data, baseLayer.LayerId);
 
             gridManager.DrawGrid();
 
@@ -187,29 +180,17 @@ namespace Assets.Gridmap_Assets.Scripts.GridMapMaker.Shapes.TestVisualData
             TimeLogger.LogAll();
         }
 
-        [SerializeField]
-        public int sizeX;
-
-        
-        [SerializeField]
-        public int sizeY;
-        public void SpawnSprite()
-        {
-            for (int i = 0; i < sizeX; i++)
-            {
-                for (int j = 0; j < sizeY; j++)
-                {
-                    gridManager.SpawnSprite(new Vector2Int(i, j), sprite);
-                }
-                gridManager.SpawnSprite(InputHex, sprite);
-            }
-        }
-
-        public string layerName = "";
-        public int order = 1;
+        //public void SpawnSprite()
+        //{
+        //    gridManager.SpawnSprite(InputHex, sprite2Spawn);
+        //}
         public void Miscellaneous()
         {
-            DeleteShape();
+            ShapeVisualData data = gridManager.GetVisualData(InputHex, baseLayer.LayerId);
+
+            data.mainTexture = visualContainer.GetRandomObject<Texture2D>();
+
+            data.ValidateVisualHash();
         }
         public void ChangeOrientation()
         {
@@ -233,7 +214,7 @@ namespace Assets.Gridmap_Assets.Scripts.GridMapMaker.Shapes.TestVisualData
         {
             Vector2Int gridPos = InputHex;
 
-            ShapeVisualData vData = gridManager.GetVisualData(gridPos, layerId);
+            ShapeVisualData vData = gridManager.GetVisualData(gridPos, baseLayer.LayerId);
 
             Texture2D old = vData.mainTexture;
 
@@ -296,18 +277,6 @@ namespace Assets.Gridmap_Assets.Scripts.GridMapMaker.Shapes.TestVisualData
             position = Camera.main.ScreenToWorldPoint(Mouse.current.position.ReadValue());
 
             return true;
-
-            Ray ray = Camera.main.ScreenPointToRay(Mouse.current.position.ReadValue());
-
-            //Initialise the enter variable
-            if (Physics.Raycast(ray, out RaycastHit hit))
-            {
-                position = hit.point;
-                return true;
-            }
-
-            position = Vector3.left;
-            return false;
         }
         public (List<Vector2Int>, List<ShapeVisualData>) GenerateRandomMap(bool colorOnly = false)
         {
@@ -376,6 +345,11 @@ namespace Assets.Gridmap_Assets.Scripts.GridMapMaker.Shapes.TestVisualData
                     exampleScript.GenerateGrid();
                 }
 
+                if (GUILayout.Button("Add Layer"))
+                {
+                    exampleScript.AddCurrentLayer();
+                }
+
                 if (GUILayout.Button("Highlight Hex"))
                 {
                     exampleScript.HighlightShape();
@@ -384,11 +358,6 @@ namespace Assets.Gridmap_Assets.Scripts.GridMapMaker.Shapes.TestVisualData
                 if (GUILayout.Button("Remove Visual Hex"))
                 {
                     exampleScript.RemoveVisualData();
-                }
-
-                if (GUILayout.Button("Spawn Sprite"))
-                {
-                    exampleScript.SpawnSprite();
                 }
 
                 if (GUILayout.Button("Miscellaneous"))

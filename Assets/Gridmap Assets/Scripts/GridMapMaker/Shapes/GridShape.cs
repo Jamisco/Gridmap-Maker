@@ -217,7 +217,7 @@ namespace Assets.Gridmap_Assets.Scripts.GridMapMaker.Shapes
             Vector2 pos = GetBaseTesselatedPosition(x, y);
                 
             pos.x += (x * cellGap.x);
-            pos.y += (x * cellGap.y);
+            pos.y += (y * cellGap.y);
 
             if (shapeOrientation == Orientation.XY)
             {

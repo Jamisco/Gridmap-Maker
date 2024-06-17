@@ -22,7 +22,6 @@ namespace Assets.Gridmap_Assets.Scripts.GridMapMaker.Shapes
             SetBaseValues();
         }
 
-
         float xTesselationConstant;
         float yTesselationConstant;
         protected override void SetBaseValues()

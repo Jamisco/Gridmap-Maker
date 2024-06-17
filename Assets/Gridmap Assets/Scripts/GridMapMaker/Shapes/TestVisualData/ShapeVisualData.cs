@@ -203,7 +203,6 @@ namespace Assets.Gridmap_Assets.Scripts.GridMapMaker.Shapes.TestVisualData
         {
             VisualId = Guid.Parse(visualIdString);
             VisualIdHash = VisualId.GetHashCode();
-            visualHash = DEFAULT_VISUAL_HASH;
 
             DeserializeVisualData(container);
         }
