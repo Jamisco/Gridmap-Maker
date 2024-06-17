@@ -71,4 +71,6 @@ crashlytics-build.properties
 /[Aa]ssets/[Ss]treamingAssets/aa.meta
 /[Aa]ssets/[Ss]treamingAssets/aa/*
 Assets/Gridmap Assets/Saved Maps/map.txt
+Assets/Gridmap Assets/Saved Maps/map.txt
+/Assets/Gridmap Assets/Saved Maps
 /Assets/Gridmap Assets/Saved Maps
