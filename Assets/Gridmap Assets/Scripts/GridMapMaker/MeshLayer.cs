@@ -1,26 +1,13 @@
-﻿
-using Assets.Gridmap_Assets.Scripts.GridMapMaker;
-using Assets.Gridmap_Assets.Scripts.GridMapMaker.Shapes;
-using Assets.Gridmap_Assets.Scripts.GridMapMaker.Shapes.TestVisualData;
-using Assets.Gridmap_Assets.Scripts.Miscellaneous;
-using Assets.Scripts.GridMapMaker;
-using Assets.Scripts.Miscellaneous;
-using System;
+﻿using System;
 using System.Collections.Generic;
-using System.Diagnostics;
 using System.Linq;
-using System.Threading;
-using System.Threading.Tasks;
-using Unity.Mathematics;
-using UnityEditor;
 using UnityEngine;
-using static Assets.Gridmap_Assets.Scripts.GridMapMaker.Shapes.TestVisualData.ShapeVisualData;
-using static Assets.Scripts.GridMapMaker.GridManager;
-using static Assets.Scripts.Miscellaneous.ExtensionMethods;
-using static UnityEngine.Rendering.DebugUI;
-using Debug = UnityEngine.Debug;
 
-namespace Assets.Gridmap_Assets.Scripts.Mapmaker
+#if UNITY_EDITOR
+using UnityEditor;
+#endif
+
+namespace GridMapMaker
 {
     [RequireComponent(typeof(LayerHandle))]
     [Serializable]
@@ -97,10 +84,10 @@ namespace Assets.Gridmap_Assets.Scripts.Mapmaker
         /// <summary>
         /// The original visualData used for each cell. We store this so we can redraw the mesh if need be
         /// </summary>
-        private Dictionary<int, ShapeVisualData> CellVisualDatas
+        public Dictionary<int, ShapeVisualData> CellVisualDatas
                           = new Dictionary<int, ShapeVisualData>();
 
-        private Dictionary<int, Vector2Int> CellGridPositions = new Dictionary<int, Vector2Int>();
+        public Dictionary<int, Vector2Int> CellGridPositions = new Dictionary<int, Vector2Int>();
 
         private Bounds layerBounds;
 
@@ -122,10 +109,8 @@ namespace Assets.Gridmap_Assets.Scripts.Mapmaker
         {
             get => layerId;
         }
-        private List<Material> SharedMaterials { get; set; }
-                                            = new List<Material>();
-        public List<MaterialPropertyBlock> PropertyBlocks { get; private set; }
-                                        = new List<MaterialPropertyBlock>();
+        private Shader colorShader;
+        private ShapeVisualData defaultVisualData;
 
         private void OnValidate()
         {
@@ -176,6 +161,10 @@ namespace Assets.Gridmap_Assets.Scripts.Mapmaker
             MaterialVisualGroup = new Dictionary<ShapeVisualData, ShapeMeshFuser>(visualDataComparer);
 
             ColorVisualGroup = new ShapeMeshFuser(layerGridShape, chunkOffset);
+
+            colorShader = chunk.GridManager.ColorShader;
+
+            defaultVisualData = chunk.GridManager.DefaultVisualData;
 
             ValidateLayerBounds();
         }
@@ -248,14 +237,10 @@ namespace Assets.Gridmap_Assets.Scripts.Mapmaker
             //TimeLogger.StopTimer(2313);
         }
 
-        public void InsertVisualData(Vector2Int gridPosition, Color color)
-        {
-            InsertVisualData(gridPosition, GetColorVisualData(color));
-        }
         public void RemoveVisualData(Vector2Int gridPosition)
         {
             // removing a visual vData is thesame as inserting a default visual vData
-            InsertVisualData(gridPosition, ShapeVisualData.GetDefaultVisual());
+            InsertVisualData(gridPosition, defaultVisualData);
         }
 
         private void DeleteShape(int hash)
@@ -422,7 +407,7 @@ namespace Assets.Gridmap_Assets.Scripts.Mapmaker
 
             for (int i = 0; i < colorMeshes.Count; i++)
             {
-                smallMeshes.Add(new SmallMesh(ShapeVisualData.GetDefaultVisual(), colorMeshes[i]));
+                smallMeshes.Add(new SmallMesh(defaultVisualData, colorMeshes[i]));
             }
 
             smallMeshes.Sort((x, y) => x.VertexCount.CompareTo(y.VertexCount));
@@ -496,7 +481,7 @@ namespace Assets.Gridmap_Assets.Scripts.Mapmaker
 
                 List<Mesh> subMeshes = m.smallMesh.Select((x) => x.GetMesh()).ToList();
 
-                mesh = FusedMesh.CombineToSubmesh(subMeshes);
+                mesh = ShapeMeshFuser.CombineToSubmesh(subMeshes);
 
                 List<Material> sharedMats = new List<Material>();
                 List<MaterialPropertyBlock> matProps = new List<MaterialPropertyBlock>();
@@ -660,9 +645,9 @@ namespace Assets.Gridmap_Assets.Scripts.Mapmaker
             DrawFusedMesh();
         }
 
-        public SeriializedMeshLayer GetSerializedLayer()
+        public SerializedMeshLayer GetSerializedLayer()
         {
-            return new SeriializedMeshLayer(this);
+            return new SerializedMeshLayer(this);
         }
 
         public void Clear()
@@ -692,9 +677,6 @@ namespace Assets.Gridmap_Assets.Scripts.Mapmaker
             ColorVisualGroup = null;
             MaterialVisualGroup = null;
             layerGridShape = null;
-
-            SharedMaterials.Clear();
-            PropertyBlocks.Clear();
         }
 
         private struct MaxMesh
@@ -754,32 +736,61 @@ namespace Assets.Gridmap_Assets.Scripts.Mapmaker
                 fuser = this.smallMesh;
             }
         }
+    }
 
-        [Serializable]
-        public struct SeriializedMeshLayer
+    /// <summary>
+    /// This is used to compare visuals.
+    /// </summary>
+    public class VisualDataComparer : IEqualityComparer<ShapeVisualData>
+    {
+        public bool UseVisualHash { get; set; }
+        public bool Equals(ShapeVisualData x, ShapeVisualData y)
         {
-            [SerializeField]
-            public string layerId;
-
-            [SerializeField]
-            public List<Vector2Int> gridPositions;
-             
-            [SerializeField]
-            public List<string> visualDatas;
-
-            public SeriializedMeshLayer(MeshLayer layer)
+            if (UseVisualHash == true)
             {
-                layerId = layer.layerId;
-                gridPositions = new List<Vector2Int>();
-                visualDatas = new List<string>();
-
-                foreach (int hash in layer.CellVisualDatas.Keys)
-                {
-                    gridPositions.Add(layer.CellGridPositions[hash]);
-                    visualDatas.Add(layer.CellVisualDatas[hash].VisualId.ToString());
-                }
+                return x.VisuallyEquals(y);
+            }
+            else
+            {
+                return x.Equals(y);
             }
         }
+        public int GetHashCode(ShapeVisualData obj)
+        {
+            if (UseVisualHash == true)
+            {
+                return obj.VisualHash;
+            }
+            else
+            {
+                return obj.VisualIdHash;
+            }
+        }
+    }
 
+    [Serializable]
+    public struct SerializedMeshLayer
+    {
+        [SerializeField]
+        public string layerId;
+
+        [SerializeField]
+        public List<Vector2Int> gridPositions;
+
+        [SerializeField]
+        public List<string> visualDatas;
+
+        public SerializedMeshLayer(MeshLayer layer)
+        {
+            layerId = layer.LayerId;
+            gridPositions = new List<Vector2Int>();
+            visualDatas = new List<string>();
+
+            foreach (int hash in layer.CellVisualDatas.Keys)
+            {
+                gridPositions.Add(layer.CellGridPositions[hash]);
+                visualDatas.Add(layer.CellVisualDatas[hash].VisualId.ToString());
+            }
+        }
     }
 }

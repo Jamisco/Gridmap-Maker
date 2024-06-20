@@ -1,18 +1,9 @@
-﻿using Assets.Gridmap_Assets.Scripts.GridMapMaker.Shapes;
-using Assets.Gridmap_Assets.Scripts.Miscellaneous;
-using Assets.Scripts.GridMapMaker;
-using Assets.Scripts.Miscellaneous;
-using System;
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using System.Linq;
-using System.Text;
 using System.Threading.Tasks;
 using UnityEngine;
-using UnityEngine.InputSystem;
-using UnityEngine.UIElements;
-using static UnityEditor.Progress;
 
-namespace Assets.Gridmap_Assets.Scripts.GridMapMaker
+namespace GridMapMaker
 {
     /// <summary>
     /// This will add a given mesh and the given offset positions and fuse them into one mesh
@@ -169,6 +160,25 @@ namespace Assets.Gridmap_Assets.Scripts.GridMapMaker
             }
 
             pendingUpdate = true;
+        }
+        public static Mesh CombineToSubmesh(List<Mesh> subMesh)
+        {
+            Mesh newMesh = new Mesh();
+
+            CombineInstance[] tempArray = new CombineInstance[subMesh.Count];
+
+            for (int i = 0; i < subMesh.Count; i++)
+            {
+                CombineInstance subInstance = new CombineInstance();
+
+                subInstance.mesh = subMesh[i];
+
+                tempArray[i] = subInstance;
+            }
+
+            newMesh.CombineMeshes(tempArray, false, false);
+
+            return newMesh;
         }
 
         /// <summary>

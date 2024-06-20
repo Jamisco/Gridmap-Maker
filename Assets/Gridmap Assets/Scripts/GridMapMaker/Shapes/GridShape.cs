@@ -1,19 +1,8 @@
-﻿using Assets.Gridmap_Assets.Scripts.GridMapMaker.Shapes.TestVisualData;
-using Assets.Gridmap_Assets.Scripts.Miscellaneous;
-using Assets.Scripts.Miscellaneous;
-using System;
+﻿using System;
 using System.Collections.Generic;
-using System.Text;
-using System.Threading.Tasks;
-using Unity.VisualScripting;
-using UnityEditor.ShaderGraph.Internal;
 using UnityEngine;
-using UnityEngine.TextCore.Text;
-using static Assets.Scripts.Miscellaneous.HexFunctions;
-using static UnityEditor.PlayerSettings;
-using static UnityEditor.Searcher.SearcherWindow.Alignment;
 
-namespace Assets.Gridmap_Assets.Scripts.GridMapMaker.Shapes
+namespace GridMapMaker
 {
     [Serializable]
     public abstract class GridShape : ScriptableObject, IEquatable<GridShape>
@@ -169,7 +158,14 @@ namespace Assets.Gridmap_Assets.Scripts.GridMapMaker.Shapes
             meshData.Uvs = BaseUVs;
             meshData.Triangles = BaseTriangles;
 
-            ExtensionMethods.SetFullColor(ref meshData, Color.white);
+            List<Color> colors = new List<Color>();
+
+            for (int i = 0; i < meshData.vertexCount; i++)
+            {
+                colors.Add(Color.white);
+            }
+
+            meshData.Colors = colors;
 
             shapeMesh = meshData;
         }
@@ -396,7 +392,7 @@ namespace Assets.Gridmap_Assets.Scripts.GridMapMaker.Shapes
         }
         public virtual bool WithinShapeBounds(GridShape other)
         {
-            return shapeBounds.Contains(other.ShapeBounds);
+            return shapeBounds.Contains(other.ShapeBounds.min) && shapeBounds.Contains(other.ShapeBounds.max);
         }
 
         /// <summary>

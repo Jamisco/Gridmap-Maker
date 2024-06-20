@@ -1,27 +1,14 @@
-﻿using Assets.Gridmap_Assets.Scripts.GridMapMaker;
-using Assets.Gridmap_Assets.Scripts.GridMapMaker.Shapes;
-using Assets.Gridmap_Assets.Scripts.GridMapMaker.Shapes.TestVisualData;
-using Assets.Gridmap_Assets.Scripts.Mapmaker;
-using Assets.Gridmap_Assets.Scripts.Miscellaneous;
-using Assets.Scripts.Miscellaneous;
-using System;
+﻿using System;
 using System.Collections.Generic;
-using System.Linq;
-using System.Xml;
-using TMPro;
 using UnityEngine;
-using static Assets.Gridmap_Assets.Scripts.Mapmaker.MeshLayer;
-using static Assets.Scripts.GridMapMaker.GridManager;
-using static UnityEditor.Experimental.GraphView.GraphView;
-using static UnityEditor.PlayerSettings;
 
-namespace Assets.Scripts.GridMapMaker
+namespace GridMapMaker
 {
     public class GridChunk : MonoBehaviour
     {
         public GridManager GridManager { get; private set; }
 
-        Dictionary<string, MeshLayer> ChunkLayers = new Dictionary<string, MeshLayer>();
+        public Dictionary<string, MeshLayer> ChunkLayers = new Dictionary<string, MeshLayer>();
 
         [SerializeField]
         private Vector2Int startPosition;
@@ -142,15 +129,6 @@ namespace Assets.Scripts.GridMapMaker
         {
             ChunkLayers[layerId].InsertVisualData(gridPosition, visualProp);
         }
-
-        public void SetColor(Vector2Int gridPosition, Color color, string layerId)
-        {
-            if (ChunkLayers.ContainsKey(layerId) && ContainsPosition(gridPosition))
-            {
-                ChunkLayers[layerId].InsertVisualData(gridPosition, color);
-            }
-        }
-
         public bool CanInsert(Vector2Int gridPosition, string layerId)
         {
             MeshLayer ml = null;
@@ -400,11 +378,17 @@ namespace Assets.Scripts.GridMapMaker
         /// </summary>
         public void ValidateOrientation()
         {
-            gameObject.transform.localPosition = gameObject.transform.localPosition.SwapYZ();
+            gameObject.transform.localPosition = 
+                SwapYZ(gameObject.transform.localPosition);
             
             foreach (MeshLayer layer in ChunkLayers.Values)
             {
                 layer.ValidateOrientation();
+            }
+
+            Vector3 SwapYZ(Vector3 vector)
+            {
+                return new Vector3(vector.x, vector.z, vector.y);
             }
         }
 
@@ -458,24 +442,24 @@ namespace Assets.Scripts.GridMapMaker
             SerializedGridChunk serializedChunk = new SerializedGridChunk(this);
             return serializedChunk;
         }
+    }
 
-        [Serializable]
-        public struct SerializedGridChunk
+    [Serializable]
+    public struct SerializedGridChunk
+    {
+        [SerializeField]
+        public Vector2Int startPosition;
+
+        [SerializeField]
+        public List<SerializedMeshLayer> serializedLayers;
+        public SerializedGridChunk(GridChunk chunk)
         {
-            [SerializeField]
-            public Vector2Int startPosition;
+            startPosition = chunk.StartPosition;
+            serializedLayers = new List<SerializedMeshLayer>();
 
-            [SerializeField]
-            public List<SeriializedMeshLayer> serializedLayers;
-            public SerializedGridChunk(GridChunk chunk)
+            foreach (MeshLayer item in chunk.ChunkLayers.Values)
             {
-                startPosition = chunk.startPosition;
-                serializedLayers = new List<SeriializedMeshLayer>();
-
-                foreach (MeshLayer item in chunk.ChunkLayers.Values)
-                {
-                    serializedLayers.Add(item.GetSerializedLayer());
-                }
+                serializedLayers.Add(item.GetSerializedLayer());
             }
         }
     }

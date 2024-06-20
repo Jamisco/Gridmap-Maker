@@ -1,7 +1,7 @@
 ﻿using UnityEditor;
 using UnityEngine;
 
-namespace Assets.Gridmap_Assets.Scripts.Editor
+namespace GridMapMaker
 {
     [CustomPropertyDrawer(typeof(ShowOnlyFieldAttribute))]
     public class ShowOnlyDrawer : PropertyDrawer
@@ -9,7 +9,7 @@ namespace Assets.Gridmap_Assets.Scripts.Editor
         public override void OnGUI(Rect position, SerializedProperty prop, GUIContent label)
         {
             string valueStr;
-            
+
             switch (prop.propertyType)
             {
                 case SerializedPropertyType.Integer:
@@ -28,7 +28,7 @@ namespace Assets.Gridmap_Assets.Scripts.Editor
                     valueStr = $"({prop.vector2Value.x}, {prop.vector2Value.y})";
                     break;
                 case SerializedPropertyType.Vector2Int:
-                    valueStr = $"({prop.vector2IntValue.x}, {prop.vector2IntValue.y})"; 
+                    valueStr = $"({prop.vector2IntValue.x}, {prop.vector2IntValue.y})";
                     break;
                 default:
                     valueStr = "(not supported)";

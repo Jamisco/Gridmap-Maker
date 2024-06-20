@@ -1,14 +1,8 @@
-﻿using Assets.Gridmap_Assets.Scripts.Miscellaneous;
-using Assets.Scripts.Miscellaneous;
-using System;
+﻿using System;
 using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 using UnityEngine;
-using UnityEngine.TextCore.Text;
 
-namespace Assets.Gridmap_Assets.Scripts.GridMapMaker.Shapes
+namespace GridMapMaker
 {
     [Serializable]
     [CreateAssetMenu(fileName = "HexagonalShape", menuName = MenuName + "Hexagon")]
