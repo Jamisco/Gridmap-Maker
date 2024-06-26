@@ -1,0 +1,32 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: a03c51f5dca2c0d49ac1bf0b64289da9, type: 3}
+  m_Name: HexagonalShape
+  m_EditorClassIdentifier: 
+  uniqueShapeName: Hexagon
+  baseVertices:
+  - {x: 0, y: 0, z: 0.5}
+  - {x: 0.5, y: 0, z: 0.25}
+  - {x: 0.5, y: 0, z: -0.25}
+  - {x: 0, y: 0, z: -0.5}
+  - {x: -0.5, y: 0, z: -0.25}
+  - {x: -0.5, y: 0, z: 0.25}
+  baseUVs:
+  - {x: 0.5, y: 1}
+  - {x: 1, y: 0.75}
+  - {x: 1, y: 0.25}
+  - {x: 0.5, y: 0}
+  - {x: 0, y: 0.25}
+  - {x: 0, y: 0.75}
+  baseTriangles: 040000000500000000000000040000000000000001000000040000000100000002000000040000000200000003000000
+  Width: 1
+  Depth: 1
