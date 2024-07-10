@@ -5,8 +5,6 @@ using System.Linq;
 using Debug = UnityEngine.Debug;
 using System.Collections.Concurrent;
 using System.Threading.Tasks;
-using Plane = UnityEngine.Plane;
-using Assets.Gridmap_Maker_Assets.Scripts.GridMapMaker.VisualData;
 
 
 #if UNITY_EDITOR

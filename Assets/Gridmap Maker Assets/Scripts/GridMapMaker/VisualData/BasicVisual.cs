@@ -1,6 +1,4 @@
-﻿using Assets.Gridmap_Maker_Assets.Scripts.GridMapMaker.VisualData;
-using System;
-using Unity.Mathematics;
+﻿using System;
 using UnityEngine;
 
 namespace GridMapMaker
