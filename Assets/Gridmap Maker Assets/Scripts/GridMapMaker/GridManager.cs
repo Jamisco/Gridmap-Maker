@@ -6,6 +6,8 @@ using Debug = UnityEngine.Debug;
 using System.Collections.Concurrent;
 using System.Threading.Tasks;
 using Plane = UnityEngine.Plane;
+using Assets.Gridmap_Maker_Assets.Scripts.GridMapMaker.VisualData;
+
 
 #if UNITY_EDITOR
 using UnityEditor;
@@ -15,7 +17,10 @@ namespace GridMapMaker
 {
     public enum SortAxis { X, Y, Z }
 
-
+    /// <summary>
+    /// The gridmanager contains all the fields, methods and data that is used to generate the map.
+    /// It is the main class that is used to create and manipulate the grid.
+    /// </summary>
     [Serializable]
     public class GridManager : MonoBehaviour
     {
@@ -24,19 +29,38 @@ namespace GridMapMaker
         /// </summary>
         public const string USE_DEFAULT_LAYER = "12345USE_DEFAULT_LAYER12345";
 
+        /// <summary>
+        /// Size of the grid
+        /// </summary>
         [SerializeField]
         private Vector2Int gridSize;
 
+        /// <summary>
+        /// Size of the chunks in a grid.
+        /// Set to (0, 0) if you dont want chunks.
+        /// If the chunk size is greater than the grid size, then the chunk size is the grid size
+        /// </summary>
         [SerializeField]
         private Vector2Int chunkSize;
 
+        /// <summary>
+        /// The scale of the shape. Use this to make increase or reduce the size of your shapes
+        /// </summary>
         [SerializeField]
         private Vector2 shapeScale = Vector2.one;
 
         private Bounds localBounds;
+
+        /// <summary>
+        /// The bounds of the grid in local position. The dimensions are determined by the shape of the default layer
+        /// </summary>
         public Bounds LocalBounds => localBounds;
 
         private BoundsInt gridBounds;
+
+        /// <summary>
+        /// The bounds of the grid size. So if your grid size is (10, 10), then the bounds will be (0, 0, 0) to (10, 10, 0)
+        /// </summary>
         public BoundsInt GridBounds => gridBounds;
 
         private string defaultLayerId;
@@ -47,16 +71,32 @@ namespace GridMapMaker
         /// </summary>
         public string DefaultLayer { get { return defaultLayerId; } }
 
-        public Vector2 CellGap;
+        /// <summary>
+        /// The gap between cells
+        /// </summary>
+        public Vector2 cellGap;
 
+        /// <summary>
+        /// The name of the colorShader as stated when you called Shader.name.
+        /// The shader must also be in the visualContainer, so be sure to add it
+        /// </summary>
         public string colorShaderName;
+
+        /// <summary>
+        /// Every gridmanager must have a color shader. A color shader will be used to render shapes with a specified color when the shape has no visualData You are provided a color shader called "MeshColorShader", I recommend you use that.
+        /// </summary>
         public Shader ColorShader { get; private set; }
         private ShapeVisualData defaultVisualData;
+
+        /// <summary>
+        /// The default visual data to use when no visual data is specified,
+        /// If no default visual data is set, then a color visual data with the default shader and color white is used
+        /// </summary>
         public ShapeVisualData DefaultVisualData
         {
             get
             {
-                if(defaultVisualData == null)
+                if (defaultVisualData == null)
                 {
                     defaultVisualData = new ColorVisualData(ColorShader, Color.white);
                 }
@@ -69,6 +109,10 @@ namespace GridMapMaker
             }
         }
 
+        /// <summary>
+        /// The map can be displayed in different orientations. The default orientation is XY.
+        /// If you changed the orientation, be sure to call the ValidateOrientation method for your changes to take effect
+        /// </summary>
         [SerializeField]
         public GridShape.Orientation MapOrientation = GridShape.Orientation.XY;
 
@@ -80,11 +124,15 @@ namespace GridMapMaker
         [SerializeField]
         private HashSet<GridShape> gridShapes = new HashSet<GridShape>();
 
-        [SerializeField]    
+        [SerializeField]
         private Dictionary<string, MeshLayerSettings> meshLayerInfos
                             = new Dictionary<string, MeshLayerSettings>();
 
         private SortAxis layerSortAxis;
+
+        /// <summary>
+        /// The sort axis indicates which axis to sort by. For example, if the map is displayed along the XY axis, then the sort axis will be Z because we can control which layer is in front or behind by moving the layers along the Z axis
+        /// </summary>
         public SortAxis LayerSortAxis => layerSortAxis;
         public Vector3 WorldPosition
         {
@@ -94,12 +142,13 @@ namespace GridMapMaker
             }
         }
         /// <summary>
-        /// When the chunk is doing various operations such as fusing and drawing the meshes, we can use multithreading to speed up the process. This may be stable on a case by case basis. So as long as you are not using Unity objects outside of main thread, you should be fine.
+        /// When the gridmanager is doing various operations such as fusing and drawing the meshes, we can use multithreading to speed up the process. This may be stable on a case by case basis. However So as long as you are not using Unity objects outside of main thread, you should be fine.
         /// </summary>
         public bool UseMultithreading = true;
 
         /// <summary>
         /// When the visual hash of any visual data changes, the chunk will redraw all layers in which said visual data is in. This is useful if you want the changes in visual data to immediately be reflected in the chunk.
+        /// For example, say I have a ColorVisualData with the color set to white, the moment I change the color to blue, all cells using said visualData should auto change
         /// </summary>
         public bool RedrawOnVisualHashChanged = true;
         private void OnValidate()
@@ -239,12 +288,15 @@ namespace GridMapMaker
         {
             visualContainer = container;
         }
+
+        /// <summary>
+        /// Initializes the grid with its current settings. Be advised, most settings of the grid manager are used to determine how the grid is displayed. Thus, if you change any of these settings, after the grid has been initialized, it will have no effect or cause errors. For example, setting the chunkSize, or gridSize or cellGap will have no effect on a map that is already created. However, it will cause various errors if you were to do bounds checking or grid positioning etc.
+        /// </summary>
         public void Initialize()
         {
             ValidateChunkSize();
             CreateGridChunks();
 
-            // Every gridmanager must have a color shader. A color shader is a shader that is used to render shapes with a single color. You are provided a color shader called "ColorShader". Check folder "Default Shaders"
             ColorShader = visualContainer.GetShader(colorShaderName);
         }
         public void Initialize(Vector2Int gridSize, Vector2Int chunkSize, string colorShaderName)
@@ -256,6 +308,14 @@ namespace GridMapMaker
 
             Initialize();
         }
+
+        /// <summary>
+        /// Creates and adds a new layer to the grid. If the layer already exists, it will return false.
+        /// The shape provided in the MeshLayerSettings will be cloned. If said shape already exists in the grid, the existing shape will be used. If this is the first layer to be added, then it will be set as the default layer
+        /// </summary>
+        /// <param name="layerInfo"></param>
+        /// <param name="setBaselayer"></param>
+        /// <returns></returns>
         public bool CreateLayer(MeshLayerSettings layerInfo, bool setBaselayer = false)
         {
             if (meshLayerInfos.ContainsKey(layerInfo.LayerId))
@@ -268,7 +328,7 @@ namespace GridMapMaker
             if (gridShape == null)
             {
                 gridShape = Instantiate(layerInfo.Shape);
-                gridShape.CellGap = CellGap;
+                gridShape.CellGap = cellGap;
                 gridShape.ShapeOrientation = MapOrientation;
                 gridShape.Scale = shapeScale;
 
@@ -304,6 +364,10 @@ namespace GridMapMaker
             return meshLayerInfos[layerId];
 
         }
+
+        /// <summary>
+        /// Will sort the layers based on the orderInLayer and the grid layerSortAxis. The layer with the lowest orderInLayer will be at the back, while the layer with the highest orderInLayer will be at the front
+        /// </summary>
         public void SortMeshLayers()
         {
             if (meshLayerInfos.Count == 0)
@@ -367,17 +431,17 @@ namespace GridMapMaker
         }
 
         /// <summary>
-        /// Will return a dictionary, where for every LayerId, give the current position of its corresponding layerObject. This is useful if you want to know the position of the layers such that you can know how/where to place other objects such as sprites
+        /// Will return a dictionary, (layerId, WorldPosition) for each layer in the grid. This is useful if you want to know the position of the layers such that you can know how/where to place other objects such as sprites
         /// </summary>
         /// <returns></returns>
         public Dictionary<string, Vector3> GetMeshLayerPositions()
         {
-            GridChunk start = sortedChunks.Values.First();
+            GridChunk chunks = sortedChunks.Values.First();
             Dictionary<string, Vector3> mlPos = new Dictionary<string, Vector3>();
 
             foreach (MeshLayerSettings info in meshLayerInfos.Values)
             {
-                MeshLayer ml = start.GetMeshLayer(info.LayerId);
+                MeshLayer ml = chunks.GetMeshLayer(info.LayerId);
                 mlPos.Add(info.LayerId, ml.gameObject.transform.position);
             }
 
@@ -405,7 +469,7 @@ namespace GridMapMaker
         }
 
         /// <summary>
-        /// Will create a visual data which will render the shape at the given position the given color
+        /// Insert a colorVisualData with the specified color at the given grid position
         /// </summary>
         /// <param name="gridPosition"></param>
         /// <param name="color"></param>
@@ -424,6 +488,12 @@ namespace GridMapMaker
                 visualDatas.Add(data);
             }
         }
+        /// <summary>
+        /// The multithreading version of the InsertPostionBlock method. This method is faster than the non-multithreading version. However, may or may not work (most likely will) on some computers.
+        /// </summary>
+        /// <param name="positions"></param>
+        /// <param name="datas"></param>
+        /// <param name="layerId"></param>
         private void InsertPositionBlock_Fast(List<Vector2Int> positions, List<ShapeVisualData> datas, string layerId = USE_DEFAULT_LAYER)
         {
             ValidateLayerId(ref layerId);
@@ -477,6 +547,12 @@ namespace GridMapMaker
             visualDatas.UnionWith(vDatas.Keys);
         }
 
+        /// <summary>
+        /// Will insert a block of visual data at the given positions. If the number of positions and datas are not the same, the method will abort
+        /// </summary>
+        /// <param name="positions"></param>
+        /// <param name="datas"></param>
+        /// <param name="layerId"></param>
         public void InsertPositionBlock(List<Vector2Int> positions, List<ShapeVisualData> datas, string layerId = USE_DEFAULT_LAYER)
         {
             if (UseMultithreading)
@@ -535,7 +611,8 @@ namespace GridMapMaker
 
 
         /// <summary>
-        /// Removes the visual data at the given chunk position from the given layer
+        /// Removes the visual data at the given chunk position from the given layer.
+        /// Note removing a visualData will cause the cell at that position to be drawn with the defaultVisualData. If you wish for the entire cell to be empty, use the DeletePosition method
         /// </summary>
         /// <param timerName="gridPosition"></param>
         /// <param timerName="LayerId"></param>
@@ -550,7 +627,7 @@ namespace GridMapMaker
         }
 
         /// <summary>
-        /// Removes the visual data at the given chunk position from all layers
+        /// Removes the visual data at the given chunk position from all layers.Note removing a visualData will cause the cell at that position to be drawn with the defaultVisualData. If you wish for the entire cell to be empty, use the DeletePosition method
         /// </summary>
         /// <param timerName="gridPosition"></param>
         public void RemoveVisualData(Vector2Int gridPosition)
@@ -563,6 +640,10 @@ namespace GridMapMaker
             }
         }
 
+        /// <summary>
+        /// Will delete the position from the grid. This means there will be no mesh at that cells position
+        /// </summary>
+        /// <param name="gridPosition"></param>
         public void DeletePosition(Vector2Int gridPosition)
         {
             ValidateLayerId(ref defaultLayerId);
@@ -573,6 +654,11 @@ namespace GridMapMaker
             }
         }
 
+        /// <summary>
+        /// Delete the position at that specific layer. This means there will be no mesh at that cells position
+        /// </summary>
+        /// <param name="gridPosition"></param>
+        /// <param name="layerId"></param>
         public void DeletePosition(Vector2Int gridPosition, string layerId = USE_DEFAULT_LAYER)
         {
             ValidateLayerId(ref layerId);
@@ -586,7 +672,7 @@ namespace GridMapMaker
         }
 
         /// <summary>
-        /// Set whether to use visual equality at the given layer. Note, that you will have to reinsert the visual data so that the changes take effect. It is not enough to call DrawGrid()
+        /// Set whether to use visual equality at the given layer. Note, This is an expensive operation as it requires that all positions be regrouped and redrawn.
         /// </summary>
         /// <param name="useEquality"></param>
         public void SetVisualEquality(bool useEquality, string layerId = USE_DEFAULT_LAYER)
@@ -600,7 +686,7 @@ namespace GridMapMaker
         }
 
         /// <summary>
-        /// Set whether to use visual equality at the given layer
+        /// Set whether to use visual equality at the given layer. Note, This is an expensive operation as it requires that all positions be regrouped and redrawn.
         /// </summary>
         /// <param name="useEquality"></param>
         public void SetVisualEquality(bool useEquality)
@@ -609,6 +695,11 @@ namespace GridMapMaker
 
             c.SetVisualEquality(useEquality);
         }
+        /// <summary>
+        /// Changes the gridShape of the layer. The entire layer will have to be redrawn
+        /// </summary>
+        /// <param name="shape"></param>
+        /// <param name="layerId"></param>
         public void SetGridShape(GridShape shape, string layerId = USE_DEFAULT_LAYER)
         {
             ValidateLayerId(ref layerId);
@@ -623,8 +714,8 @@ namespace GridMapMaker
         /// Enable or disable a chunk if the chunk is contained within the given bounds. If invert is true, the status of chunks not in the bounds will be set to the opposite of the given status
         /// </summary>
         /// <param name="bounds"></param>
-        /// <param name="status"></param>
-        /// <param name="invert"></param>
+        /// <param name="status">The status to set chunks which are in the bounds too</param>
+        /// <param name="invert">For chunks not it the bounds, should their status be said to the opposite of the passed in status array</param>
         public void SetStatusIfChunkIsInBounds(Bounds bounds, bool status, bool invert = false)
         {
             foreach (GridChunk chunk in sortedChunks.Values)
@@ -683,7 +774,8 @@ namespace GridMapMaker
         }
 
         /// <summary>
-        /// Update all layers in a given position
+        /// Will update all layers in which the given chunk is in.
+        /// Note, all add,remove,delete operations will not take effect unless the position has been updated or the map has been redrawn
         /// </summary>
         /// <param timerName="gridPosition"></param>
         public void UpdatePosition(Vector2Int gridPosition)
@@ -697,7 +789,8 @@ namespace GridMapMaker
         }
 
         /// <summary>
-        /// Update a specific layer of a specific chunk at the given position
+        /// Update a specific layer of a specific chunk at the given position.
+        /// Note, all add,remove,delete operations will not take effect unless the position has been updated or the map has been redrawn
         /// </summary>
         /// <param name="gridPosition"></param>
         /// <param name="layerId"></param>
@@ -721,6 +814,10 @@ namespace GridMapMaker
                 chunk.ValidateLocalPosition();
             }
         }
+
+        /// <summary>
+        /// Makes sure the current grid orientation is the same as the orientation as stated by the 'MapOrientation' field. Call this method after you modify the map orientation
+        /// </summary>
         public void ValidateOrientation()
         {
             // at all points in time all shapes should have thesame orientation, thus we can check the shapes at any index
@@ -750,6 +847,10 @@ namespace GridMapMaker
 
             localBounds = shape.GetGridBounds(min, max);
         }
+
+        /// <summary>
+        /// Draws the grid. Call this whenever you have Inserted a new position/visualData into the grid and want to see those changes take effect
+        /// </summary>
         public void DrawGrid()
         {
             if (UseMultithreading)
@@ -774,6 +875,11 @@ namespace GridMapMaker
 
             SortMeshLayers();
         }
+
+        /// <summary>
+        /// Simply redraws a layer. Call this when you have made changes to a layer and want to see those changes take effect
+        /// </summary>
+        /// <param name="layerId"></param>
         public void RedrawLayer(string layerId = USE_DEFAULT_LAYER)
         {
             ValidateLayerId(ref layerId);
@@ -785,6 +891,10 @@ namespace GridMapMaker
 
             SortMeshLayers();
         }
+
+        /// <summary>
+        /// Clears the entire map, and frees up resources.
+        /// </summary>
         public void Clear()
         {
 
@@ -884,8 +994,11 @@ namespace GridMapMaker
             return shape;
         }
 
-        // use base layer for these positions
-
+        /// <summary>
+        /// Uses the localBounds field to determine where a given location position is in the map
+        /// </summary>
+        /// <param name="localPosition"></param>
+        /// <returns></returns>
         public bool ContainsLocalPosition(Vector3 localPosition)
         {
             if (MapOrientation == GridShape.Orientation.XY)
@@ -907,11 +1020,22 @@ namespace GridMapMaker
             return ContainsLocalPosition(localPosition);
         }
 
+        /// <summary>
+        /// Used the gridBounds field to see if a given gridPosition is in the grid
+        /// </summary>
+        /// <param name="gridPosition"></param>
+        /// <returns></returns>
         public bool ContainsGridPosition(Vector2Int gridPosition)
         {
             return gridBounds.Contains((Vector3Int)gridPosition);
         }
 
+        /// <summary>
+        /// Gets the gridPosition at the given location position. If the location position is not in the grid, the method will return Vector2Int.left
+        /// </summary>
+        /// <param name="localPosition"></param>
+        /// <param name="layerId"></param>
+        /// <returns></returns>
         public Vector2Int LocalToGridPosition(Vector3 localPosition, string layerId = USE_DEFAULT_LAYER)
         {
             ValidateLayerId(ref layerId);
@@ -928,7 +1052,11 @@ namespace GridMapMaker
             return gridPosition;
         }
 
-        public Plane plane = new Plane(Vector3.up, Vector3.zero);
+        /// <summary>
+        /// Gets the gridPosition at the given world position. If the world position is not in the grid, the method will return Vector2Int.left
+        /// </summary>
+        /// <param name="worldPosition"></param>
+        /// <returns></returns>
         public Vector2Int WorldToGridPosition(Vector3 worldPosition)
         {
             Vector3 localPosition = transform.InverseTransformPoint(worldPosition);
@@ -1029,7 +1157,7 @@ namespace GridMapMaker
         #region Saving and Loading Map
 
         /// <summary>
-        /// Will return a string that represents the current state of the map. This string can be saved and loaded at a later time
+        /// Will return a string that represents the current state of the map. This string can be saved and loaded at a later time. This used the current visualContainer to serialize the map. If you wish to load the map, you must have the same visualContainer that was used to serialize the map. Any modifications to the visualContainer will cause the map to not load correctly.
         /// </summary>
         /// <returns></returns>
         public string GetSerializeMap()
@@ -1040,6 +1168,11 @@ namespace GridMapMaker
 
             return json;
         }
+
+        /// <summary>
+        /// Given a string which contains a serialized map, This method will deserialize the map and load it into the grid. In order for this to work, this gridManager must have the appropriate visualContainer which was used to serialize the map
+        /// </summary>
+        /// <param name="json"></param>
         public void DeserializeMap(string json)
         {
             SavedMap savedMap = JsonUtility.FromJson<SavedMap>(json);
@@ -1059,14 +1192,20 @@ namespace GridMapMaker
                 chunk.Clear();
             }
 
-            CellGap = savedMap.cellGap;
+            gridSize = savedMap.gridSize;
+            chunkSize = savedMap.chunkSize;
+            cellGap = savedMap.cellGap;
             shapeScale = savedMap.shapeScale;
+
             MapOrientation = savedMap.mapOrientation;
             layerSortAxis = savedMap.layerSortAxis;
+
             UseMultithreading = savedMap.useMultiThreading;
             RedrawOnVisualHashChanged = savedMap.redrawOnV;
+
             defaultLayerId = savedMap.baseLayerId;
             colorShaderName = savedMap.colorShaderName;
+
             defaultVisualData = savedMap.defaultVisualData;
 
             Initialize();
@@ -1085,8 +1224,7 @@ namespace GridMapMaker
 
                 foreach (ShapeVisualData vData in savedMap.visualDatas)
                 {
-                    Guid id = Guid.Parse(vData.VisualIdString);
-                    savedDatas.TryAdd(id, vData);
+                    savedDatas.TryAdd(vData.VisualId, vData);
                 }
 
                 if (savedMap.useMultiThreading)
@@ -1163,10 +1301,19 @@ namespace GridMapMaker
                 }
             }
         }
+        /// <summary>
+        /// Will get all the unique visual Data being used in the map. 
+        /// Uniqueness is determined by the visualIdHash
+        /// </summary>
+        /// <returns></returns>
         public List<ShapeVisualData> GetUniqueVisuals()
         {
             return visualDatas.ToList();
         }
+
+        /// <summary>
+        /// A saved map is a serialized struct that holds the state of the grid. This struct can be serialized and deserialized to save and load the grid
+        /// </summary>
 
         [Serializable]
         public struct SavedMap
@@ -1175,10 +1322,13 @@ namespace GridMapMaker
             public Vector2Int chunkSize;
             public Vector2 shapeScale;
             public Vector2 cellGap;
+
             public GridShape.Orientation mapOrientation;
             public SortAxis layerSortAxis;
+
             public bool useMultiThreading;
             public bool redrawOnV;
+
             public string baseLayerId;
             public string colorShaderName;
 
@@ -1200,7 +1350,7 @@ namespace GridMapMaker
 
                 chunkSize = gridManager.ChunkSize;
                 shapeScale = gridManager.shapeScale;
-                cellGap = gridManager.CellGap;
+                cellGap = gridManager.cellGap;
                 mapOrientation = gridManager.MapOrientation;
                 layerSortAxis = gridManager.LayerSortAxis;
                 useMultiThreading = gridManager.UseMultithreading;
@@ -1226,22 +1376,26 @@ namespace GridMapMaker
 
             public void SerializeVisualProps(MapVisualContainer container)
             {
-                defaultVisualData.SetSerializeData(container);
+                defaultVisualData.SerializeVisualData(container);
 
                 foreach (ShapeVisualData visual in visualDatas)
                 {
-                    visual.SetSerializeData(container);
+                    visual.SerializeVisualData(container);
                 }
             }
 
             public void DeserializeVisualProps(MapVisualContainer container)
             {
-                defaultVisualData.DeserializeData(container);
+                defaultVisualData.DeserializeVisualData(container);
+
+                List<ShapeVisualData> deserializedVData = new List<ShapeVisualData>();
 
                 foreach (ShapeVisualData visual in visualDatas)
                 {
-                    visual.DeserializeData(container);
+                    deserializedVData.Add(visual.DeserializeVisualData(container));
                 }
+
+                visualDatas = deserializedVData;
             }
         }
         #endregion
@@ -1255,9 +1409,15 @@ namespace GridMapMaker
         }
     }
 
+    /// <summary>
+    /// A struct used to hold the settings of a meshLayer
+    /// </summary>
     [Serializable]
     public struct MeshLayerSettings
     {
+        /// <summary>
+        /// The distance between each layer. This is used to determine the order in which the layers are drawn. So layers are drawn this value away or closer to each other.
+        /// </summary>
         public static float SortStep = 0.0001f;
 
         [SerializeField]

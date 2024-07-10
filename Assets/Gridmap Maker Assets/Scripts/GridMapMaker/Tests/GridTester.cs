@@ -1,6 +1,5 @@
 ﻿using System.Collections.Generic;
 using UnityEngine;
-using UnityEngine.InputSystem;
 using System.IO;
 
 
@@ -51,11 +50,11 @@ namespace GridMapMaker.Tutorial
 
             // on mouse click
 
-            if (Mouse.current.leftButton.wasPressedThisFrame)
+            if (Input.GetMouseButton(0) == true)
             {
                 MouseClick(0);
             }
-            else if (Mouse.current.rightButton.wasPressedThisFrame)
+            else if (Input.GetMouseButton(1) == true)
             {
                 MouseClick(1);
             }
@@ -169,7 +168,7 @@ namespace GridMapMaker.Tutorial
         {
             BasicVisual data = gridManager.GetVisualData(Vector2Int.zero, baseLayer.LayerId) as BasicVisual;
 
-            data = data.DeepCopy<BasicVisual>();
+            data = data.DeepCopy() as BasicVisual;
             data.mainColor = Color.green;
             data.ValidateVisualHash();
             
@@ -196,7 +195,6 @@ namespace GridMapMaker.Tutorial
             Vector2Int gridPos = InputHex;
 
             gridManager.ValidateOrientation();
-
         }
 
         private void DeleteShape()
@@ -273,7 +271,7 @@ namespace GridMapMaker.Tutorial
         }
         private bool GetMousePosition(out Vector3 position)
         {
-            position = Camera.main.ScreenToWorldPoint(Mouse.current.position.ReadValue());
+            position = Camera.main.ScreenToWorldPoint(Input.mousePosition);
 
             return true;
         }

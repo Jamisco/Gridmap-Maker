@@ -4,7 +4,7 @@ using UnityEngine;
 namespace GridMapMaker
 {
     /// <summary>
-    /// This simple contains a material and a property block used to render the Shape
+    /// This simply contains a material and a property block used to render the Shape
     /// </summary>
     /// 
     [Serializable]
@@ -65,7 +65,11 @@ namespace GridMapMaker
 
             return false;
         }
-
+        /// <summary>
+        /// 2 Shape render Data are equal if they have thesame renderType, and the references of their material and property block is thesame
+        /// </summary>
+        /// <param name="other"></param>
+        /// <returns></returns>
         public bool Equals(ShapeRenderData other)
         {
             // if the render type is thesame, check if the render type is color, then check if the color is thesame, else check if the material and property block are thesame
@@ -89,62 +93,11 @@ namespace GridMapMaker
             return false;
         }
 
-        public bool VisuallyEqual(ShapeRenderData other)
-        {
-            if (ShapeRenderType == other.ShapeRenderType)
-            {
-                if (ShapeRenderType == RenderType.Color)
-                {
-                    return ShapeColor == other.ShapeColor;
-                }
-            }
-            else
-            {
-                return false;
-            }
-
-            if (sharedMaterial != other.sharedMaterial)
-            {
-                return false;
-            }
-            
-            MaterialPropertyBlock block = other.propertyBlock;
-            // for each type of 
-            foreach (MaterialPropertyType propType in
-                                          Enum.GetValues(typeof(MaterialPropertyType)))
-            {
-                string[] propertyNames = sharedMaterial.GetPropertyNames(propType);
-
-                foreach (string propertyName in propertyNames)
-                {
-                    object value1 = propertyBlock.GetValue(propertyName, propType);
-                    object value2 = block.GetValue(propertyName, propType);
-
-                    // if one of the value is null, then both values must be true for these values to be thesame
-                    if(value1 == null || value2 == null)
-                    {
-                        if(value1 == value2)
-                        {
-                            continue;
-                        }
-                        else
-                        {
-                            return false;
-                        }
-                    }
-                    
-                    bool same = value1.Equals(value2);
-
-                    if (!same)
-                    {
-                        return false;
-                    }
-                }
-            }
-            
-            return true;
-        }
-
+        /// <summary>
+        /// Will get the hash of all property values in a material property block to determine if two RenderData are equal. This is a default implementation provided for visual equality and it is EXTREMELY SLOW. It is recommended you not use it and implement a visualHash for all your visual data.
+        /// </summary>
+        /// <param name="other"></param>
+        /// <returns></returns>
         public int GetVisualHash()
         {
             int hash = HashCode.Combine(sharedMaterial);

@@ -10,13 +10,19 @@ using UnityEditor;
 
 namespace GridMapMaker
 {
+    /// <summary>
+    /// The base class for all visual containers. This is used to store all visual data for the map.
+    /// Inherit from this class to create your own visual container and customize it as you see fit.
+    /// Be sure to add any additional objects into the MapObjects list.
+    /// Since this is a Scriptable Object, you gonna save changes during runtime. So all your map data must be added in editor and stored accordingly.
+    /// </summary>
     public abstract class MapVisualContainer : ScriptableObject, ISerializationCallbackReceiver
     {
         [SerializeField]
         protected List<Object> MapObjects = new List<Object>();
 
         /// <summary>
-        /// Please make sure your shader names are unique. Shaders are returned by name
+        /// Please make sure your shader names are unique. Shaders are retrieved and stored using their name
         /// </summary>
         [SerializeField]
         protected List<Shader> MapShaders = new List<Shader>();
@@ -57,6 +63,13 @@ namespace GridMapMaker
         {
             return MapObjects.Where(x => x.name == name).FirstOrDefault();
         }
+
+        public Guid GetGuidByInstanceId(int id)
+        {
+            Object o = allObjects.Where(x => x.GetInstanceID() == id).FirstOrDefault();
+            return GetGuid(o);
+        }
+
         public List<Object> GetMapObjects()
         {
             return new List<Object>(MapObjects);
@@ -65,10 +78,23 @@ namespace GridMapMaker
         {
             return object2Guid[obj];
         }
+
+        public Guid GetGuid(int instanceId)
+        {
+            Object o = allObjects.Where(x => x.GetInstanceID() == instanceId)
+                        .FirstOrDefault();
+            return object2Guid[o];
+        }
+
         public Object GetObject(Guid id)
         {
             return guid2Object[id];
         }
+        public int GetObjectId(Guid id)
+        {
+            return guid2Object[id].GetInstanceID();
+        }
+
         public GridShape GetGridShape(string shapeId)
         {
             return GridShapes.Where(x => x.UniqueShapeName == shapeId).FirstOrDefault();
@@ -85,18 +111,31 @@ namespace GridMapMaker
         {
             return new List<Shader>(MapShaders);
         }
+
+        /// <summary>
+        ///  Call this with extreme CARE!! Modifications to a visual container can prevent you from deserialzing or loading a map
+        ///  Call this method after adding or removing objects from the MapObjects list.
+        ///  This makes sure every matching object in the ALLObjects, has a matching GUI
+        ///  Objects will only be given a new guid if they don't already have one.
+        ///  Objects not in the MapObjects list will have their guids removed.
+        /// </summary>
         public void ValidateObjects()
         {
-            // makes sure every matching object in the ALLObjects, has a matching GUI
-            // the guid list will not delete ID's unless specifically asked too   
-
             MapObjects = MapObjects.Distinct().ToList();
             MapShaders = MapShaders.Distinct().ToList();
             GridShapes = GridShapes.Distinct().ToList();
 
+            // remove empty objects
+
+            MapObjects.RemoveAll(x => x == null);
+            MapShaders.RemoveAll(x => x == null);
+            GridShapes.RemoveAll(x => x == null);
+
             allObjects.Clear();
 
             allObjects.AddRange(MapObjects);
+            allObjects.AddRange(MapShaders);
+            allObjects.AddRange(GridShapes);
              
             // first we remove any visual objects that are not in the MapObjects list
             for (int i = 0; i < visualObjects.Count; i++)
@@ -109,7 +148,7 @@ namespace GridMapMaker
                 }
             }
 
-            Debug.Log("Cleared");
+            Debug.Log("Cleared Guids");
             matchingGuids.Clear();
 
             // we use this to create a new list of visual objects that match the MapObjects list. It also removes any duplicates

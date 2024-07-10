@@ -4,13 +4,16 @@ using UnityEngine;
 
 namespace GridMapMaker
 {
+    /// <summary>
+    /// A base class for all shapes that can be drawn on a gridmap. This class contains all the necessary methods and properties to draw a shape on a gridmap
+    /// </summary>
     [Serializable]
     public abstract class GridShape : ScriptableObject, IEquatable<GridShape>
     {
         public const string MenuName = "GridMapMaker/GridShape/";
 
         [SerializeField]
-        private string uniqueShapeName;
+        private string uniqueShapeName = "Unkown Shape Name";
 
         [SerializeField]
         private List<Vector2> baseVertices;
@@ -20,8 +23,14 @@ namespace GridMapMaker
 
         [SerializeField]
         private List<int> baseTriangles;
+        /// <summary>
+        /// The scale/size of the Shape. This is set by the gridManager. You do not have to use this at all.
+        /// </summary>
         public virtual Vector2 Scale { get; set; } = Vector2.one;
 
+        /// <summary>
+        /// This value will be set by the gridManager. You do not have to use this at all.
+        /// </summary>
         protected Vector2 cellGap;
        /// <summary>
         /// This will contain the edge/bounds basePosition of the Shape.
@@ -37,6 +46,9 @@ namespace GridMapMaker
 
         protected Bounds shapeBounds;
 
+        /// <summary>
+        /// The bounds of the shape. Bounds of the shape are used to calculate the bounds of the gridmap or small part of the gridmap
+        /// </summary>
         public Bounds ShapeBounds
         {
             get { return shapeBounds; }
@@ -52,7 +64,8 @@ namespace GridMapMaker
         /// </summary>
         public enum Orientation { XY, XZ };
         /// <summary>
-        /// The default orientation of the Shape when its vertices are created in editor
+        /// The default orientation of the Shape vertices. 
+        /// Which orientation are the base vertices in? When drawn will the they be in the XY plane or the XZ plane?
         /// </summary>
         public Orientation BaseOrientation
         {
@@ -67,7 +80,7 @@ namespace GridMapMaker
         }
 
         /// <summary>
-        /// The orientation of the Shape when being displayed in a gridmap
+        /// This is the orientation of the shape when it is drawn on the gridmap. This is the orientation that will be used to draw the shape on the gridmap and is used to calculate the bounds of the shape.
         /// </summary>
         public Orientation ShapeOrientation
         {
@@ -86,6 +99,9 @@ namespace GridMapMaker
             }
         }
 
+        /// <summary>
+        /// A unique name for your shape. Names are used to find specific Gridshapes in lists/collections. Thus all gridshape classes must have a unique name
+        /// </summary>
         public string UniqueShapeName
         {
             get { return uniqueShapeName; }
@@ -175,6 +191,9 @@ namespace GridMapMaker
         /// </summary>
         protected abstract void SetBaseValues();
 
+        /// <summary>
+        /// Once all the base values and shape settings (ie cell gap) have been set. This method will update the shapeMesh, bounds and other properties of the shape accordingly.
+        /// </summary>
         public void UpdateShape()
         {
             SetBaseValues();
@@ -246,6 +265,12 @@ namespace GridMapMaker
         /// <param timerName="localPosition"></param>
         /// <returns></returns>
         protected abstract Vector2Int GetBaseGridCoordinate(Vector2 localPosition);
+
+        /// <summary>
+        /// Given a local position, get the grid position. This method will take into account the orientation of the shape and the cell gap for you. Thus there is no need to worry about such things.
+        /// </summary>
+        /// <param name="localPosition"></param>
+        /// <returns></returns>
         public Vector2Int GetGridCoordinate(Vector3 localPosition)
         {
             Vector2 pos;
@@ -262,6 +287,10 @@ namespace GridMapMaker
 
             return GetBaseGridCoordinate(pos);
         }
+
+        /// <summary>
+        /// When the orientation of the shape has been changed, this update the shape accordingly
+        /// </summary>
         public void UpdateOrientation()
         {
             SetShapeMeshData();
@@ -322,6 +351,7 @@ namespace GridMapMaker
             shapeBounds = new Bounds((min + max) / 2, max - min);
         }
 
+        /*
         /// <summary>
         /// If tesselation is Uniform, such as it is with rectangles, we can simply multiple the gridPosition gridOffset directly to the Shape bounds without having to get the tesselated localPosition of each cell. THIS WILL NOT WORK FOR UN-UNIFORM TESSELATION SUCH AS HEXES
         /// </summary>
@@ -360,7 +390,14 @@ namespace GridMapMaker
         //    Bounds b2 = GetGridBounds2(minGridPosition, maxGridPosition);
         //    return newBounds;
         //}
+        */
 
+        /// <summary>
+        /// Given two positions, get the bounds such that if a square where to be made of such positions, with the min position being bottom left and the max position being top right, the bounds of said  square will be returned. This method should work with all shapes, but you can override it if you want to make it faster. This method is This is generally used to get the bounds of a layer, chunk or grid. You might also want to use this to see if a specific position is within the bounds of two positions.
+        /// </summary>
+        /// <param name="minGridPosition"></param>
+        /// <param name="maxGridPosition"></param>
+        /// <returns></returns>
         public virtual Bounds GetGridBounds(Vector2Int minGridPosition,
                                 Vector2Int maxGridPosition)
         {
@@ -390,6 +427,13 @@ namespace GridMapMaker
             
             return b1;
         }
+
+        /// <summary>
+        /// Checks whether the current shapes contains the given shape.
+        /// Used this to see if a given shape is contained within another shape. This is useful when you want to overlay shapes on top of each other.
+        /// </summary>
+        /// <param name="other"></param>
+        /// <returns></returns>
         public virtual bool WithinShapeBounds(GridShape other)
         {
             return shapeBounds.Contains(other.ShapeBounds.min) && shapeBounds.Contains(other.ShapeBounds.max);
@@ -446,16 +490,32 @@ namespace GridMapMaker
             return inside;
         }
 
+        /// <summary>
+        /// The hashcode of a shape is simply the hashcode of its UNIQUE name.
+        /// </summary>
+        /// <returns></returns>
         public override int GetHashCode()
         {
+            if(uniqueShapeName == null)
+            {
+                uniqueShapeName = "Unkown Shape Name";
+            }
             return uniqueShapeName.GetHashCode();
         }
+        /// <summary>
+        /// 2 shapes are equal if they have thesame name
+        /// </summary>
+        /// <param name="other"></param>
+        /// <returns></returns>
         public bool Equals(GridShape other)
         {
             // compare names
 
             return uniqueShapeName.Equals(other);
         }
+        /// <summary>
+        /// A simple struct to hold the edge positions of a shape
+        /// </summary>
         private struct ShapeVertexBounds
         {
             public Vector2 top;

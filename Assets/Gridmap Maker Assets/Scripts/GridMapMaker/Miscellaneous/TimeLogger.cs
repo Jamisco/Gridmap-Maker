@@ -6,6 +6,9 @@ using Debug = UnityEngine.Debug;
 
 namespace GridMapMaker
 {
+    /// <summary>
+    /// A simply static class used to log the time it takes to do something.
+    /// </summary>
     public static class TimeLogger
     {
         static Dictionary<int, Stopwatch> timers = new Dictionary<int, Stopwatch>();

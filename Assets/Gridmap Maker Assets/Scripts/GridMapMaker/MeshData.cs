@@ -5,6 +5,9 @@ using UnityEngine;
 
 namespace GridMapMaker
 {
+    /// <summary>
+    /// A simple struct used to hold mesh data. This is used because the default Mesh class is not thread safe and can only be accessed from the main thread.
+    /// </summary>
     public struct MeshData
     {
         private List<Vector3> vertices;
@@ -61,6 +64,9 @@ namespace GridMapMaker
         }
     }
 
+    /// <summary>
+    /// This is used to conduct multithreaded operations on a mesh data.
+    /// </summary>
     public struct ConcurrentMeshData
     {
         private ConcurrentBag<Vector3> vertices;

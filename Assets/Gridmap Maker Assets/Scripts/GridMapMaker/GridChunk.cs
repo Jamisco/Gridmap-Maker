@@ -4,6 +4,9 @@ using UnityEngine;
 
 namespace GridMapMaker
 {
+    /// <summary>
+    /// A grid chunk is a collection of mesh layers. Each grid chunk its like its own grid manager, but with a limited grid bounds. Grid chunks operate with little help from the gridManager
+    /// </summary>
     public class GridChunk : MonoBehaviour
     {
         public GridManager GridManager { get; private set; }
@@ -444,6 +447,9 @@ namespace GridMapMaker
         }
     }
 
+    /// <summary>
+    /// A serialized version of the GridChunk class. Used to save and load grid chunks
+    /// </summary>
     [Serializable]
     public struct SerializedGridChunk
     {

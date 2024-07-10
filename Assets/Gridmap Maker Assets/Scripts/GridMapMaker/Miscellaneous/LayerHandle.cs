@@ -3,7 +3,7 @@
 namespace GridMapMaker
 {
     /// <summary>
-    /// Used to display MeshData info in editor
+    /// Used to display Mesh Layer info in editor
     /// </summary>
     public class LayerHandle : MonoBehaviour
     {

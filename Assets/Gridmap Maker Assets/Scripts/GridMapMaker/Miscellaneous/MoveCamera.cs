@@ -1,52 +1,58 @@
 using UnityEngine;
 
-public class MoveCamera : MonoBehaviour
+namespace GridMapMaker.Tutorial
 {
-    public float zoomSpeed = 10;
-    public float minZoomDistance = 5f;
-    public float maxZoomDistance = 50f;
-
-    public float dragSpeed = 20f;
-
-    private Camera mainCamera;
-
-    private void Start()
+    /// <summary>
+    /// A simple move camera script. This is used when testing the map in the build.
+    /// </summary>
+    public class MoveCamera : MonoBehaviour
     {
-        mainCamera = Camera.main;
-    }
+        public float zoomSpeed = 10;
+        public float minZoomDistance = 5f;
+        public float maxZoomDistance = 50f;
 
-    private Vector3 dragOrigin;
-    private Vector3 originalPosition;
-    bool go = false;
-    private void Update()
-    {
-        if(Time.timeSinceLevelLoad > 1f)
+        public float dragSpeed = 20f;
+
+        private Camera mainCamera;
+
+        private void Start()
         {
-            // Camera Zoom
-            float scrollInput = Input.GetAxis("Mouse ScrollWheel");
-            float zoomAmount = scrollInput * zoomSpeed * Time.deltaTime;
-            mainCamera.orthographicSize = Mathf.Clamp(mainCamera.orthographicSize - zoomAmount, minZoomDistance, maxZoomDistance);
+            mainCamera = Camera.main;
+        }
 
-            // Camera Drag
-
-            
-            if (Input.GetMouseButtonDown(0))
+        private Vector3 dragOrigin;
+        private Vector3 originalPosition;
+        bool go = false;
+        private void Update()
+        {
+            if (Time.timeSinceLevelLoad > 1f)
             {
-                dragOrigin = Input.mousePosition;
-                originalPosition = transform.position;
-                go = true;
-            }
+                // Camera Zoom
+                float scrollInput = Input.GetAxis("Mouse ScrollWheel");
+                float zoomAmount = scrollInput * zoomSpeed * Time.deltaTime;
+                mainCamera.orthographicSize = Mathf.Clamp(mainCamera.orthographicSize - zoomAmount, minZoomDistance, maxZoomDistance);
 
-            if (Input.GetMouseButton(0) && go)
-            {
-                Vector3 offset = Camera.main.ScreenToWorldPoint(dragOrigin) - Camera.main.ScreenToWorldPoint(Input.mousePosition);
-                transform.position = originalPosition + offset;
-            }
+                // Camera Drag
 
-           if(Input.GetMouseButton(0) == false)
-            {
-                go = false;
+
+                if (Input.GetMouseButtonDown(0))
+                {
+                    dragOrigin = Input.mousePosition;
+                    originalPosition = transform.position;
+                    go = true;
+                }
+
+                if (Input.GetMouseButton(0) && go)
+                {
+                    Vector3 offset = Camera.main.ScreenToWorldPoint(dragOrigin) - Camera.main.ScreenToWorldPoint(Input.mousePosition);
+                    transform.position = originalPosition + offset;
+                }
+
+                if (Input.GetMouseButton(0) == false)
+                {
+                    go = false;
+                }
             }
-        }      
+        }
     }
 }

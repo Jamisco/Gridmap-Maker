@@ -6,7 +6,7 @@ using UnityEngine;
 namespace GridMapMaker
 {
     /// <summary>
-    /// This will add a given mesh and the given offset positions and fuse them into one mesh
+    /// This classed is used the fuse the meshes of different positions into one mesh. 
     /// </summary>
     public class ShapeMeshFuser
     {

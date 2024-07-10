@@ -1,4 +1,5 @@
- // A simple shader to map a texture onto a mesh
+ // A simple shader to map a texture onto a mesh.
+ // Will render eithr a Color or a texture
  
  Shader "GridMapMaker/DefaultShader" 
   { 

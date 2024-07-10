@@ -9,19 +9,20 @@ using UnityEditor;
 
 namespace GridMapMaker
 {
+    /// <summary>
+    /// A layered mesh is a collection of fused meshes that are then combined together to make one mesh.
+    /// Each fused mesh is unique visually, meaning it may have its own different texture, color, etc.          However each fused mesh has thesame Shape.
+    ///  5 meshes with 5 materials means 5 game objects to update, 5 renderer components
+    ///  1 mesh with 5 materials means 1 game object to update, 1 renderer component
+
+    ///  The benefit of 5 meshes is that each part can be separately culled if necessary, potentially           reducing draw calls.
+    ///  The benefit of 1 mesh is less CPU and GPU overhead.
+    /// </summary>
+    /// 
     [RequireComponent(typeof(LayerHandle))]
     [Serializable]
     public class MeshLayer : MonoBehaviour
     {
-        /*
-        5 meshes means 5 game objects to update, 5 renderer components to cull.
-        1 mesh with 5 materials means 1 game object to update, 1 renderer component to cull.
-
-        The benefit of 5 meshes is that each part can be separately culled if necessary, potentially reducing draw calls.
-        The benefit of 1 mesh is less CPU overhead.
-        */
-        // A layered mesh is a collection of fused meshes that are then combined together to make one mesh.
-        // Each fused mesh is a unique visually, meaning it may have a different texture, color, etc. However each fused mesh has thesame Shape
         const int MAX_VERTICES = 65534;
         GridChunk gridChunk;
 
@@ -679,6 +680,9 @@ namespace GridMapMaker
             layerGridShape = null;
         }
 
+        /// <summary>
+        /// This struct is used to group/add meshes until the max vertices is reached
+        /// </summary>
         private struct MaxMesh
         {
             public List<ShapeVisualData> vDatas;
@@ -719,11 +723,14 @@ namespace GridMapMaker
                 return def;
             }
         }
+
+        /// <summary>
+        /// This struct is used to group the visual data and the mesh data together
+        /// </summary>
         private struct SmallMesh
         {
             public ShapeVisualData vData;
             public MeshData smallMesh;
-
             public int VertexCount => smallMesh.vertexCount;
             public SmallMesh(ShapeVisualData vData, MeshData fuser)
             {
@@ -739,7 +746,7 @@ namespace GridMapMaker
     }
 
     /// <summary>
-    /// This is used to compare visuals.
+    /// This is used to compare visual data for equality or hash(reference).
     /// </summary>
     public class VisualDataComparer : IEqualityComparer<ShapeVisualData>
     {
@@ -768,6 +775,9 @@ namespace GridMapMaker
         }
     }
 
+    /// <summary>
+    /// A serialized version of the MeshLayer class. This is used when saving the map
+    /// </summary>
     [Serializable]
     public struct SerializedMeshLayer
     {
