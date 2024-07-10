@@ -74,16 +74,20 @@ namespace GridMapMaker
         /// </summary>
         public Vector2 cellGap;
 
-        /// <summary>
-        /// The name of the colorShader as stated when you called Shader.name.
-        /// The shader must also be in the visualContainer, so be sure to add it
-        /// </summary>
-        public string colorShaderName;
 
+        /// <summary>
+        /// This is a shader that will instruct a shape to be drawn with a color only.
+        /// This shader is required and must be set. You are provided a shader called "MeshColorShader", if you dont have a color shader. You can also use Unity's Sprites default shader. This shader will also serve as the default shader for all shapes if you do not provide a default visual data.
+        /// </summary>
+        [SerializeField]
+        private Shader colorShader;
         /// <summary>
         /// Every gridmanager must have a color shader. A color shader will be used to render shapes with a specified color when the shape has no visualData You are provided a color shader called "MeshColorShader", I recommend you use that.
         /// </summary>
-        public Shader ColorShader { get; private set; }
+        public Shader ColorShader { get => colorShader; set => colorShader = value; }
+
+        [SerializeField]
+        [HideInInspector]
         private ShapeVisualData defaultVisualData;
 
         /// <summary>
@@ -96,6 +100,7 @@ namespace GridMapMaker
             {
                 if (defaultVisualData == null)
                 {
+                    // you can change the color to whatever else you want
                     defaultVisualData = new ColorVisualData(ColorShader, Color.white);
                 }
 
@@ -288,21 +293,53 @@ namespace GridMapMaker
         }
 
         /// <summary>
-        /// Initializes the grid with its current settings. Be advised, most settings of the grid manager are used to determine how the grid is displayed. Thus, if you change any of these settings, after the grid has been initialized, it will have no effect or cause errors. For example, setting the chunkSize, or gridSize or cellGap will have no effect on a map that is already created. However, it will cause various errors if you were to do bounds checking or grid positioning etc.
+        /// This is used to simply store the color shader for serialization and deserialization purposes
+        /// </summary>
+        [SerializeField]
+        [HideInInspector]
+        private string colorShaderName;
+        private const string spriteDefault = "Sprites/Default";
+        private const string gmmColorShader = "GridMapMaker/ColorShader";
+        /// <summary>
+        /// Initializes the grid with its current settings. This method assumes the settings have been set from the editor. Be advised, most settings of the grid manager are used to determine how the grid is displayed. Thus, if you change any of these settings, after the grid has been initialized, it will have no effect or cause errors. For example, setting the chunkSize, or gridSize or cellGap will have no effect on a map that is already created. However, it will cause various errors if you were to do bounds checking or grid positioning etc.
         /// </summary>
         public void Initialize()
         {
             ValidateChunkSize();
             CreateGridChunks();
 
-            ColorShader = visualContainer.GetShader(colorShaderName);
+            if(colorShader == null)
+            {
+                colorShader = Shader.Find(gmmColorShader);
+
+                if(colorShader == null)
+                {
+                    colorShader = Shader.Find(spriteDefault);
+                }
+               
+                if(colorShader == null)
+                {
+                    colorShaderName = "";
+
+                    Debug.LogError("No color shader found. Please provide a color shader. Make sure you add your color shader to the build list in your editor settings so they can be used via build");
+                    return;
+                }
+
+                colorShaderName = colorShader.name;
+
+            }
         }
-        public void Initialize(Vector2Int gridSize, Vector2Int chunkSize, string colorShaderName)
+
+        /// <summary>
+        /// Initializes the grid with the minimum settings required to create a grid
+        /// </summary>
+        /// <param name="gridSize"></param>
+        /// <param name="chunkSize"></param>
+        /// <param name="colorShader"></param>
+        public void Initialize(Vector2Int gridSize, Vector2Int chunkSize)
         {
             GridSize = gridSize;
             ChunkSize = chunkSize;
-
-            this.colorShaderName = colorShaderName;
 
             Initialize();
         }
@@ -1205,7 +1242,7 @@ namespace GridMapMaker
             colorShaderName = savedMap.colorShaderName;
 
             defaultVisualData = savedMap.defaultVisualData;
-
+            colorShader = Shader.Find(colorShaderName);
             Initialize();
 
             if (sortedChunks.Count > 0)
