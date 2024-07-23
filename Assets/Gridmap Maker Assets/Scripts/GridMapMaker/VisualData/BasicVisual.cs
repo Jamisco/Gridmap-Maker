@@ -16,6 +16,8 @@ namespace GridMapMaker
             mainTexture = texture;
             mainColor = color;
 
+            VisualHash = GetVisualHash();
+
             PropertyBlock = new MaterialPropertyBlock();
         }
 

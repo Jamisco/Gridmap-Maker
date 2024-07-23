@@ -111,6 +111,8 @@ namespace GridMapMaker.Tutorial
         }
         public void GenerateGrid()
         {
+            TimeLogger.StartTimer(8491, "Generate Grid");
+
             gridManager.Initialize();
 
             gridManager.CreateLayer(baseLayer);
@@ -121,7 +123,14 @@ namespace GridMapMaker.Tutorial
 
             gridManager.InsertPositionBlock(mapData.Item1, mapData.Item2, baseLayer.LayerId);
 
+            TimeLogger.Log(8491, "Insert Time");
+
             gridManager.DrawGrid();
+
+            TimeLogger.StopTimer(8491);
+
+            TimeLogger.Log(8491);
+            TimeLogger.ClearTimers();
         }
         public void UpdateMap()
         {

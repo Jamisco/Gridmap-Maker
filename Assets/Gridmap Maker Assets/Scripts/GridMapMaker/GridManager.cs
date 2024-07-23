@@ -90,6 +90,8 @@ namespace GridMapMaker
         [HideInInspector]
         private ShapeVisualData defaultVisualData;
 
+        public Color DefaultColor = Color.white;
+
         /// <summary>
         /// The default visual data to use when no visual data is specified,
         /// If no default visual data is set, then a color visual data with the default shader and color white is used
@@ -101,7 +103,7 @@ namespace GridMapMaker
                 if (defaultVisualData == null)
                 {
                     // you can change the color to whatever else you want
-                    defaultVisualData = new ColorVisualData(ColorShader, Color.white);
+                    defaultVisualData = new ColorVisualData(ColorShader, DefaultColor);
                 }
 
                 return defaultVisualData;
@@ -1243,6 +1245,7 @@ namespace GridMapMaker
 
             defaultVisualData = savedMap.defaultVisualData;
             colorShader = Shader.Find(colorShaderName);
+
             Initialize();
 
             if (sortedChunks.Count > 0)
@@ -1278,7 +1281,7 @@ namespace GridMapMaker
                     foreach (SerializedGridChunk item in savedMap.serializedChunks)
                     {
                         GridChunk chunk = null;
-                        ColorVisualData defaultVData = new ColorVisualData(ColorShader, Color.white);
+                        ColorVisualData defaultVData = new ColorVisualData(ColorShader, DefaultColor);
 
                         if (sortedChunks.TryGetValue(item.startPosition.GetHashCode_Unique(), out chunk))
                         {
@@ -1306,7 +1309,7 @@ namespace GridMapMaker
 
                 void InsertChunk_Fast()
                 {
-                    ColorVisualData defaultVData = new ColorVisualData(ColorShader, Color.white);
+                    ColorVisualData defaultVData = new ColorVisualData(ColorShader, DefaultColor);
 
                     Parallel.ForEach(savedMap.serializedChunks, item =>
                     {

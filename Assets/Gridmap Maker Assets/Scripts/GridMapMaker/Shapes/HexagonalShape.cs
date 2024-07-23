@@ -4,7 +4,6 @@ using UnityEngine;
 
 namespace GridMapMaker
 {
-    // A pointed top hexagon
     [Serializable]
     [CreateAssetMenu(fileName = "HexagonalShape", menuName = MenuName + "Hexagon")]
     public class HexagonalShape : GridShape

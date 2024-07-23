@@ -1,0 +1,16 @@
+fileFormatVersion: 2
+guid: 252fc6c7043c3b141a16a8c204818b98
+MonoImporter:
+  externalObjects: {}
+  serializedVersion: 2
+  defaultReferences:
+  - gridManager: {instanceID: 0}
+  - noiseGenerator: {instanceID: 0}
+  - biosphere: {instanceID: 0}
+  - baseTile: {fileID: 11400000, guid: 92d337aeddb3b914cae8aec68f743eff, type: 2}
+  - baseTileMap: {instanceID: 0}
+  executionOrder: 0
+  icon: {instanceID: 0}
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 

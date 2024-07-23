@@ -9,6 +9,9 @@ namespace GridMapMaker
         {
             this.mainColor = mainColor;
             this.shader = shader;
+
+            VisualHash = GetVisualHash();
+
             DataRenderMode = RenderMode.MeshColor;
         }
         public override ShapeVisualData DeepCopy()

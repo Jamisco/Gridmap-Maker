@@ -4,10 +4,9 @@ using UnityEngine;
 
 namespace GridMapMaker
 {
-    /// <summary>
-    /// A base class for all shapes that can be drawn on a gridmap. This class contains all the necessary methods and properties to draw a shape on a gridmap
-    /// </summary>
+
     [Serializable]
+    [CreateAssetMenu(fileName = "GridShape", menuName = MenuName + "NewShape")]
     public abstract class GridShape : ScriptableObject, IEquatable<GridShape>
     {
         public const string MenuName = "GridMapMaker/GridShape/";
