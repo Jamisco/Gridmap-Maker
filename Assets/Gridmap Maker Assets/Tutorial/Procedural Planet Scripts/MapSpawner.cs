@@ -1,10 +1,7 @@
-using Assets.Scripts.Procedural_Planet_Scripts;
 using Procedural_Planet;
 using System;
 using UnityEditor;
 using UnityEngine;
-using static UnityEngine.GraphicsBuffer;
-
 
 namespace GridMapMaker.Tutorial
 {
@@ -12,7 +9,7 @@ namespace GridMapMaker.Tutorial
     public class MapSpawner : MonoBehaviour
     {
         public GridManager gridManager;
-        public Biosphere biosphere;
+        public ComparisonBiosphere comparisonBiosphere;
         public NoiseGenerator noiseGenerator;
 
         public MeshLayerSettings meshLayerSettings;
@@ -21,11 +18,11 @@ namespace GridMapMaker.Tutorial
         void Init()
         {
             gridManager = GetComponent<GridManager>();  
-            biosphere = GetComponent<Biosphere>();
+            comparisonBiosphere = GetComponent<ComparisonBiosphere>();
             noiseGenerator = GetComponent<NoiseGenerator>();
 
             noiseGenerator.ComputeNoises(gridManager.GridSize);
-            biosphere.SetBiomeData(ref noiseGenerator, gridManager.GridSize);
+            comparisonBiosphere.SetBiomeData(noiseGenerator, gridManager.GridSize);
         }
 
         public void GenerateMap()
@@ -42,7 +39,7 @@ namespace GridMapMaker.Tutorial
 
             if(blockInsert)
             {
-                var data = biosphere.GetBiomeData();
+                var data = comparisonBiosphere.GetBiomeData();
 
                 gridManager.InsertPositionBlock(data.Item1, data.Item2);
             }
@@ -53,7 +50,7 @@ namespace GridMapMaker.Tutorial
                     for (int y = 0; y < gridManager.GridSize.y; y++)
                     {
                         pos = new Vector2Int(x, y);
-                        vData = biosphere.GetBiomeVData(pos);
+                        vData = comparisonBiosphere.GetBiomeVData(pos);
 
                         gridManager.InsertVisualData(pos, vData);
                     }

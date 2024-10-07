@@ -49,12 +49,17 @@ namespace GridMapMaker
         public int VisualIdHash { get; private set; }
 
         public delegate void VisualDataChanged(ShapeVisualData sender);
+        public delegate void MaterialPropertyChanged(ShapeVisualData sender);
 
         public event VisualDataChanged VisualDataChange;
+        public event MaterialPropertyChanged MaterialPropertyChange;
         protected virtual MaterialPropertyBlock PropertyBlock { get; set; }
 
         [SerializeField]
         protected Shader shader;
+
+        [SerializeField]
+        protected Material material;
 
         [SerializeField]
         public Color mainColor;
@@ -92,12 +97,12 @@ namespace GridMapMaker
         }
 
         /// <summary>
-        /// Set the material properties of your shader in this method. This will be called when the visual data is being used to render a Shape
+        /// Set the material properties of your shader in this method. This will be called when the visual data is being used to render a Shape. Be advised that changing the material properties will not take effect until the encapsulating shape is drawn or redraw. If you wish to update the material properties immediately, you should call the OnMaterialPropertyChanged method.
         /// </summary>
         /// 
         public abstract void SetMaterialPropertyBlock();
 
-        /// <summary>
+         /// <summary>
         /// Will check if the visual hash has changed. If the hash hash changed, it will raise OnVisualDataChanged event and then update the visual hash.
         /// </summary>
         public void ValidateVisualHash()
@@ -116,6 +121,11 @@ namespace GridMapMaker
             VisualDataChange?.Invoke(this);
         }
 
+        protected virtual void OnMaterialPropertyChanged(ShapeVisualData sender)
+        {
+            MaterialPropertyChange?.Invoke(this);
+        }
+
         /// <summary>
         /// Will call the SetMaterialPropertyBlock method and then return a new ShapeRenderData object
         /// </summary>
@@ -123,7 +133,7 @@ namespace GridMapMaker
         public virtual ShapeRenderData GetShapeRenderData()
         {
             SetMaterialPropertyBlock();
-            return new ShapeRenderData(shader, PropertyBlock, visualName);
+            return new ShapeRenderData(material, shader, PropertyBlock, visualName);
         }
         /// <summary>
         /// Will return a shallow copy of the visual data. This is useful when you want to create a new visual data that looks thesame as the original and pass it around. The returned visual data will STILL SHARE REFERENCES. 
@@ -135,13 +145,23 @@ namespace GridMapMaker
             return (T)MemberwiseClone();
         }
         /// <summary>
-        /// This will get the render data of the visual data and then get the VisualHash of said data. This is an expensive operation and it is recommended you override and create your own hash code based on your visual data.
+        /// This gets and combines the properties from the shader in order to get a unique hash.
+        /// This is an expensive operation and it is recommended you override and create your own hash code based on your visual data.
+        /// </summary>
+        /// <returns></returns>
+        public int GetVisualHash_Expensive()
+        {
+            ShapeRenderData data = GetShapeRenderData();
+            return data.GetVisualHash();
+        }
+
+        /// <summary>
+        /// Returns the visual hash of the visualData. Do not forget to call this when you create a new visual data. I recommend you override this method and call it in your constructor.
         /// </summary>
         /// <returns></returns>
         public virtual int GetVisualHash()
         {
-            ShapeRenderData data = GetShapeRenderData();
-            return data.GetVisualHash();
+            return DEFAULT_VISUAL_HASH;
         }
 
         /// <summary>
@@ -162,7 +182,13 @@ namespace GridMapMaker
         {
             ShapeVisualData copy = MemberwiseClone() as ShapeVisualData;
 
-            copy.SerializeVisualData(container);
+            bool s = copy.SerializeVisualData(container);
+
+            if(s == false)
+            {
+                return null;
+            }
+
             copy.DeserializeVisualData(container);
 
             return copy;
@@ -192,49 +218,66 @@ namespace GridMapMaker
         [HideInInspector]
         protected string SerializedData;
 
-        public virtual void SerializeVisualData(MapVisualContainer visualContainer = null)
+        /// <summary>
+        /// Will serialize the data by storing the data into the SerializeData variable and then looping through the data and replacing the instanceID with a guid from the visual container.
+        /// </summary>
+        /// <param name="visualContainer"></param>
+        /// <returns> Returns true or false depending on fail or success </returns>
+        public virtual bool SerializeVisualData(MapVisualContainer visualContainer = null)
         {
             // reset the data or else it would show up in the allLines variable list.
             // might be best to cache it and store it back into the data variable if this methods crashes
-            SerializedData = "";
-            string data = JsonUtility.ToJson(this, true);
+            string sd = SerializedData;
 
-            if (visualContainer == null)
+            try
             {
-                SerializedData = data;
-                return;
-            }
+                SerializedData = "";
+                string data = JsonUtility.ToJson(this, true);
 
-            List<string> allLines = data.Split('\n').ToList();
-
-            // find all lines that contain instance ID and modify them to contain the guid of the texture
-
-            for (int i = 0; i < allLines.Count; i++)
-            {
-                if (allLines[i].Contains(instStr))
+                if (visualContainer == null)
                 {
-                    string instanceValue = allLines[i].Split(' ').Last();
+                    SerializedData = data;
+                    return false;
+                }
 
-                    int instanceID = -1;
+                List<string> allLines = data.Split('\n').ToList();
 
-                    // if it doesnt parse, this means the instanceID is actually a field and not a value
-                    if (int.TryParse(instanceValue, out instanceID))
+                // find all lines that contain instance ID and modify them to contain the guid of the texture
+
+                for (int i = 0; i < allLines.Count; i++)
+                {
+                    if (allLines[i].Contains(instStr))
                     {
-                        if(instanceID == 0)
+                        string instanceValue = allLines[i].Split(' ').Last();
+
+                        int instanceID = -1;
+
+                        // if it doesnt parse, this means the instanceID is actually a field and not a value
+                        if (int.TryParse(instanceValue, out instanceID))
                         {
-                            //value is null
-                            continue;
+                            if (instanceID == 0)
+                            {
+                                //value is null
+                                continue;
+                            }
+                            string gid = visualContainer.GetGuid(instanceID).ToString();
+                            //string gid = Guid.NewGuid().ToString();
+                            allLines[i] = allLines[i].Replace(instanceValue, gid);
                         }
-                        string gid = visualContainer.GetGuid(instanceID).ToString();
-                        //string gid = Guid.NewGuid().ToString();
-                        allLines[i] = allLines[i].Replace(instanceValue, gid);
                     }
                 }
+
+                // combine list back to one string
+
+                SerializedData = string.Join("\n", allLines);
+                return true;
             }
-
-            // combine list back to one string
-
-            SerializedData = string.Join("\n", allLines);
+            catch (Exception)
+            {
+                // the process failed, restore the data
+                SerializedData = sd;
+                return false;
+            }
         }
 
         /// <summary>
@@ -276,5 +319,37 @@ namespace GridMapMaker
 
             return vData;
         }
+
+        /// <summary>
+        /// This is used to compare visual data for equality or hash(reference).
+        /// The reason we use a seperate comparer is because sometimes we dont know if we should compare visuals by hash or by equality. 
+        /// </summary>
+        public class VisualDataComparer : IEqualityComparer<ShapeVisualData>
+        {
+            public bool UseVisualHash { get; set; }
+            public bool Equals(ShapeVisualData x, ShapeVisualData y)
+            {
+                if (UseVisualHash == true)
+                {
+                    return x.VisuallyEquals(y);
+                }
+                else
+                {
+                    return x.Equals(y);
+                }
+            }
+            public int GetHashCode(ShapeVisualData obj)
+            {
+                if (UseVisualHash == true)
+                {
+                    return obj.VisualHash;
+                }
+                else
+                {
+                    return obj.VisualIdHash;
+                }
+            }
+        }
+
     }
 }

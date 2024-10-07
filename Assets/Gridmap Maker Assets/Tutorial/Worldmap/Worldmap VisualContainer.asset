@@ -1,0 +1,74 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: f56e69e8561f66b4dba02e73b661b8f5, type: 3}
+  m_Name: Worldmap VisualContainer
+  m_EditorClassIdentifier: 
+  MapObjects:
+  - {fileID: -6465566751694194690, guid: 0d175323f2ef7ad428cc750307ca34a3, type: 3}
+  - {fileID: -6465566751694194690, guid: 32d1b43a74ad18a4aab6a322e2e40570, type: 3}
+  - {fileID: -6465566751694194690, guid: a6e7124c6dc0f5f408872401eee340f6, type: 3}
+  - {fileID: -6465566751694194690, guid: 1faa7b4e99a31f541b5f1b86dbeb80c6, type: 3}
+  - {fileID: 4800000, guid: 74149fb3b7f744a49a70ef8035a93b84, type: 3}
+  - {fileID: 4800000, guid: 7d5e2c415491f4645a5a13668fb595e5, type: 3}
+  - {fileID: 2100000, guid: d490cc2d643e42e46ac0e8c5491dbaeb, type: 2}
+  MapShaders: []
+  GridShapes:
+  - {fileID: 11400000, guid: cd9fdc9a35c156445babc5ca32cc6806, type: 2}
+  - {fileID: 11400000, guid: c00c4fea2af2cfb429605dd6fc801743, type: 2}
+  matchingGuids:
+  - 48a2158d-3910-4cbc-a097-f7f4592991a7
+  - 211d459a-975e-4c77-bccd-b87fe845ffa7
+  - 1ce57247-013d-4ab3-b6b4-09204b33ef6c
+  - a639f757-2c7e-4fe4-b8cb-fbc411a27d2f
+  - e05ae0b5-4e75-4892-a4d9-9b3c4f0c785f
+  - cb3904f9-1481-40d0-a1e6-7491c92b06a8
+  - de23adb8-341f-4e0f-8059-9c781c7333c0
+  - 1094a09e-90eb-4c58-9df8-73891a321f9c
+  - 3d2e0e63-ca65-466c-99df-e7b3b52c023a
+  visualObjects:
+  - obj: {fileID: -6465566751694194690, guid: 0d175323f2ef7ad428cc750307ca34a3, type: 3}
+    ObjectName: Shader Graphs/WaterShader (UnityEngine.Shader)
+    GidString: 48a2158d-3910-4cbc-a097-f7f4592991a7
+  - obj: {fileID: -6465566751694194690, guid: 32d1b43a74ad18a4aab6a322e2e40570, type: 3}
+    ObjectName: Shader Graphs/LavaShader (UnityEngine.Shader)
+    GidString: 211d459a-975e-4c77-bccd-b87fe845ffa7
+  - obj: {fileID: -6465566751694194690, guid: a6e7124c6dc0f5f408872401eee340f6, type: 3}
+    ObjectName: Shader Graphs/SnowShader (UnityEngine.Shader)
+    GidString: 1ce57247-013d-4ab3-b6b4-09204b33ef6c
+  - obj: {fileID: -6465566751694194690, guid: 1faa7b4e99a31f541b5f1b86dbeb80c6, type: 3}
+    ObjectName: Shader Graphs/LandShader (UnityEngine.Shader)
+    GidString: a639f757-2c7e-4fe4-b8cb-fbc411a27d2f
+  - obj: {fileID: 4800000, guid: 74149fb3b7f744a49a70ef8035a93b84, type: 3}
+    ObjectName: GridMapMaker/ColorShader (UnityEngine.Shader)
+    GidString: e05ae0b5-4e75-4892-a4d9-9b3c4f0c785f
+  - obj: {fileID: 4800000, guid: 7d5e2c415491f4645a5a13668fb595e5, type: 3}
+    ObjectName: GridMapMaker/DefaultShader (UnityEngine.Shader)
+    GidString: cb3904f9-1481-40d0-a1e6-7491c92b06a8
+  - obj: {fileID: 2100000, guid: d490cc2d643e42e46ac0e8c5491dbaeb, type: 2}
+    ObjectName: Ocean (UnityEngine.Material)
+    GidString: de23adb8-341f-4e0f-8059-9c781c7333c0
+  - obj: {fileID: 11400000, guid: cd9fdc9a35c156445babc5ca32cc6806, type: 2}
+    ObjectName: HexagonalShape (GridMapMaker.HexagonalShape)
+    GidString: 1094a09e-90eb-4c58-9df8-73891a321f9c
+  - obj: {fileID: 11400000, guid: c00c4fea2af2cfb429605dd6fc801743, type: 2}
+    ObjectName: RectangularShape (GridMapMaker.RectangularShape)
+    GidString: 3d2e0e63-ca65-466c-99df-e7b3b52c023a
+  allObjects:
+  - {fileID: -6465566751694194690, guid: 0d175323f2ef7ad428cc750307ca34a3, type: 3}
+  - {fileID: -6465566751694194690, guid: 32d1b43a74ad18a4aab6a322e2e40570, type: 3}
+  - {fileID: -6465566751694194690, guid: a6e7124c6dc0f5f408872401eee340f6, type: 3}
+  - {fileID: -6465566751694194690, guid: 1faa7b4e99a31f541b5f1b86dbeb80c6, type: 3}
+  - {fileID: 4800000, guid: 74149fb3b7f744a49a70ef8035a93b84, type: 3}
+  - {fileID: 4800000, guid: 7d5e2c415491f4645a5a13668fb595e5, type: 3}
+  - {fileID: 2100000, guid: d490cc2d643e42e46ac0e8c5491dbaeb, type: 2}
+  - {fileID: 11400000, guid: cd9fdc9a35c156445babc5ca32cc6806, type: 2}
+  - {fileID: 11400000, guid: c00c4fea2af2cfb429605dd6fc801743, type: 2}

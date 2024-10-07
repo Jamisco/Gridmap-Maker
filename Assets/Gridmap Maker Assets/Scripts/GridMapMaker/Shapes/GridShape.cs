@@ -5,8 +5,9 @@ using UnityEngine;
 namespace GridMapMaker
 {
 
+    // copy this and add at the top child class
+    //[CreateAssetMenu(fileName = "GridShape", menuName = MenuName + "NewShape")]
     [Serializable]
-    [CreateAssetMenu(fileName = "GridShape", menuName = MenuName + "NewShape")]
     public abstract class GridShape : ScriptableObject, IEquatable<GridShape>
     {
         public const string MenuName = "GridMapMaker/GridShape/";
@@ -23,9 +24,9 @@ namespace GridMapMaker
         [SerializeField]
         private List<int> baseTriangles;
         /// <summary>
-        /// The scale/size of the Shape. This is set by the gridManager. You do not have to use this at all.
+        /// The size of the Shape. This is set by the gridManager. You do not have to use this at all.
         /// </summary>
-        public virtual Vector2 Scale { get; set; } = Vector2.one;
+        public virtual Vector2 size { get; set; } = Vector2.one;
 
         /// <summary>
         /// This value will be set by the gridManager. You do not have to use this at all.

@@ -8,8 +8,8 @@ namespace GridMapMaker
     [CreateAssetMenu(fileName = "RectangularShape", menuName = MenuName + "Rectangle")]
     public class RectangularShape : GridShape
     {
-        public float Width { get => Scale.x; }
-        public float Height { get => Scale.y; }
+        public float Width { get => size.x; }
+        public float Height { get => size.y; }
 
         private void OnValidate()
         {

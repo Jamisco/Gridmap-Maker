@@ -2,6 +2,8 @@
 using System.Collections.Generic;
 using System.Linq;
 using UnityEngine;
+using static GridMapMaker.ShapeVisualData;
+
 
 #if UNITY_EDITOR
 using UnityEditor;
@@ -82,6 +84,20 @@ namespace GridMapMaker
         /// </summary>
         private Dictionary<ShapeVisualData, ShapeMeshFuser> MaterialVisualGroup;
         private ShapeMeshFuser ColorVisualGroup;
+
+        /// <summary>
+        /// The number of unique visuals in this mesh group
+        /// </summary>
+        public int VisualDataCount
+        {
+            get
+            {
+                int mc = (MaterialVisualGroup != null) ? MaterialVisualGroup.Count : 0;
+                int cc = (!ColorVisualGroup.IsEmpty) ? 1 : 0;
+
+                return mc + cc;
+            }
+        }
         /// <summary>
         /// The original visualData used for each cell. We store this so we can redraw the mesh if need be
         /// </summary>
@@ -119,24 +135,27 @@ namespace GridMapMaker
         }
         public void SortLayer(SortAxis axis, float offset)
         {
-            Vector3 pos = gameObject.transform.localPosition;
+            Vector3 pos = transform.localPosition;
+
+            // (transform.forward.z > 0 ? 1 : -1);
+            // The reason we have this is because the mesh might be facing the opposite direction, so we need to adjust the offset accordingly
 
             switch (axis)
             {
                 case SortAxis.X:
-                    pos.x = offset;
+                    pos.x += offset;
                     break;
                 case SortAxis.Y:
-                    pos.y = offset;
+                    pos.y += offset;
                     break;
                 case SortAxis.Z:
-                    pos.z = offset;
+                    pos.z += offset;
                     break;
                 default:
                     break;
             }
 
-            gameObject.transform.localPosition = pos;
+            transform.localPosition = pos;
         }
         private void Initialize(GridShape gridShape)
         {
@@ -185,10 +204,12 @@ namespace GridMapMaker
         void SetEvent(ShapeVisualData visualProp)
         {
             visualProp.VisualDataChange += VisualIdChanged;
+            visualProp.MaterialPropertyChange += MaterialPropertyChanged;
         }
         void RemoveEvent(ShapeVisualData visualProp)
         {
             visualProp.VisualDataChange -= VisualIdChanged;
+            visualProp.MaterialPropertyChange -= MaterialPropertyChanged;
         }
 
         public void InsertVisualData(Vector2Int gridPosition,
@@ -364,6 +385,34 @@ namespace GridMapMaker
                 // this should never occur so as long as we are removing the event whenever we delete a position
             }
         }
+        public void MaterialPropertyChanged(ShapeVisualData sender)
+        {
+            ShapeVisualData changedProp = MaterialVisualGroup.Keys.FirstOrDefault
+                (x => visualDataComparer.Equals(x, sender));
+
+            // make sure the changedProp exists
+            // if it doesn't, it means that the visual vData was never inserted in the first place or has been removed
+            if (changedProp != null)
+            {
+                foreach(GameObject go in layerMeshes)
+                {
+                    MeshRenderer ren =
+                            go.GetComponent<MeshRenderer>();
+
+                    for (int i = 0; i < vDataMats.Count; i++)
+                    {
+                        ShapeVisualData vd = vDataMats[i].Item1;
+
+                        if (vd == changedProp)
+                        {
+                            MaterialPropertyBlock mpb = vd.GetShapeRenderData().PropertyBlock;
+
+                            ren.SetPropertyBlock(mpb, i);
+                        }
+                    }
+                }
+            }
+        }
 
         private List<GameObject> layerMeshes = new List<GameObject>();
         public void FusedMeshGroups()
@@ -470,6 +519,11 @@ namespace GridMapMaker
 
         List<MaxMesh> maxMeshGroup = new List<MaxMesh>();
         // group meshes that are within the max vert limit, combined them, with sub meshes, use material from visual data  
+
+        Dictionary<ShapeVisualData, Material> shapeVisual = new Dictionary<ShapeVisualData, Material>();
+
+        List<(ShapeVisualData, Material)> vDataMats = new List<(ShapeVisualData, Material)>();
+
         private void GroupAndDrawMeshes()
         {      
             int x = 1;
@@ -493,6 +547,9 @@ namespace GridMapMaker
 
                     sharedMats.Add(srd.SharedMaterial);
                     matProps.Add(srd.PropertyBlock);
+
+                    vDataMats.Add((vData, srd.SharedMaterial));
+                    // for each visual data creating matching material
                 }
 
                 MeshRenderer ren = meshHolder.GetComponent<MeshRenderer>();
@@ -743,37 +800,11 @@ namespace GridMapMaker
                 fuser = this.smallMesh;
             }
         }
+
+
     }
 
-    /// <summary>
-    /// This is used to compare visual data for equality or hash(reference).
-    /// </summary>
-    public class VisualDataComparer : IEqualityComparer<ShapeVisualData>
-    {
-        public bool UseVisualHash { get; set; }
-        public bool Equals(ShapeVisualData x, ShapeVisualData y)
-        {
-            if (UseVisualHash == true)
-            {
-                return x.VisuallyEquals(y);
-            }
-            else
-            {
-                return x.Equals(y);
-            }
-        }
-        public int GetHashCode(ShapeVisualData obj)
-        {
-            if (UseVisualHash == true)
-            {
-                return obj.VisualHash;
-            }
-            else
-            {
-                return obj.VisualIdHash;
-            }
-        }
-    }
+    
 
     /// <summary>
     /// A serialized version of the MeshLayer class. This is used when saving the map

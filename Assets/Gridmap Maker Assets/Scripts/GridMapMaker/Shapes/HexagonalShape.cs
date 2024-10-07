@@ -8,8 +8,8 @@ namespace GridMapMaker
     [CreateAssetMenu(fileName = "HexagonalShape", menuName = MenuName + "Hexagon")]
     public class HexagonalShape : GridShape
     {
-        public float Width { get => Scale.x; }
-        public float Depth { get => Scale.y; }
+        public float Width { get => size.x; }
+        public float Depth { get => size.y; }
         
         private void OnValidate()
         {

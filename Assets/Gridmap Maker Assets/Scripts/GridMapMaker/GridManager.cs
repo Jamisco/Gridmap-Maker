@@ -5,6 +5,7 @@ using System.Linq;
 using Debug = UnityEngine.Debug;
 using System.Collections.Concurrent;
 using System.Threading.Tasks;
+using static GridMapMaker.ShapeVisualData;
 
 
 #if UNITY_EDITOR
@@ -41,12 +42,6 @@ namespace GridMapMaker
         [SerializeField]
         private Vector2Int chunkSize;
 
-        /// <summary>
-        /// The scale of the shape. Use this to make increase or reduce the size of your shapes
-        /// </summary>
-        [SerializeField]
-        private Vector2 shapeScale = Vector2.one;
-
         private Bounds localBounds;
 
         /// <summary>
@@ -61,13 +56,13 @@ namespace GridMapMaker
         /// </summary>
         public BoundsInt GridBounds => gridBounds;
 
-        private string defaultLayerId;
+        private string baseLayerId;
 
         /// <summary>
         /// This is the default layer in which modifications will be made if no layer is specified.
         /// Additionally, this layer is used to determine the bounds of the map
         /// </summary>
-        public string DefaultLayer { get { return defaultLayerId; } }
+        public string BaseLayer { get { return baseLayerId; } }
 
         /// <summary>
         /// The gap between cells
@@ -146,9 +141,15 @@ namespace GridMapMaker
                 return transform.position;
             }
         }
-        /// <summary>
-        /// When the gridmanager is doing various operations such as fusing and drawing the meshes, we can use multithreading to speed up the process. This may be stable on a case by case basis. However So as long as you are not using Unity objects outside of main thread, you should be fine.
-        /// </summary>
+
+        // we use these variables because, the transform of the map can only take effect AFTER the meshes have been drawn. Thus we have to save the initial rotation in which we want the map to be rotated to after it is drawn
+        private Vector3 T_EulerAngles { get; set; }
+        private Vector3 T_Position { get; set; }
+        private Vector3 T_Scale { get; set; }
+
+/// <summary>
+                                                 /// When the gridmanager is doing various operations such as fusing and drawing the meshes, we can use multithreading to speed up the process. This may be stable on a case by case basis. However So as long as you are not using Unity objects outside of main thread, you should be fine.
+                                                 /// </summary>
         public bool UseMultithreading = true;
 
         /// <summary>
@@ -208,7 +209,7 @@ namespace GridMapMaker
 
             BoundsInt chunkBounds = new BoundsInt(start, (Vector3Int)ChunkSize);
 
-            chunk = Instantiate(prefab, transform, true);
+            chunk = Instantiate(prefab, transform, false);
 
             // the transform is always relative to the parent such that if the parent is moved, the child moves with it
 
@@ -240,18 +241,29 @@ namespace GridMapMaker
 
             return null;
         }
-        private void ValidateChunkSize()
+        private bool ValidateChunkSize()
         {
             // If the chunk size is less than or equal to 0, then the chunk size is the same as the chunk size, else if the chunk size is greater than the chunk size, then the chunk size is the chunk size
-            int x = (chunkSize.x <= 0) ? gridSize.x : (chunkSize.x > gridSize.x) ? gridSize.x : chunkSize.x;
-            int y = (chunkSize.y <= 0) ? gridSize.y : (chunkSize.y > gridSize.y) ? gridSize.y : chunkSize.y;
 
-            chunkSize = new Vector2Int(x, y);
+            if (gridSize.x > 0 && gridSize.y > 0)
+            {
+                // Mathf.Clamp(value, min, max
 
-            gridBounds = new BoundsInt(Vector3Int.zero, (Vector3Int)gridSize);
+                int x = (chunkSize.x <= 0) ? gridSize.x : (chunkSize.x > gridSize.x) ? gridSize.x : chunkSize.x;
+                int y = (chunkSize.y <= 0) ? gridSize.y : (chunkSize.y > gridSize.y) ? gridSize.y : chunkSize.y;
 
-            gridBounds.zMin = 0;
-            gridBounds.zMax = 1;
+                chunkSize = new Vector2Int(x, y);
+
+                gridBounds = new BoundsInt(Vector3Int.zero, (Vector3Int)gridSize);
+
+                gridBounds.zMin = 0;
+                gridBounds.zMax = 1;
+
+                return true;
+            }
+
+            return false;
+
         }
         private void CreateGridChunks()
         {
@@ -307,7 +319,22 @@ namespace GridMapMaker
         /// </summary>
         public void Initialize()
         {
-            ValidateChunkSize();
+            if(ValidateChunkSize() == false)
+            {
+                Debug.Log("Could not initialize Grid. Make sure your Grid size is greater than Zero");
+            }
+
+            // the map has to start of a rotation of zero, then after it is drawn,
+            // we can rotate it back to its original rotation.
+            // No idea why but it is what is is
+            T_EulerAngles = transform.localEulerAngles;
+            T_Position = transform.localPosition;
+            T_Scale = transform.localScale;
+
+            transform.localEulerAngles = Vector3.zero;
+            transform.localPosition = Vector3.zero;
+            transform.localScale = Vector3.one;
+
             CreateGridChunks();
 
             if(colorShader == null)
@@ -367,7 +394,14 @@ namespace GridMapMaker
                 gridShape = Instantiate(layerInfo.Shape);
                 gridShape.CellGap = cellGap;
                 gridShape.ShapeOrientation = MapOrientation;
-                gridShape.Scale = shapeScale;
+
+                if (layerInfo.ShapeSize == Vector2.zero)
+                {
+                    // your welcome
+                    layerInfo.ShapeSize = Vector2.one;
+                }
+
+                gridShape.size = layerInfo.ShapeSize;
 
                 gridShape.UpdateShape();
 
@@ -386,7 +420,7 @@ namespace GridMapMaker
 
             if (setBaselayer || meshLayerInfos.Count == 1)
             {
-                defaultLayerId = layerInfo.LayerId;
+                baseLayerId = layerInfo.LayerId;
 
                 ValidateChunkPositions();
                 ValidateGridBounds();
@@ -402,11 +436,23 @@ namespace GridMapMaker
 
         }
 
-        /// <summary>
+        // we call this after the map has been drawn so that is tranforms(if set in editor) can take effect
+        private void VaidateMapTransforms()
+        {
+            transform.localEulerAngles = T_EulerAngles;
+
+            transform.localEulerAngles = Vector3.zero;
+            transform.localPosition = Vector3.zero;
+            transform.localScale = Vector3.one;
+        }
+        
+/// <summary>
         /// Will sort the layers based on the orderInLayer and the grid layerSortAxis. The layer with the lowest orderInLayer will be at the back, while the layer with the highest orderInLayer will be at the front
         /// </summary>
         public void SortMeshLayers()
         {
+            VaidateMapTransforms();
+
             if (meshLayerInfos.Count == 0)
             {
                 return;
@@ -434,16 +480,21 @@ namespace GridMapMaker
                 layerSortAxis = SortAxis.Y;
             }
 
+            int dir = 0;
+
             switch (layerSortAxis)
             {
                 case SortAxis.X:
                     baseLocation += gridPos.x;
+                    dir = (transform.right.x > 0 ? 1 : -1);
                     break;
                 case SortAxis.Y:
                     baseLocation += gridPos.y;
+                    dir = (transform.up.y > 0 ? 1 : -1);
                     break;
                 case SortAxis.Z:
                     baseLocation += gridPos.z;
+                    dir = (transform.forward.z > 0 ? -1 : 1);
                     break;
                 default:
                     break;
@@ -456,7 +507,9 @@ namespace GridMapMaker
                 if (order > previousOrder)
                 {
                     offset = MeshLayerSettings.SortStep * i++;
+                    offset *= dir;
                 }
+
 
                 foreach (GridChunk chunk in sortedChunks.Values)
                 {
@@ -496,6 +549,12 @@ namespace GridMapMaker
         {
             ValidateLayerId(ref layerId);
 
+            if(data == null)
+            {
+                //Debug.LogWarning("Visual Data cannot be null");
+                return;
+            }
+
             GridChunk chunk = GetHexChunk(gridPosition);
 
             if (chunk != null)
@@ -526,7 +585,7 @@ namespace GridMapMaker
             }
         }
         /// <summary>
-        /// The multithreading version of the InsertPostionBlock method. This method is faster than the non-multithreading version. However, may or may not work (most likely will) on some computers.
+        /// The multithreading version of the InsertPostionBlock method. This method is faster than the non-multithreading version. However, may or may not work (most likely will) on some computers. Inorder to maximize performance, there is very little error checking. Make sure your data is valid before calling this method
         /// </summary>
         /// <param name="positions"></param>
         /// <param name="datas"></param>
@@ -537,7 +596,7 @@ namespace GridMapMaker
 
             if (positions.Count != datas.Count)
             {
-                Debug.LogError("When Inserting as Block, The number of positions and datas must be the same");
+                Debug.LogWarning("When Inserting as Block, The number of positions and datas must be the same");
                 return;
             }
 
@@ -576,8 +635,11 @@ namespace GridMapMaker
 
                 foreach (int i in indexList)
                 {
-                    chunk.QuickInsertVisualData(positions[i], datas[i], layerId);
-                    vDatas.TryAdd(datas[i], b);
+                    if (datas[i] != null)
+                    {
+                        chunk.QuickInsertVisualData(positions[i], datas[i], layerId);
+                        vDatas.TryAdd(datas[i], b);
+                    }
                 }
             });
 
@@ -585,7 +647,7 @@ namespace GridMapMaker
         }
 
         /// <summary>
-        /// Will insert a block of visual data at the given positions. If the number of positions and datas are not the same, the method will abort
+        /// Will insert a block of visual data at the given positions. If the number of positions and datas are not the same, the method will abort. Inorder to maximize performance, there is very little error checking. Make sure your data is valid before calling this method
         /// </summary>
         /// <param name="positions"></param>
         /// <param name="datas"></param>
@@ -640,8 +702,11 @@ namespace GridMapMaker
 
                 foreach (int i in indexList)
                 {
-                    chunk.QuickInsertVisualData(positions[i], datas[i], layerId);
-                    visualDatas.Add(datas[i]);
+                    if(datas[i] != null)
+                    {
+                        chunk.QuickInsertVisualData(positions[i], datas[i], layerId);
+                        visualDatas.Add(datas[i]);
+                    }
                 }
             }
         }
@@ -683,7 +748,7 @@ namespace GridMapMaker
         /// <param name="gridPosition"></param>
         public void DeletePosition(Vector2Int gridPosition)
         {
-            ValidateLayerId(ref defaultLayerId);
+            ValidateLayerId(ref baseLayerId);
 
             foreach (GridChunk chunk in sortedChunks.Values)
             {
@@ -880,7 +945,7 @@ namespace GridMapMaker
 
             GridShape shape = null;
 
-            sortedChunks.Values.First().TryGetLayerShape(defaultLayerId, out shape);
+            sortedChunks.Values.First().TryGetLayerShape(baseLayerId, out shape);
 
             localBounds = shape.GetGridBounds(min, max);
         }
@@ -934,23 +999,26 @@ namespace GridMapMaker
         /// </summary>
         public void Clear()
         {
+            int index = 0;
 
-#if UNITY_EDITOR
+            List<GridChunk> chunks = new List<GridChunk>();
 
-            while (transform.childCount > 0)
+            while (index < transform.childCount)
             {
-                DestroyImmediate(transform.GetChild(0).gameObject);
+                Transform child = transform.GetChild(index);
+
+                if(child.GetComponent<GridChunk>() != null)
+                {
+                    GridChunk chunk = child.GetComponent<GridChunk>();
+                    chunks.Add(chunk);
+                }
+
+                index++;
             }
-#else
-            foreach (Transform child in transform.transform)
-            {
-                GameObject.Destroy(child.gameObject);
-            }
-#endif
 
-            foreach (GridChunk chunk in sortedChunks.Values)
+            foreach (GridChunk chunk in chunks)
             {
-                chunk.Clear();
+               chunk.Clear();
             }
 
             sortedChunks.Clear();
@@ -958,7 +1026,7 @@ namespace GridMapMaker
             meshLayerInfos.Clear();
             gridShapes.Clear();
         }
-        #endregion
+        #endregion 
 
         #region Grid Positioning
 
@@ -970,7 +1038,7 @@ namespace GridMapMaker
         {
             if (layerId.Equals(USE_DEFAULT_LAYER))
             {
-                layerId = DefaultLayer;
+                layerId = BaseLayer;
             }
         }
         /// <summary>
@@ -1199,6 +1267,11 @@ namespace GridMapMaker
         /// <returns></returns>
         public string GetSerializeMap()
         {
+            if(visualContainer == null)
+            {
+                Debug.LogError("Cannot serialize map. No visual container found");
+                return "";
+            }
             SavedMap savedMap = new SavedMap(this);
 
             string json = JsonUtility.ToJson(savedMap, true);
@@ -1232,7 +1305,11 @@ namespace GridMapMaker
             gridSize = savedMap.gridSize;
             chunkSize = savedMap.chunkSize;
             cellGap = savedMap.cellGap;
-            shapeScale = savedMap.shapeScale;
+
+            // transforms
+            transform.localPosition = savedMap.position;
+            transform.localEulerAngles = savedMap.eulerAngle;
+            transform.localScale = savedMap.scale;
 
             MapOrientation = savedMap.mapOrientation;
             layerSortAxis = savedMap.layerSortAxis;
@@ -1240,7 +1317,7 @@ namespace GridMapMaker
             UseMultithreading = savedMap.useMultiThreading;
             RedrawOnVisualHashChanged = savedMap.redrawOnV;
 
-            defaultLayerId = savedMap.baseLayerId;
+            baseLayerId = savedMap.baseLayerId;
             colorShaderName = savedMap.colorShaderName;
 
             defaultVisualData = savedMap.defaultVisualData;
@@ -1341,12 +1418,30 @@ namespace GridMapMaker
         }
         /// <summary>
         /// Will get all the unique visual Data being used in the map. 
-        /// Uniqueness is determined by the visualIdHash
+        /// Uniqueness is determined by the visualIDHash not visualHash
         /// </summary>
         /// <returns></returns>
-        public List<ShapeVisualData> GetUniqueVisuals()
+        public List<ShapeVisualData> GetUniqueVisualIds()
         {
             return visualDatas.ToList();
+        }
+
+        /// <summary>
+        /// Will get all the unique visual Data being used in the map. 
+        /// Uniqueness is determined by the visualIDHash not visualHash
+        /// </summary>
+        /// <returns></returns>
+        public List<ShapeVisualData> GetUniqueVisualHashes(string layer = USE_DEFAULT_LAYER)
+        {
+            ValidateLayerId(ref layer);
+
+            bool useVisualEqual = meshLayerInfos[layer].UseVisualEquality;
+
+            VisualDataComparer com = new VisualDataComparer();
+            com.UseVisualHash = useVisualEqual;
+            HashSet<ShapeVisualData> uniqueVisuals = new HashSet<ShapeVisualData>(visualDatas, com);
+
+            return uniqueVisuals.ToList();
         }
 
         /// <summary>
@@ -1358,8 +1453,12 @@ namespace GridMapMaker
         {
             public Vector2Int gridSize;
             public Vector2Int chunkSize;
-            public Vector2 shapeScale;
             public Vector2 cellGap;
+
+            // transform
+            public Vector3 eulerAngle;
+            public Vector3 position;
+            public Vector3 scale;
 
             public GridShape.Orientation mapOrientation;
             public SortAxis layerSortAxis;
@@ -1387,14 +1486,17 @@ namespace GridMapMaker
                 gridSize = gridManager.GridSize;
 
                 chunkSize = gridManager.ChunkSize;
-                shapeScale = gridManager.shapeScale;
                 cellGap = gridManager.cellGap;
                 mapOrientation = gridManager.MapOrientation;
                 layerSortAxis = gridManager.LayerSortAxis;
                 useMultiThreading = gridManager.UseMultithreading;
                 redrawOnV = gridManager.RedrawOnVisualHashChanged;
-                baseLayerId = gridManager.DefaultLayer;
+                baseLayerId = gridManager.BaseLayer;
                 colorShaderName = gridManager.colorShaderName;
+
+                eulerAngle = gridManager.T_EulerAngles;
+                position = gridManager.T_Position;
+                scale = gridManager.T_Scale;
 
                 layerSettings = gridManager.meshLayerInfos.Values.ToList();
 
@@ -1404,7 +1506,14 @@ namespace GridMapMaker
 
                 serializedChunks = new List<SerializedGridChunk>();
 
-                SerializeVisualProps(gridManager.visualContainer);
+                bool result = SerializeVisualProps(gridManager.visualContainer);
+
+                if(result == false)
+                {
+                    Debug.LogError("Could not serialize map. Please Make sure ALL instance and reference data is added into the visual data. This includes but is not limited to, shaders, materials, all UNITY game objects etc..");
+
+                    return;
+                }
 
                 foreach (GridChunk item in gridManager.sortedChunks.Values)
                 {
@@ -1412,14 +1521,28 @@ namespace GridMapMaker
                 }
             }
 
-            public void SerializeVisualProps(MapVisualContainer container)
+            public bool SerializeVisualProps(MapVisualContainer container)
             {
-                defaultVisualData.SerializeVisualData(container);
+                bool def = defaultVisualData.SerializeVisualData(container);
+
+                if(def == false)
+                {
+                    Debug.LogError("Could not serialize data. Default Visual Data properties not found in the visual container.");
+                    return false;
+                }
 
                 foreach (ShapeVisualData visual in visualDatas)
                 {
-                    visual.SerializeVisualData(container);
+                    bool result = visual.SerializeVisualData(container);
+
+                    if(result == false)
+                    {
+                        Debug.LogError("Could not serialize data. Visual Data properties not found in the visual container.");
+                        return false;
+                    }
                 }
+
+                return true;
             }
 
             public void DeserializeVisualProps(MapVisualContainer container)
@@ -1456,7 +1579,7 @@ namespace GridMapMaker
         /// <summary>
         /// The distance between each layer. This is used to determine the order in which the layers are drawn. So layers are drawn this value away or closer to each other.
         /// </summary>
-        public static float SortStep = 0.0001f;
+        public static float SortStep = 0.01f;
 
         [SerializeField]
         private string layerId;
@@ -1469,6 +1592,9 @@ namespace GridMapMaker
 
         [SerializeField]
         private GridShape shape;
+
+        [SerializeField]
+        private Vector2 shapeSize;
 
         [SerializeField]
         [HideInInspector]
@@ -1486,6 +1612,15 @@ namespace GridMapMaker
             }
         }
 
+        public Vector2 ShapeSize
+        {
+            get
+            {
+                return shapeSize;
+            }
+            set { shapeSize = value; }
+        }
+
         public string ShapeId
         {
             get
@@ -1496,12 +1631,13 @@ namespace GridMapMaker
         public string LayerId { get => layerId; private set => layerId = value; }
         public int OrderInLayer { get => orderInLayer; set => orderInLayer = value; }
         public bool UseVisualEquality { get => useVisualEquality; set => useVisualEquality = value; }
-        public MeshLayerSettings(string layerId, GridShape shape, bool useVisualEquality = false, int orderInLayer = 0)
+        public MeshLayerSettings(string layerId, GridShape shape, Vector2 shapeSize, bool useVisualEquality = false, int orderInLayer = 0)
         {
             this.layerId = layerId;
 
             this.shape = shape;
             shapeId = shape.UniqueShapeName;
+            this.shapeSize = shapeSize;
 
             this.orderInLayer = orderInLayer;
             this.useVisualEquality = useVisualEquality;

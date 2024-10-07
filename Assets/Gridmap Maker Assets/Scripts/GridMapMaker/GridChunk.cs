@@ -36,8 +36,8 @@ namespace GridMapMaker
         {
             GridManager = grid;
 
-            startPosition = (Vector2Int) gridBounds.min;
-            endPosition = (Vector2Int) gridBounds.max;
+            startPosition = (Vector2Int)gridBounds.min;
+            endPosition = (Vector2Int)gridBounds.max;
 
             chunkGridBounds = gridBounds;
 
@@ -49,14 +49,12 @@ namespace GridMapMaker
             // see updatelocalposition method
         }
 
-        private static MeshLayer CreateLayer(Transform parent = null)
+        private MeshLayer CreateLayer()
         {
             MeshLayer newLayer
                 = new GameObject().AddComponent<MeshLayer>();
 
-            newLayer.transform.parent = parent;
-            // a layer will be directly over a chunk so, its local position is zero
-            newLayer.transform.localPosition = Vector3.zero;
+            newLayer.transform.SetParent(transform, false);
 
             return newLayer;
         }
@@ -64,7 +62,7 @@ namespace GridMapMaker
         {
             if (!ChunkLayers.ContainsKey(layerInfo.LayerId))
             {
-                MeshLayer newLayer = CreateLayer(transform);
+                MeshLayer newLayer = CreateLayer();
 
                 newLayer.Initialize(layerInfo, this);
                 ChunkLayers.Add(layerInfo.LayerId, newLayer);
@@ -95,7 +93,7 @@ namespace GridMapMaker
 
         public void ValidateLocalPosition()
         {
-            string layer = GridManager.DefaultLayer;
+            string layer = GridManager.BaseLayer;
 
             if (string.IsNullOrEmpty(layer))
             {
@@ -104,7 +102,7 @@ namespace GridMapMaker
 
             // a chunk local position is simply the position of the first cell in the chunk
             Vector3 pos = ChunkLayers[layer].LayerGridShape.GetTesselatedPosition(startPosition);
-            
+
             gameObject.transform.localPosition = pos;
         }
         public void InsertVisualData(Vector2Int gridPosition, ShapeVisualData visualProp, string layerId)
@@ -164,7 +162,7 @@ namespace GridMapMaker
                 layer.DeleteShape(gridPosition);
             }
         }
-        
+
         /// <summary>
         /// Deletes the cell at the given grid position from the given layer 
         /// </summary>
@@ -177,7 +175,7 @@ namespace GridMapMaker
                 ChunkLayers[layerId].DeleteShape(gridPosition);
             }
         }
-        
+
         /// <summary>
         /// Removes all visual data from all layers at the specified grid position
         /// </summary>
@@ -264,7 +262,7 @@ namespace GridMapMaker
         /// <returns></returns>
         public Bounds GetDefaultLayerBounds()
         {
-            string layerId = GridManager.DefaultLayer;
+            string layerId = GridManager.BaseLayer;
 
             return GetLayerBounds(layerId);
         }
@@ -284,7 +282,7 @@ namespace GridMapMaker
         //    return new Bounds();
         //}
 
-/// <summary>
+        /// <summary>
         /// Will Find the first layer with the given Id, and return its Shape
         /// </summary>
         /// <param timerName="Shape"></param>
@@ -314,7 +312,7 @@ namespace GridMapMaker
         {
             // we would simply need to confirm that the localposition is within the bounds of this grid chunk, then find the layer.
 
-            if(ContainsPosition(localPosition, layerId))
+            if (ContainsPosition(localPosition, layerId))
             {
                 return TryGetLayerShape(layerId, out shape);
             }
@@ -327,8 +325,8 @@ namespace GridMapMaker
                                        out Vector2Int gridPosition)
         {
             GridShape shape;
-  
-            if (TryGetLayerShape(GridManager.DefaultLayer,
+
+            if (TryGetLayerShape(GridManager.BaseLayer,
                                                 out shape))
             {
                 gridPosition = shape.GetGridCoordinate(localPosition);
@@ -341,7 +339,7 @@ namespace GridMapMaker
 
         public bool ContainsVisualData(Vector2Int gridPosition, string layerId)
         {
-            if(!ContainsPosition(gridPosition))
+            if (!ContainsPosition(gridPosition))
             {
                 return false;
             }
@@ -376,14 +374,14 @@ namespace GridMapMaker
                 ChunkLayers[layerId].SortLayer(axis, offset);
             }
         }
-/// <summary>
+        /// <summary>
         /// Will swap the Y and Z axis of the chunk, and all its layers. There is no check for the validity of the swap, so be sure to only call this when needed.
         /// </summary>
         public void ValidateOrientation()
         {
-            gameObject.transform.localPosition = 
+            gameObject.transform.localPosition =
                 SwapYZ(gameObject.transform.localPosition);
-            
+
             foreach (MeshLayer layer in ChunkLayers.Values)
             {
                 layer.ValidateOrientation();
@@ -439,6 +437,13 @@ namespace GridMapMaker
             {
 
             }
+
+#if UNITY_EDITOR
+
+            DestroyImmediate(transform.gameObject);
+#else
+            Destroy(transform.gameObject);
+#endif
         }
         public SerializedGridChunk GetSerializedChunk()
         {

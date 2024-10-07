@@ -1,4 +1,5 @@
 ﻿using System;
+using Unity.VisualScripting;
 using UnityEngine;
 
 namespace GridMapMaker
@@ -34,11 +35,20 @@ namespace GridMapMaker
         }
         public MaterialPropertyBlock PropertyBlock { get => propertyBlock; }
 
-        public ShapeRenderData(Shader shader, 
+        public ShapeRenderData(Material material, Shader shader, 
                                MaterialPropertyBlock propertyBlock, string name = "")
         {
             visualName = name;
-            sharedMaterial = new Material(shader);
+
+            if(material == null)
+            {
+                sharedMaterial = new Material(shader);
+            }
+            else
+            {
+                sharedMaterial = new Material(material);
+            }
+  
             this.propertyBlock = propertyBlock;
 
             ShapeRenderType = RenderType.Material;

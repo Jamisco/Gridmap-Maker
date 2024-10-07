@@ -1,5 +1,6 @@
 ﻿using System;
 using UnityEngine;
+using static GridMapMaker.ShapeVisualData;
 
 namespace GridMapMaker
 {
@@ -12,6 +13,19 @@ namespace GridMapMaker
     {    
         public BasicVisual(Shader shader, Texture2D texture, Color color)
         {
+            base.shader = shader;
+            base.material = null;
+            mainTexture = texture;
+            mainColor = color;
+
+            VisualHash = GetVisualHash();
+
+            PropertyBlock = new MaterialPropertyBlock();
+        }
+
+        public BasicVisual(Material material, Shader shader, Texture2D texture, Color color)
+        {
+            base.material = material;
             base.shader = shader;
             mainTexture = texture;
             mainColor = color;
@@ -52,6 +66,11 @@ namespace GridMapMaker
                 hash = hash * 23 + mainColor.GetHashCode();
                 return hash;
             }
+        }
+
+        protected override void OnVisualDataChanged(ShapeVisualData sender)
+        {
+            base.OnVisualDataChanged(sender);
         }
     }
 }

@@ -119,7 +119,7 @@ namespace GridMapMaker
         ///  Objects will only be given a new guid if they don't already have one.
         ///  Objects not in the MapObjects list will have their guids removed.
         /// </summary>
-        public void ValidateObjects()
+        public virtual void ValidateObjects()
         {
             MapObjects = MapObjects.Distinct().ToList();
             MapShaders = MapShaders.Distinct().ToList();

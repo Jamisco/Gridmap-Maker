@@ -1,8 +1,6 @@
-using Assets.Scripts.Procedural_Planet_Scripts;
 using GridMapMaker;
+using GridMapMaker.Tutorial;
 using System.Collections.Generic;
-using System.Diagnostics;
-using System.Linq;
 using UnityEditor;
 using UnityEngine;
 using UnityEngine.Tilemaps;
@@ -14,7 +12,7 @@ namespace Procedural_Planet
     {
         public GridManager gridManager;
         public NoiseGenerator noiseGenerator;
-        public Biosphere biosphere;
+        public ComparisonBiosphere proceduralBiosphere;
 
         [Header("Gridmap Maker Settings")]
 
@@ -31,17 +29,22 @@ namespace Procedural_Planet
         public enum MapType { GridMapMaker, UnityTilemap}
 
         public MapType Map2Generate;
+
+        public Vector2Int MapSize;
         public void Init()
         {
             gridManager = GetComponentInChildren<GridManager>();
             baseTileMap = GetComponentInChildren<Tilemap>();
-            biosphere = GetComponentInChildren<Biosphere>();
+            proceduralBiosphere = GetComponentInChildren<ComparisonBiosphere>();
 
             noiseGenerator = GetComponentInChildren<NoiseGenerator>();
-            noiseGenerator.ComputeNoises(gridManager.GridSize);
 
-            biosphere.ValidateWithDefault();
-            biosphere.SetBiomeData(ref noiseGenerator, gridManager.GridSize);
+            gridManager.GridSize = MapSize;
+
+            noiseGenerator.ComputeNoises(MapSize);
+
+            proceduralBiosphere.ValidateWithDefault();
+            proceduralBiosphere.SetBiomeData(noiseGenerator, MapSize);
         }
 
         public void GenerateSelectedMap()
@@ -69,7 +72,7 @@ namespace Procedural_Planet
 
             if(GmmBlockInsert)
             {
-                (List<Vector2Int>, List<ShapeVisualData>) biomeData = biosphere.GetBiomeData();
+                (List<Vector2Int>, List<ShapeVisualData>) biomeData = proceduralBiosphere.GetBiomeData();
 
                 gridManager.InsertPositionBlock(biomeData.Item1, biomeData.Item2);
             }
@@ -80,7 +83,7 @@ namespace Procedural_Planet
                     for (int y = 0; y < gridManager.GridSize.y; y++)
                     {
                         pos = new Vector2Int(x, y);
-                        vData = biosphere.GetBiomeVData(pos);
+                        vData = proceduralBiosphere.GetBiomeVData(pos);
 
                         gridManager.InsertVisualData(pos, vData);
                     }
@@ -106,7 +109,7 @@ namespace Procedural_Planet
                 {
                     Vector3Int pos = new Vector3Int(x, y, 0);
 
-                    color = biosphere.GetBiomeColor((Vector2Int)pos);
+                    color = proceduralBiosphere.GetBiomeColor((Vector2Int)pos);
 
                     baseTileMap.SetTile(pos, b);
                     baseTileMap.RefreshTile(pos);

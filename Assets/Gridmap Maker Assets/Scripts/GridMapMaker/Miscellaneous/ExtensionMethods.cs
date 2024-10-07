@@ -52,22 +52,15 @@ namespace GridMapMaker
             return log;
         }
         /// <summary>
-        /// A more unique hashcode for a vector2Int which significantly less collisions than the default hashcode
+        /// A more unique hashcode for a vector2Int which significantly less collisions than the default hashcode.
+        /// The max values for x and y are 65534 individually. Thus the max map size is 65534 x 65534, which is more than enough for most use cases. Going higher will result in a collision
         /// </summary>
         /// <param timerName="vector"></param>
         /// <returns></returns>
         public static int GetHashCode_Unique(this Vector2Int vector)
         {
-            unchecked
-            {
-                int hash = 1716777619;
-                int multipler = 486187739;
-                // Suitable nullity checks etc, of course :)
-                hash = hash * multipler + vector.x.GetHashCode();
-                hash = hash * multipler + vector.y.GetHashCode();
-                hash = hash * multipler + vector.magnitude.GetHashCode();
-                return hash;
-            }
+            int hash = (System.UInt16)vector.x << 16 | (System.UInt16)vector.y & 0xFFFF;
+            return hash;
         }
         /// <summary>
         /// Given a property type, will return the value of the property from the MaterialPropertyBlock
