@@ -7,6 +7,9 @@ using UnityEditor;
 
 namespace GridMapMaker
 {
+    /// <summary>
+    /// The VisualDataContainer class is a simple script that inherits from the MapVisualContainer class. It is used to store visual data for the grid map maker. This class should suffice for most use cases.
+    /// </summary>
     [Serializable]
     [CreateAssetMenu(fileName = "VisualDataContainer", menuName = "GridMapMaker/VisualDataContainer", order = 0)]
     public class VisualDataContainer : MapVisualContainer

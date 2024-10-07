@@ -1,8 +1,7 @@
-﻿using GridMapMaker;
-using System;
+﻿using System;
 using UnityEngine;
 
-namespace Assets.Worldmap.VisualDatas
+namespace GridMapMaker.Tutorial
 {
     [Serializable]
     public class LandVisualData : ShapeVisualData

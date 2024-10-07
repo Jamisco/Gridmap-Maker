@@ -1,15 +1,17 @@
-using Procedural_Planet;
 using System;
 using UnityEditor;
 using UnityEngine;
 
 namespace GridMapMaker.Tutorial
 {
+    /// <summary>
+    /// A very simple class user to spawn a very simple map for the tutorial
+    /// </summary>
     [Serializable]
     public class MapSpawner : MonoBehaviour
     {
         public GridManager gridManager;
-        public ComparisonBiosphere comparisonBiosphere;
+        public Biosphere comparisonBiosphere;
         public NoiseGenerator noiseGenerator;
 
         public MeshLayerSettings meshLayerSettings;
@@ -18,7 +20,7 @@ namespace GridMapMaker.Tutorial
         void Init()
         {
             gridManager = GetComponent<GridManager>();  
-            comparisonBiosphere = GetComponent<ComparisonBiosphere>();
+            comparisonBiosphere = GetComponent<Biosphere>();
             noiseGenerator = GetComponent<NoiseGenerator>();
 
             noiseGenerator.ComputeNoises(gridManager.GridSize);
@@ -74,7 +76,7 @@ namespace GridMapMaker.Tutorial
 
 #if UNITY_EDITOR
     [CustomEditor(typeof(MapSpawner))]
-    public class ClassButtonEditor : Editor
+    public class MapSpawnerEditor : Editor
     {
         public override void OnInspectorGUI()
         {

@@ -1,18 +1,17 @@
-using GridMapMaker;
-using GridMapMaker.Tutorial;
 using System.Collections.Generic;
 using UnityEditor;
 using UnityEngine;
 using UnityEngine.Tilemaps;
 
 
-namespace Procedural_Planet
+
+namespace GridMapMaker.Tutorial
 {
     public class GridPlanet : MonoBehaviour
     {
         public GridManager gridManager;
         public NoiseGenerator noiseGenerator;
-        public ComparisonBiosphere proceduralBiosphere;
+        public Biosphere proceduralBiosphere;
 
         [Header("Gridmap Maker Settings")]
 
@@ -35,7 +34,7 @@ namespace Procedural_Planet
         {
             gridManager = GetComponentInChildren<GridManager>();
             baseTileMap = GetComponentInChildren<Tilemap>();
-            proceduralBiosphere = GetComponentInChildren<ComparisonBiosphere>();
+            proceduralBiosphere = GetComponentInChildren<Biosphere>();
 
             noiseGenerator = GetComponentInChildren<NoiseGenerator>();
 

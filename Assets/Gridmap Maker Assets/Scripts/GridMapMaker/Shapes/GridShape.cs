@@ -7,6 +7,12 @@ namespace GridMapMaker
 
     // copy this and add at the top child class
     //[CreateAssetMenu(fileName = "GridShape", menuName = MenuName + "NewShape")]
+
+
+
+    /// <summary>
+    /// The GridShape class is the base class for all shapes in the GridMapMaker package. All shapes must inherit from this class. The class contains all the necessary methods and properties to create a shape that can be drawn on a gridmap.
+    /// </summary>
     [Serializable]
     public abstract class GridShape : ScriptableObject, IEquatable<GridShape>
     {

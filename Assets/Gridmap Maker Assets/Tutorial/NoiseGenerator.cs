@@ -3,6 +3,9 @@ using System.Collections.Generic;
 using System.Threading.Tasks;
 using UnityEngine;
 
+/// <summary>
+/// The Tutorial namespace contains all scripts pertaining to the tutorials. All scripts in this namespace are for educational purposes only.
+/// </summary>
 namespace GridMapMaker.Tutorial
 {
     [Serializable]
