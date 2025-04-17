@@ -13,5 +13,5 @@ https://github.com/user-attachments/assets/d675f7ae-c4f1-4d9d-9483-ed6aafa724ec
 Quick Showcase here: https://www.youtube.com/watch?v=o6yxsw304pM&ab_channel=Viktor
 Long Showcase here: https://www.youtube.com/watch?v=o6yxsw304pM
 
-This is an extremely sophisticated but easy to you map maker, for those who want more dynamic control of their map as compared to Unity's Tilemap maker.
+This is an extremely sophisticated but easy to use map maker, for those who want more dynamic control of their map as compared to Unity's Tilemap maker.
 Perfect for procedural generation, large or heavily customized maps. You can manipulate individual tiles, you use user textures, and shaders on individual or multiple tiles etc.
