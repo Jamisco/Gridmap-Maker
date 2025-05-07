@@ -24,7 +24,7 @@ namespace GridMapMaker
 
             Vector3 worldPos = meshLayer.gameObject.transform.position;
             Vector3 localPos = meshLayer.gameObject.transform.localPosition;
-            Bounds chunkBounds = chunk.GetLayerBounds(meshLayer.LayerId);
+            Bounds layerBounds = meshLayer.LayerBounds;
             Bounds camBounds = Camera.main.OrthographicBounds3D();
 
 
@@ -36,11 +36,23 @@ namespace GridMapMaker
 
             string text = "World Position: " + worldPos.ToString() +
                           "\nLocal Position: " + localPos.ToString() +
-                          "\nLayer Bounds: " + chunkBounds.ToString() +
-                          "\nCam Bounds: " + camBounds.ToString() +
-                          "\nInsideCam: " + camBounds.Intersects(chunkBounds);
+                          "\nLayer Bounds: " + layerBounds.ToString() +
+                          "\nCamera Bounds: " + camBounds.ToString() +
+                          "\nInsideCam: " + camBounds.Intersects(layerBounds);
 
             Handles.Label(worldPos + Vector3.up * 3, text, st);
+
+
+            string te = "O";
+
+            GUIStyle st2 = new GUIStyle();
+
+            st2.fontSize = 20;
+            st2.normal.textColor = handle.textColor;
+
+            Vector3 pos = meshLayer.LayerGridShape.GetTesselatedPosition(meshLayer.gridChunk.EndPosition);
+
+            Handles.Label(pos, te, st2);
 
             Handles.BeginGUI();
 

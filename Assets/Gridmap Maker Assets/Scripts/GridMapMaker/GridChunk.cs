@@ -1,6 +1,8 @@
 ﻿using System;
 using System.Collections.Generic;
 using UnityEngine;
+using static GridMapMaker.GridManager;
+using static GridMapMaker.MeshLayer;
 
 namespace GridMapMaker
 {
@@ -11,7 +13,7 @@ namespace GridMapMaker
     {
         public GridManager GridManager { get; private set; }
 
-        public Dictionary<string, MeshLayer> ChunkLayers = new Dictionary<string, MeshLayer>();
+        private Dictionary<string, MeshLayer> ChunkLayers = new Dictionary<string, MeshLayer>();
 
         [SerializeField]
         private Vector2Int startPosition;
@@ -31,18 +33,71 @@ namespace GridMapMaker
         public Vector2Int EndPosition { get { return endPosition; } }
 
         public BoundsInt ChunkGridBounds { get { return chunkGridBounds; } }
+        public Bounds ChunkLocalBounds
+        {
+            get
+            {
+                GridShape shape = ChunkLayers[GridManager.BaseLayer].LayerGridShape;
 
-        public void Initialize(GridManager grid, BoundsInt gridBounds)
+                return shape.GetGridBounds(startPosition, endPosition);
+            }
+        }
+
+        /// <summary>
+        /// Note that colliders only take into account the bounds of the chunk regardless of whether the tiles are empty or not.
+        /// </summary>
+        /// 
+
+        [SerializeField]
+        private ColliderType chunkColliderType = ColliderType.None;
+        public ColliderType ChunkColliderType
+        {
+            get
+            {
+                return chunkColliderType;
+            }
+            set
+            {
+                chunkColliderType = value;
+                ValidateCollider();
+            }
+        }
+
+        /// <summary>
+        /// If orientation is in 3D, the collider will be a mesh collider. If orientation is in 2D, the collider will be a 2d collider.
+        /// </summary>
+        public Collider2D ChunkCollider_XY
+        {
+            get
+            {
+                return GetComponent<Collider2D>();
+            }
+        }
+
+        /// <summary>
+        /// If orientation is in 3D, the collider will be a mesh collider. If orientation is in 2D, the collider will be a 2d collider.
+        /// </summary>
+        public Collider ChunkCollider_XZ
+        {
+            get
+            {
+                return GetComponent<MeshCollider>();
+            }
+        }
+
+        public void Initialize(GridManager grid, BoundsInt gridBounds, ColliderType col)
         {
             GridManager = grid;
 
             startPosition = (Vector2Int)gridBounds.min;
-            endPosition = (Vector2Int)gridBounds.max;
+            endPosition = (Vector2Int)gridBounds.max - Vector2Int.one;
 
             chunkGridBounds = gridBounds;
 
             chunkGridBounds.zMin = 0;
             chunkGridBounds.zMax = 1;
+
+            chunkColliderType = col;
 
             // a chunk local position is simply the position of the first cell in the chunk
             // thus, the chunk position can only be known after a layer has been added
@@ -58,16 +113,28 @@ namespace GridMapMaker
 
             return newLayer;
         }
-        public void AddLayer(MeshLayerSettings layerInfo)
+
+
+        /// <summary>
+        /// Initialize the layer with the given layer setting. If the layer already exists, it will be re-initialized with the new layer settings.
+        /// </summary>
+        /// <param name="layerSettings"></param>
+        public void InitializeLayer(MeshLayerSettings layerSettings)
         {
-            if (!ChunkLayers.ContainsKey(layerInfo.LayerId))
+            if (!ChunkLayers.ContainsKey(layerSettings.LayerId))
             {
                 MeshLayer newLayer = CreateLayer();
 
-                newLayer.Initialize(layerInfo, this);
-                ChunkLayers.Add(layerInfo.LayerId, newLayer);
+                newLayer.Initialize(layerSettings, this);
+                ChunkLayers.Add(layerSettings.LayerId, newLayer);
+            }
+            else
+            {
+                MeshLayer newLayer = ChunkLayers[layerSettings.LayerId];
+                newLayer.Initialize(layerSettings, this);
             }
         }
+
         public bool HasLayer(string layerId)
         {
             return ChunkLayers.ContainsKey(layerId);
@@ -90,24 +157,9 @@ namespace GridMapMaker
 
             return null;
         }
-
-        public void ValidateLocalPosition()
-        {
-            string layer = GridManager.BaseLayer;
-
-            if (string.IsNullOrEmpty(layer))
-            {
-                return;
-            }
-
-            // a chunk local position is simply the position of the first cell in the chunk
-            Vector3 pos = ChunkLayers[layer].LayerGridShape.GetTesselatedPosition(startPosition);
-
-            gameObject.transform.localPosition = pos;
-        }
         public void InsertVisualData(Vector2Int gridPosition, ShapeVisualData visualProp, string layerId)
         {
-            if (ChunkLayers.ContainsKey(layerId) && ContainsPosition(gridPosition))
+            if (ChunkLayers.ContainsKey(layerId) && ContainsGridPosition(gridPosition))
             {
                 ChunkLayers[layerId].InsertVisualData(gridPosition, visualProp);
             }
@@ -117,7 +169,7 @@ namespace GridMapMaker
             MeshLayer ml = null;
             ChunkLayers.TryGetValue(layerId, out ml);
 
-            if (ml != null && ContainsPosition(gridPosition))
+            if (ml != null && ContainsGridPosition(gridPosition))
             {
                 ml.InsertVisualData(gridPosition, visualProp);
                 return true;
@@ -135,7 +187,7 @@ namespace GridMapMaker
             MeshLayer ml = null;
             ChunkLayers.TryGetValue(layerId, out ml);
 
-            if (ml != null && ContainsPosition(gridPosition))
+            if (ml != null && ContainsGridPosition(gridPosition))
             {
                 return true;
             }
@@ -202,6 +254,7 @@ namespace GridMapMaker
                 layer.UseVisualEquality = useVisualEquality;
             }
         }
+
         public void SetGridShape(string layerId, GridShape shape)
         {
             if (ChunkLayers.ContainsKey(layerId))
@@ -216,8 +269,7 @@ namespace GridMapMaker
                 layer.LayerGridShape = shape;
             }
         }
-
-        public bool ContainsPosition(Vector2Int gridPosition)
+        public bool ContainsGridPosition(Vector2Int gridPosition)
         {
             Vector3Int boundsPosition = (Vector3Int)gridPosition;
 
@@ -228,59 +280,35 @@ namespace GridMapMaker
 
             return false;
         }
-        public bool ContainsPosition(Vector3 localPosition, string layerId)
+        public bool ContainsLocalPosition(Vector3 localPosition, string layerId)
         {
-            Bounds bounds = GetLayerBounds(layerId);
-
-            if (bounds.Contains(localPosition))
+            if (GetLayerBounds(layerId, out Bounds bounds))
             {
-                return true;
+                if (bounds.Contains(localPosition))
+                {
+                    return true;
+                }
             }
 
             return false;
         }
 
         /// <summary>
-        /// Will give the bounds the layer is confined too within the chunk
+        /// Will return the bounds of a given layer. If layer doesnt exist, it will return an empty bounds.
         /// </summary>
         /// <param timerName="LayerId"></param>
         /// <returns></returns>
-        public Bounds GetLayerBounds(string layerId)
+        public bool GetLayerBounds(string layerId, out Bounds bounds)
         {
             if (ChunkLayers.ContainsKey(layerId))
             {
-                return ChunkLayers[layerId].LayerBounds;
+                bounds = ChunkLayers[layerId].LayerBounds;
+                return true;
             }
 
-            return new Bounds();
+            bounds = new Bounds();
+            return false;
         }
-
-        /// <summary>
-        /// Will give the bounds the layer is confined too within the chunk
-        /// </summary>
-        /// <param timerName="LayerId"></param>
-        /// <returns></returns>
-        public Bounds GetDefaultLayerBounds()
-        {
-            string layerId = GridManager.BaseLayer;
-
-            return GetLayerBounds(layerId);
-        }
-
-        ///// <summary>
-        ///// Will give the bounds the layer is confined too within the chunk
-        ///// </summary>
-        ///// <param timerName="LayerId"></param>
-        ///// <returns></returns>
-        //public Bounds GetLayerMeshBounds(string LayerId)
-        //{
-        //    if (ChunkLayers.ContainsKey(LayerId))
-        //    {
-        //        return ChunkLayers[LayerId].MeshBounds;
-        //    }
-
-        //    return new Bounds();
-        //}
 
         /// <summary>
         /// Will Find the first layer with the given Id, and return its Shape
@@ -312,7 +340,7 @@ namespace GridMapMaker
         {
             // we would simply need to confirm that the localposition is within the bounds of this grid chunk, then find the layer.
 
-            if (ContainsPosition(localPosition, layerId))
+            if (ContainsLocalPosition(localPosition, layerId))
             {
                 return TryGetLayerShape(layerId, out shape);
             }
@@ -339,7 +367,7 @@ namespace GridMapMaker
 
         public bool ContainsVisualData(Vector2Int gridPosition, string layerId)
         {
-            if (!ContainsPosition(gridPosition))
+            if (!ContainsGridPosition(gridPosition))
             {
                 return false;
             }
@@ -354,7 +382,7 @@ namespace GridMapMaker
 
         public ShapeVisualData GetVisualData(Vector2Int gridPosition, string layerId)
         {
-            if (!ContainsPosition(gridPosition))
+            if (!ContainsGridPosition(gridPosition))
             {
                 return null;
             }
@@ -367,6 +395,12 @@ namespace GridMapMaker
             return null;
         }
 
+        /// <summary>
+        /// Sorts the layer by the given axis, and offset. The offset is used to move the layer in the direction of the axis. Used to draw layers on top of each other.
+        /// </summary>
+        /// <param name="layerId"></param>
+        /// <param name="axis"></param>
+        /// <param name="offset"></param>
         public void SortLayer(string layerId, SortAxis axis, float offset)
         {
             if (ChunkLayers.ContainsKey(layerId))
@@ -392,6 +426,105 @@ namespace GridMapMaker
                 return new Vector3(vector.x, vector.z, vector.y);
             }
         }
+        private void ValidateCollider()
+        {
+            if (ChunkLayers.Count == 0)
+            {
+                // no layers, no collider
+                return;
+            }
+
+            Collider2D collider = GetComponent<Collider2D>();
+            MeshCollider meshC = GetComponent<MeshCollider>();
+
+            switch (chunkColliderType)
+            {
+                case ColliderType.None:
+
+                    if (collider != null)
+                    {
+#if UNITY_EDITOR
+                        DestroyImmediate(collider);
+#else
+                        Destroy(collider);
+#endif
+                    }
+
+                    if (meshC != null)
+                    {
+#if UNITY_EDITOR
+                        DestroyImmediate(meshC);
+#else
+                        Destroy(meshC);
+#endif
+                    }
+
+
+                    break;
+                case ColliderType.BoxCollider2D:
+
+                    if (meshC != null)
+                    {
+#if UNITY_EDITOR
+                        DestroyImmediate(meshC);
+#else
+                        Destroy(meshC);
+#endif
+                    }
+
+                    if (collider == null)
+                    {
+                        collider = gameObject.AddComponent<BoxCollider2D>();
+                    }
+
+                    BoxCollider2D b = collider as BoxCollider2D;
+
+                    Bounds temp = ChunkLayers[GridManager.BaseLayer].LayerBounds;
+
+                    b.size = temp.size;
+                    b.offset = temp.center;
+                    break;
+
+                case ColliderType.MeshCollider:
+                case ColliderType.MeshCollider_Convex:
+
+                    if (collider != null)
+                    {
+#if UNITY_EDITOR
+                        DestroyImmediate(collider);
+#else
+                        Destroy(collider);
+#endif
+                    }
+
+                    if (meshC == null)
+                    {
+                        meshC = gameObject.AddComponent<MeshCollider>();
+                    }
+
+                    Mesh fullMesh = ChunkLayers[GridManager.BaseLayer].FullMesh;
+
+                    meshC.sharedMesh = fullMesh;
+
+                    if (chunkColliderType == ColliderType.MeshCollider_Convex)
+                    {
+                        meshC.convex = true;
+                    }
+
+                    break;
+                default:
+                    break;
+            }
+        }
+
+        public void ValidateLocalPosition()
+        {
+            GridShape shape = ChunkLayers[GridManager.BaseLayer].LayerGridShape;
+
+            Vector3 localPos = shape.GetTesselatedPosition(startPosition);
+
+            gameObject.transform.localPosition = localPos;
+        }
 
         public void FusedMeshGroups()
         {
@@ -406,12 +539,20 @@ namespace GridMapMaker
             {
                 layer.DrawFusedMesh();
             }
+
+            ValidateCollider();
+
         }
         public void DrawLayer(string layerId)
         {
             if (ChunkLayers.ContainsKey(layerId))
             {
                 ChunkLayers[layerId].DrawLayer();
+            }
+
+            if (layerId == GridManager.BaseLayer)
+            {
+                ValidateCollider();
             }
         }
         public void DrawChunk()
@@ -420,6 +561,9 @@ namespace GridMapMaker
             {
                 layer.DrawLayer();
             }
+
+            ValidateCollider();
+
         }
 
         public void Clear()
@@ -450,29 +594,28 @@ namespace GridMapMaker
             SerializedGridChunk serializedChunk = new SerializedGridChunk(this);
             return serializedChunk;
         }
-    }
 
-    /// <summary>
-    /// A serialized version of the GridChunk class. Used to save and load grid chunks
-    /// </summary>
-    [Serializable]
-    public struct SerializedGridChunk
-    {
-        [SerializeField]
-        public Vector2Int startPosition;
-
-        [SerializeField]
-        public List<SerializedMeshLayer> serializedLayers;
-        public SerializedGridChunk(GridChunk chunk)
+        /// <summary>
+        /// A serialized version of the GridChunk class. Used to save and load grid chunks
+        /// </summary>
+        [Serializable]
+        public struct SerializedGridChunk
         {
-            startPosition = chunk.StartPosition;
-            serializedLayers = new List<SerializedMeshLayer>();
+            [SerializeField]
+            public Vector2Int startPosition;
 
-            foreach (MeshLayer item in chunk.ChunkLayers.Values)
+            [SerializeField]
+            public List<SerializedMeshLayer> serializedLayers;
+            public SerializedGridChunk(GridChunk chunk)
             {
-                serializedLayers.Add(item.GetSerializedLayer());
+                startPosition = chunk.StartPosition;
+                serializedLayers = new List<SerializedMeshLayer>();
+
+                foreach (MeshLayer item in chunk.ChunkLayers.Values)
+                {
+                    serializedLayers.Add(item.GetSerializedLayer());
+                }
             }
         }
     }
-
 }

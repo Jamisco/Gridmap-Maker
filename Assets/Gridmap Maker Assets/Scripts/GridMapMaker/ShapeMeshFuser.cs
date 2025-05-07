@@ -350,5 +350,6 @@ namespace GridMapMaker
 
             pendingUpdate = true;
         }
+
     }
 }

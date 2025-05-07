@@ -37,7 +37,7 @@ namespace GridMapMaker.Tutorial
             NoiseModified = true;
         }
 
-        public void ComputeNoises(Vector2Int planetSize)
+        public void ComputeNoises(Vector2Int planetSize, bool multiThread = false )
         {
             // if the noise settings are not modified, then no need to recompute the noise
             if(!NoiseModified && planetSize == landNoiseSettings.PlanetSize)
@@ -62,15 +62,32 @@ namespace GridMapMaker.Tutorial
             rainValues = new float[planetSize.x, planetSize.y];
             tempValues = new float[planetSize.x, planetSize.y];
 
-            Parallel.For(0, planetSize.x, i =>
+            if(multiThread)
             {
-                for (int j = 0; j < planetSize.y; j++)
+                Parallel.For(0, planetSize.x, i =>
                 {
-                    ComputeLandNoise(i, j);
-                    ComputeRainNoise(i, j);
-                    ComputeTempNoise(i, j);
+                    for (int j = 0; j < planetSize.y; j++)
+                    {
+                        ComputeLandNoise(i, j);
+                        ComputeRainNoise(i, j);
+                        ComputeTempNoise(i, j);
+                    }
+                });
+            }
+            else
+            {
+                for (int i = 0; i < planetSize.x; i++)
+                {
+                    for (int j = 0; j < planetSize.y; j++)
+                    {
+                        ComputeLandNoise(i, j);
+                        ComputeRainNoise(i, j);
+                        ComputeTempNoise(i, j);
+                    }
                 }
-            });
+            }
+
+
 
             NoiseModified = false;
 

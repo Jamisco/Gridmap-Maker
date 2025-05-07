@@ -26,12 +26,14 @@ namespace GridMapMaker.Tutorial
         public string TexturePath = "Tutorial/Textures";
         Dictionary<Vector2Int, ShapeVisualData> biomeData = new Dictionary<Vector2Int, ShapeVisualData>();
 
+#if UNITY_EDITOR
         Texture2D[] GetTexturesFromPath()
         {
             Texture2D[] textures = AssetDatabase.LoadAllAssetsAtPath(TexturePath).OfType<Texture2D>().ToArray();
 
             return textures.ToArray();
         }
+#endif
 
         Texture2D[] defaultTextures;
         public void ValidateWithDefault()
@@ -40,7 +42,11 @@ namespace GridMapMaker.Tutorial
 
             try
             {
+#if UNITY_EDITOR
                 defaultTextures = GetTexturesFromPath();
+#else
+                defaultTextures = null;
+#endif
             }
             catch (Exception)
             {

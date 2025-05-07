@@ -273,7 +273,7 @@ namespace GridMapMaker.Tutorial
         {
             Vector2Int gridPos = InputHex;
 
-            gridManager.RemoveVisualData(gridPos);
+            gridManager.DeletePosition(gridPos);
             gridManager.UpdatePosition(gridPos);
 
             Debug.Log("Removed Visual: " + gridPos);

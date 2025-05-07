@@ -3,6 +3,10 @@ using System.Collections.Generic;
 using System.Linq;
 using UnityEngine;
 using static GridMapMaker.ShapeVisualData;
+using static UnityEditor.Progress;
+using static GridMapMaker.EdgeHelpers;
+
+
 
 
 #if UNITY_EDITOR
@@ -26,15 +30,7 @@ namespace GridMapMaker
     public class MeshLayer : MonoBehaviour
     {
         const int MAX_VERTICES = 65534;
-        GridChunk gridChunk;
-
-        public MeshLayerSettings LayerSettings
-        {
-            get
-            {
-                return gridChunk.GridManager.GetLayerInfo(layerId);
-            }
-        }
+        public GridChunk gridChunk;
         public bool UseVisualEquality
         {
             get
@@ -43,11 +39,11 @@ namespace GridMapMaker
             }
             set
             {
-                if(visualDataComparer.UseVisualHash != value)
+                if (visualDataComparer.UseVisualHash != value)
                 {
                     visualDataComparer.UseVisualHash = value;
                     VisualEqualityChanged();
-                } 
+                }
             }
         }
 
@@ -60,7 +56,7 @@ namespace GridMapMaker
             }
             set
             {
-                if(layerGridShape != value)
+                if (layerGridShape != value)
                 {
                     layerGridShape = value;
 
@@ -70,7 +66,6 @@ namespace GridMapMaker
                     }
 
                     ColorVisualGroup.GridShape = layerGridShape;
-                    ValidateLayerBounds();
                     DrawLayer();
                 }
             }
@@ -104,17 +99,52 @@ namespace GridMapMaker
         public Dictionary<int, ShapeVisualData> CellVisualDatas
                           = new Dictionary<int, ShapeVisualData>();
 
+        private ShapeVisualData defaultVisualData;
+
         public Dictionary<int, Vector2Int> CellGridPositions = new Dictionary<int, Vector2Int>();
 
-        private Bounds layerBounds;
 
         public Bounds LayerBounds
         {
             get
             {
-                return layerBounds;
+                Bounds bounds = new Bounds();
+
+                foreach (GameObject item in layerMeshObjs)
+                {
+                    MeshFilter mf = item.GetComponent<MeshFilter>();
+                    if (mf != null)
+                    {
+                        bounds.Encapsulate(mf.sharedMesh.bounds);
+                    }
+                }
+
+                return bounds;
             }
         }
+
+        public List<Mesh> GetMeshes()
+        {
+            List<Mesh> meshes = new List<Mesh>();
+
+            foreach (GameObject item in layerMeshObjs)
+            {
+                MeshFilter mf = item.GetComponent<MeshFilter>();
+                meshes.Add(mf.sharedMesh);
+            }
+
+            return meshes;
+        }
+
+        public Mesh FullMesh
+        {
+            get
+            {
+                return ShapeMeshFuser.CombineToSubmesh(GetMeshes());
+            }
+        }
+
+       
         /// <summary>
         /// This is use to offset the tesselated position so that the Shape is drawn with reference to the chunk. 
         /// For example, say we are drawing a cell at gridPosition 5, 0 and its tesselated position is (5, 0). if the chunk starts at gridPosition (3, 0), then the cell we are drawing will be the 3rd cell in the chunk. So we need to offset the tesselated position by 3 cells so that the cell is drawn at the correct position in the chunk.
@@ -126,13 +156,18 @@ namespace GridMapMaker
         {
             get => layerId;
         }
-        private Shader colorShader;
-        private ShapeVisualData defaultVisualData;
+
 
         private void OnValidate()
         {
 
         }
+
+        /// <summary>
+        /// Will move/reposition the mesh layer by a specified offset along the specified axis. This is used to draw mesh layers on top of each other.
+        /// </summary>
+        /// <param name="axis"></param>
+        /// <param name="offset"></param>
         public void SortLayer(SortAxis axis, float offset)
         {
             Vector3 pos = transform.localPosition;
@@ -157,16 +192,10 @@ namespace GridMapMaker
 
             transform.localPosition = pos;
         }
-        private void Initialize(GridShape gridShape)
-        {
-            Clear();
-            
-            layerGridShape = gridShape;
-        }
         public void Initialize(MeshLayerSettings layerInfo, GridChunk chunk)
         {
             Clear();
-            
+
             gridChunk = chunk;
             layerGridShape = layerInfo.Shape;
 
@@ -182,25 +211,12 @@ namespace GridMapMaker
 
             ColorVisualGroup = new ShapeMeshFuser(layerGridShape, chunkOffset);
 
-            colorShader = chunk.GridManager.ColorShader;
-
             defaultVisualData = chunk.GridManager.DefaultVisualData;
-
-            ValidateLayerBounds();
         }
         private void ValidateAllSettings()
         {
             chunkOffset = layerGridShape.GetTesselatedPosition(gridChunk.StartPosition);
-            ValidateLayerBounds();
         }
-        private void ValidateLayerBounds()
-        {
-            Vector2Int min = gridChunk.StartPosition;
-            Vector2Int max = gridChunk.EndPosition;
-
-            layerBounds = LayerGridShape.GetGridBounds(min, max);
-        }
-
         void SetEvent(ShapeVisualData visualProp)
         {
             visualProp.VisualDataChange += VisualIdChanged;
@@ -240,9 +256,9 @@ namespace GridMapMaker
 
             // 10.2% of the time is spent here
             ShapeMeshFuser meshFuser = null;
-            
+
             MaterialVisualGroup.TryGetValue(visualProp, out meshFuser);
-            
+
             if (meshFuser == null)
             {
                 // 13.5% of the time is spent here
@@ -255,7 +271,7 @@ namespace GridMapMaker
 
             // 20% of the time is spent here
             meshFuser.InsertPosition(hash, gridPosition);
-            
+
             //TimeLogger.StopTimer(2313);
         }
 
@@ -307,7 +323,7 @@ namespace GridMapMaker
             {
                 ShapeMeshFuser mf = null;
 
-               bool isMat = MaterialVisualGroup.TryGetValue(existing, out mf);
+                bool isMat = MaterialVisualGroup.TryGetValue(existing, out mf);
 
                 mf = (mf == null) ? ColorVisualGroup : mf;
 
@@ -327,6 +343,7 @@ namespace GridMapMaker
         {
             return CellVisualDatas.ContainsKey(gridPosition.GetHashCode_Unique());
         }
+
         public ShapeVisualData GetVisualData(Vector2Int gridPosition)
         {
             ShapeVisualData existing = null;
@@ -364,7 +381,7 @@ namespace GridMapMaker
                     MaterialVisualGroup[identicalData] = prePositions;
                 }
 
-             // if we are in editor, the event was most likely raised during a serialization process, and we can't update the mesh during serialization. So we wait until the serialization process is done, then update the mesh. 
+                // if we are in editor, the event was most likely raised during a serialization process, and we can't update the mesh during serialization. So we wait until the serialization process is done, then update the mesh. 
 
                 if (gridChunk.GridManager.RedrawOnVisualHashChanged)
                 {
@@ -394,7 +411,7 @@ namespace GridMapMaker
             // if it doesn't, it means that the visual vData was never inserted in the first place or has been removed
             if (changedProp != null)
             {
-                foreach(GameObject go in layerMeshes)
+                foreach (GameObject go in layerMeshObjs)
                 {
                     MeshRenderer ren =
                             go.GetComponent<MeshRenderer>();
@@ -414,19 +431,19 @@ namespace GridMapMaker
             }
         }
 
-        private List<GameObject> layerMeshes = new List<GameObject>();
+        private List<GameObject> layerMeshObjs = new List<GameObject>();
         public void FusedMeshGroups()
         {
             //TimeLogger.StartTimer(1516, "FusedMeshGroups");
             List<SmallMesh> smallMeshes = new List<SmallMesh>();
 
             bool useMultiThread = gridChunk.GridManager.UseMultithreading;
-            
+
             foreach (ShapeVisualData vData in MaterialVisualGroup.Keys)
             {
                 ShapeMeshFuser m = MaterialVisualGroup[vData];
                 List<MeshData> tempMeshes;
-                
+
                 if (useMultiThread)
                 {
                     tempMeshes = m.GetFuseMesh_Fast();
@@ -445,7 +462,7 @@ namespace GridMapMaker
             // Color Visual Group
 
             List<MeshData> colorMeshes;
-            
+
             if (useMultiThread)
             {
                 colorMeshes = ColorVisualGroup.GetFuseMesh_Fast();
@@ -453,7 +470,7 @@ namespace GridMapMaker
             else
             {
                 colorMeshes = ColorVisualGroup.GetFuseMesh();
-            } 
+            }
 
             for (int i = 0; i < colorMeshes.Count; i++)
             {
@@ -503,34 +520,33 @@ namespace GridMapMaker
         public void DrawFusedMesh()
         {
             //TimeLogger.StartTimer(71451, "Update Mesh");
-            
+
             // delete all child game objects 
-            foreach (GameObject go in layerMeshes)
+            foreach (GameObject go in layerMeshObjs)
             {
                 DestroyImmediate(go);
             }
 
-            layerMeshes.Clear();
+            layerMeshObjs.Clear();
 
             GroupAndDrawMeshes();
 
             //TimeLogger.StopTimer(71451);
         }
-
+        /// <summary>
+        /// This is a group meshes that are within the max vert limit. Since a mesh layer size might require a mesh to be larger than the max vert limit, we need to divide the meshes into groups of meshes that are within the max vert limit. Then we draw each mesh in its own game object group. Note once meshes are drawn, the list is cleared to save memory.
+        /// </summary>
         List<MaxMesh> maxMeshGroup = new List<MaxMesh>();
-        // group meshes that are within the max vert limit, combined them, with sub meshes, use material from visual data  
-
-        Dictionary<ShapeVisualData, Material> shapeVisual = new Dictionary<ShapeVisualData, Material>();
 
         List<(ShapeVisualData, Material)> vDataMats = new List<(ShapeVisualData, Material)>();
 
         private void GroupAndDrawMeshes()
-        {      
+        {
             int x = 1;
             foreach (MaxMesh m in maxMeshGroup)
             {
                 GameObject meshHolder = CreateMeshHolder("Mesh " + x++);
-                layerMeshes.Add(meshHolder);
+                layerMeshObjs.Add(meshHolder);
 
                 Mesh mesh = new Mesh();
 
@@ -562,12 +578,12 @@ namespace GridMapMaker
                 }
 
                 meshHolder.GetComponent<MeshFilter>().sharedMesh = mesh;
-                meshHolder.GetComponent<MeshCollider>().sharedMesh = mesh;
             }
 
             // save memory
             maxMeshGroup.Clear();
         }
+
         private GameObject CreateMeshHolder(string objName = "Layer Mesh")
         {
             GameObject meshHold = new GameObject(objName);
@@ -579,11 +595,11 @@ namespace GridMapMaker
 
             MeshFilter meshF = meshHold.AddComponent<MeshFilter>();
             MeshRenderer meshR = meshHold.AddComponent<MeshRenderer>();
-            MeshCollider meshC = meshHold.AddComponent<MeshCollider>();
 
             return meshHold;
         }
-// This method is much faster, about 5x the time it takes to fuse and draw the mesh, but it is buggy, I havent figured it out yet...
+
+        // This method is much faster, about 5x the time it takes to fuse and draw the mesh, but it is buggy, I havent figured it out yet...
         //public void ChangeOrientation()
         //{
         //    List<MeshData> meshDatas = new List<MeshData>();
@@ -619,7 +635,7 @@ namespace GridMapMaker
         private void PrepareForOrientation()
         {
             ValidateAllSettings();
-            
+
             foreach (ShapeMeshFuser fuser in MaterialVisualGroup.Values)
             {
                 fuser.PositionOffset = chunkOffset;
@@ -633,7 +649,7 @@ namespace GridMapMaker
         {
             PrepareForOrientation();
 
-            DrawLayer(); 
+            DrawLayer();
         }
 
         // this is a faster version of the ValidateOrientation method
@@ -670,17 +686,17 @@ namespace GridMapMaker
         /// When redrawing the mesh, we want to skip various checks to expediate the process
         /// </summary>
         bool reInsertMode = false;
-     /// <summary>
+        /// <summary>
         /// Clears the mesh and reinserts all visual data back into the layer. This is useful when the equality comparison for the visual properties has been changed.
         /// </summary>
         private void VisualEqualityChanged()
         {
             // when the visual equality changes, we have to reinsert all positiosn inorder to regroup them appriopriately
             // because we are reinserting all the data back, we have to cache the visual data and grid visual ids and then clear them, then as we call insertVisualData, the method will reinsert the data back
-            
+
             MaterialVisualGroup.Clear();
             ColorVisualGroup.Clear();
-            
+
             reInsertMode = true;
             foreach (int hash in CellVisualDatas.Keys)
             {
@@ -688,7 +704,7 @@ namespace GridMapMaker
                 ShapeVisualData visual = CellVisualDatas[hash];
 
                 RemoveEvent(visual);
-                
+
                 InsertVisualData(gridPosition, visual);
             }
 
@@ -717,7 +733,7 @@ namespace GridMapMaker
                     item.Clear();
                 }
 
-                foreach (GameObject item in layerMeshes)
+                foreach (GameObject item in layerMeshObjs)
                 {
                     MeshFilter mf = item.GetComponent<MeshFilter>();
                     DestroyImmediate(mf.sharedMesh);
@@ -725,7 +741,7 @@ namespace GridMapMaker
                     DestroyImmediate(item);
                 }
 
-                layerMeshes.Clear();
+                layerMeshObjs.Clear();
                 MaterialVisualGroup.Clear();
                 CellVisualDatas.Clear();
                 ColorVisualGroup.Clear();
@@ -762,7 +778,7 @@ namespace GridMapMaker
             }
             public bool CanAdd(MeshData fuser)
             {
-                if(VertexCount + fuser.vertexCount <= MAX_VERTICES)
+                if (VertexCount + fuser.vertexCount <= MAX_VERTICES)
                 {
                     return true;
                 }
@@ -770,7 +786,7 @@ namespace GridMapMaker
                 {
                     return false;
                 }
-            }   
+            }
             public static MaxMesh Default()
             {
                 MaxMesh def = new MaxMesh();
@@ -801,36 +817,32 @@ namespace GridMapMaker
             }
         }
 
-
-    }
-
-    
-
-    /// <summary>
-    /// A serialized version of the MeshLayer class. This is used when saving the map
-    /// </summary>
-    [Serializable]
-    public struct SerializedMeshLayer
-    {
-        [SerializeField]
-        public string layerId;
-
-        [SerializeField]
-        public List<Vector2Int> gridPositions;
-
-        [SerializeField]
-        public List<string> visualDatas;
-
-        public SerializedMeshLayer(MeshLayer layer)
+        /// <summary>
+        /// A serialized version of the MeshLayer class. This is used when saving the map
+        /// </summary>
+        [Serializable]
+        public struct SerializedMeshLayer
         {
-            layerId = layer.LayerId;
-            gridPositions = new List<Vector2Int>();
-            visualDatas = new List<string>();
+            [SerializeField]
+            public string layerId;
 
-            foreach (int hash in layer.CellVisualDatas.Keys)
+            [SerializeField]
+            public List<Vector2Int> gridPositions;
+
+            [SerializeField]
+            public List<string> visualDatas;
+
+            public SerializedMeshLayer(MeshLayer layer)
             {
-                gridPositions.Add(layer.CellGridPositions[hash]);
-                visualDatas.Add(layer.CellVisualDatas[hash].VisualId.ToString());
+                layerId = layer.LayerId;
+                gridPositions = new List<Vector2Int>();
+                visualDatas = new List<string>();
+
+                foreach (int hash in layer.CellVisualDatas.Keys)
+                {
+                    gridPositions.Add(layer.CellGridPositions[hash]);
+                    visualDatas.Add(layer.CellVisualDatas[hash].VisualId.ToString());
+                }
             }
         }
     }

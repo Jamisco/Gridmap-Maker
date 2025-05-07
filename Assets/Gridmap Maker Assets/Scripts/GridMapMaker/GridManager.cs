@@ -6,6 +6,10 @@ using Debug = UnityEngine.Debug;
 using System.Collections.Concurrent;
 using System.Threading.Tasks;
 using static GridMapMaker.ShapeVisualData;
+using static GridMapMaker.MeshLayer;
+using static GridMapMaker.GridChunk;
+
+
 
 
 #if UNITY_EDITOR
@@ -42,12 +46,23 @@ namespace GridMapMaker
         [SerializeField]
         private Vector2Int chunkSize;
 
-        private Bounds localBounds;
-
         /// <summary>
         /// The bounds of the grid in local position. The dimensions are determined by the shape of the default layer
         /// </summary>
-        public Bounds LocalBounds => localBounds;
+        public Bounds LocalBounds
+        {
+            get
+            {
+                Bounds b = new Bounds();
+
+                foreach (GridChunk chunk in sortedChunks.Values)
+                {
+                    b.Encapsulate(chunk.ChunkLocalBounds);
+                }
+
+                return b;
+            }
+        }
 
         private BoundsInt gridBounds;
 
@@ -55,6 +70,45 @@ namespace GridMapMaker
         /// The bounds of the grid size. So if your grid size is (10, 10), then the bounds will be (0, 0, 0) to (10, 10, 0)
         /// </summary>
         public BoundsInt GridBounds => gridBounds;
+
+        public enum ColliderType
+        {
+            None,
+            BoxCollider2D,
+            MeshCollider,
+            MeshCollider_Convex
+
+            // TODO : Figure out how to convert mesh to polygon collider
+        }
+
+        /// <summary>
+        /// Note Colliders only work for the base layer. 
+        /// Colliders take into account the entire grid, so if you have a grid bounds, regardless of whether or not chunk or tiles have been placed or not.
+        /// Also note that the Grid itself does not have nor does it need a collider. 
+        /// All Colliders are added to GridChunk only.
+        /// Note that if you display the map on the XZ plane, then you cannot use 2D colliders.
+        /// Note that certain shapes, such as hexes will have gaps between them. Thus, the colliders will not be accurate. You can use a mesh collider to get around this, but not mesh colliders are more expensive.
+        /// Use MeshCollider_Convex if you want complete accuracy with better performance. This will create a convex mesh collider that is more expensive than a box collider but less expensive than a mesh collider.
+        /// </summary>
+        /// 
+        [SerializeField]
+        private ColliderType gridChunkCollider = ColliderType.None;
+
+        /// <summary>
+        /// Note that the collider is the collider of the DRAWN mesh. Thus, if you have a situation where no tiles have been placed on a grid chunk, the collider will be empty. Subsequently, box colliders might not be accurate depending on whether certain shapes are used.
+        /// </summary>
+        public ColliderType GridChunkCollider
+        {
+            get => gridChunkCollider;
+            set
+            {
+                gridChunkCollider = value;
+                foreach (GridChunk chunk in sortedChunks.Values)
+                {
+                    chunk.ChunkColliderType = gridChunkCollider;
+                }
+            }
+        }
 
         private string baseLayerId;
 
@@ -124,6 +178,13 @@ namespace GridMapMaker
         [SerializeField]
         private HashSet<GridShape> gridShapes = new HashSet<GridShape>();
 
+        /// <summary>
+        /// This is redundant, since meshlayerSettings are not 2 way meaning modifications to the meshlayerSettings will not be reflected in the gridmanager. 
+        /// 
+        /// For serialization purposes, we should reconstruct the meshlayerSettings from the MeshLayer directly instead.
+        /// 
+        /// Only store the layer ids and delete this.
+        /// </summary>
         [SerializeField]
         private Dictionary<string, MeshLayerSettings> meshLayerInfos
                             = new Dictionary<string, MeshLayerSettings>();
@@ -147,9 +208,10 @@ namespace GridMapMaker
         private Vector3 T_Position { get; set; }
         private Vector3 T_Scale { get; set; }
 
-/// <summary>
-                                                 /// When the gridmanager is doing various operations such as fusing and drawing the meshes, we can use multithreading to speed up the process. This may be stable on a case by case basis. However So as long as you are not using Unity objects outside of main thread, you should be fine.
-                                                 /// </summary>
+
+        /// <summary>
+        /// When the gridmanager is doing various operations such as fusing and drawing the meshes, we can use multithreading to speed up the process. This may be stable on a case by case basis. However So as long as you are not using Unity objects outside of main thread, you should be fine.
+        /// </summary>
         public bool UseMultithreading = true;
 
         /// <summary>
@@ -157,6 +219,7 @@ namespace GridMapMaker
         /// For example, say I have a ColorVisualData with the color set to white, the moment I change the color to blue, all cells using said visualData should auto change
         /// </summary>
         public bool RedrawOnVisualHashChanged = true;
+
         private void OnValidate()
         {
             if (sortedChunks == null)
@@ -201,7 +264,7 @@ namespace GridMapMaker
 
             return start;
         }
-        private GridChunk CreateHexChunk(Vector2Int gridPosition, GridChunk prefab)
+        private GridChunk CreateGridChunk(Vector2Int gridPosition, GridChunk prefab)
         {
             GridChunk chunk;
 
@@ -213,11 +276,11 @@ namespace GridMapMaker
 
             // the transform is always relative to the parent such that if the parent is moved, the child moves with it
 
-            chunk.Initialize(this, chunkBounds);
+            chunk.Initialize(this, chunkBounds, gridChunkCollider);
 
             return chunk;
         }
-        private GridChunk GetHexChunk(Vector2Int gridPosition)
+        private GridChunk GetGridChunk(Vector2Int gridPosition)
         {
             Vector2Int startPosition = GetChunkStartPosition(gridPosition);
 
@@ -227,13 +290,13 @@ namespace GridMapMaker
 
             return chunk;
         }
-        private GridChunk GetHexChunk(Vector3 localPosition, string layerId = USE_DEFAULT_LAYER)
+        private GridChunk GetGridChunk(Vector3 localPosition, string layerId = USE_DEFAULT_LAYER)
         {
             ValidateLayerId(ref layerId);
             // see if a chunk contains a gridposition at that local position
             foreach (GridChunk chunk in sortedChunks.Values)
             {
-                if (chunk.ContainsPosition(localPosition, layerId))
+                if (chunk.ContainsLocalPosition(localPosition, layerId))
                 {
                     return chunk;
                 }
@@ -254,7 +317,8 @@ namespace GridMapMaker
 
                 chunkSize = new Vector2Int(x, y);
 
-                gridBounds = new BoundsInt(Vector3Int.zero, (Vector3Int)gridSize);
+                // we subtract 1 from the grid size because the grid size is inclusive. So if the grid size is (10, 10), then the bounds will be (0, 0, 0) to (9, 9, 0)
+                gridBounds = new BoundsInt(Vector3Int.zero, (Vector3Int)gridSize - new Vector3Int(1, 1, 0));
 
                 gridBounds.zMin = 0;
                 gridBounds.zMax = 1;
@@ -285,9 +349,11 @@ namespace GridMapMaker
                     start.x = x * chunkSize.x;
                     start.y = y * chunkSize.y;
 
-                    GridChunk chunk = CreateHexChunk(start, prefab);
+                    GridChunk chunk = CreateGridChunk(start, prefab);
 
                     chunk.name = "Chunk " + count;
+
+                    chunk.ChunkColliderType = gridChunkCollider;
 
                     count++;
 
@@ -331,9 +397,9 @@ namespace GridMapMaker
             T_Position = transform.localPosition;
             T_Scale = transform.localScale;
 
-            transform.localEulerAngles = Vector3.zero;
-            transform.localPosition = Vector3.zero;
-            transform.localScale = Vector3.one;
+            //transform.localEulerAngles = Vector3.zero;
+            //transform.localPosition = Vector3.zero;
+            //transform.localScale = Vector3.one;
 
             CreateGridChunks();
 
@@ -415,15 +481,12 @@ namespace GridMapMaker
             // add layer to all chunk chunks
             foreach (GridChunk chunk in sortedChunks.Values)
             {
-                chunk.AddLayer(layerInfo);
+                chunk.InitializeLayer(layerInfo);
             }
 
             if (setBaselayer || meshLayerInfos.Count == 1)
             {
                 baseLayerId = layerInfo.LayerId;
-
-                ValidateChunkPositions();
-                ValidateGridBounds();
             }
 
             return true;
@@ -441,12 +504,12 @@ namespace GridMapMaker
         {
             transform.localEulerAngles = T_EulerAngles;
 
-            transform.localEulerAngles = Vector3.zero;
-            transform.localPosition = Vector3.zero;
-            transform.localScale = Vector3.one;
+            //transform.localEulerAngles = Vector3.zero;
+            //transform.localPosition = Vector3.zero;
+            //transform.localScale = Vector3.one;
         }
-        
-/// <summary>
+
+        /// <summary>
         /// Will sort the layers based on the orderInLayer and the grid layerSortAxis. The layer with the lowest orderInLayer will be at the back, while the layer with the highest orderInLayer will be at the front
         /// </summary>
         public void SortMeshLayers()
@@ -514,6 +577,7 @@ namespace GridMapMaker
                 foreach (GridChunk chunk in sortedChunks.Values)
                 {
                     chunk.SortLayer(layer.LayerId, layerSortAxis, offset);
+                    chunk.ValidateLocalPosition();
                 }
 
                 previousOrder = order;
@@ -555,7 +619,7 @@ namespace GridMapMaker
                 return;
             }
 
-            GridChunk chunk = GetHexChunk(gridPosition);
+            GridChunk chunk = GetGridChunk(gridPosition);
 
             if (chunk != null)
             {
@@ -574,7 +638,7 @@ namespace GridMapMaker
         {
             ValidateLayerId(ref layerId);
 
-            GridChunk chunk = GetHexChunk(gridPosition);
+            GridChunk chunk = GetGridChunk(gridPosition);
 
             if (chunk != null)
             {
@@ -614,7 +678,7 @@ namespace GridMapMaker
 
             Parallel.For(0, positions.Count, i =>
             {
-                GridChunk chunk = GetHexChunk(positions[i]);
+                GridChunk chunk = GetGridChunk(positions[i]);
 
                 if (chunk != null)
                 {
@@ -681,7 +745,7 @@ namespace GridMapMaker
 
             for (int i = 0; i < positions.Count; i++)
             {
-                GridChunk chunk = GetHexChunk(positions[i]);
+                GridChunk chunk = GetGridChunk(positions[i]);
 
                 if (chunk != null)
                 {
@@ -720,7 +784,7 @@ namespace GridMapMaker
         /// <param timerName="LayerId"></param>
         public void RemoveVisualData(Vector2Int gridPosition, string layerId = USE_DEFAULT_LAYER)
         {
-            GridChunk chunk = GetHexChunk(gridPosition);
+            GridChunk chunk = GetGridChunk(gridPosition);
 
             if (chunk != null)
             {
@@ -734,7 +798,7 @@ namespace GridMapMaker
         /// <param timerName="gridPosition"></param>
         public void RemoveVisualData(Vector2Int gridPosition)
         {
-            GridChunk chunk = GetHexChunk(gridPosition);
+            GridChunk chunk = GetGridChunk(gridPosition);
 
             if (chunk != null)
             {
@@ -765,7 +829,7 @@ namespace GridMapMaker
         {
             ValidateLayerId(ref layerId);
 
-            GridChunk chunk = GetHexChunk(gridPosition);
+            GridChunk chunk = GetGridChunk(gridPosition);
 
             if (chunk != null)
             {
@@ -784,6 +848,11 @@ namespace GridMapMaker
             foreach (GridChunk c in sortedChunks.Values)
             {
                 c.SetVisualEquality(layerId, useEquality);
+                MeshLayerSettings ms = meshLayerInfos[layerId];
+
+                ms.UseVisualEquality = useEquality;
+
+                meshLayerInfos[layerId] = ms;
             }
         }
 
@@ -796,7 +865,15 @@ namespace GridMapMaker
             GridChunk c = sortedChunks.Values.First();
 
             c.SetVisualEquality(useEquality);
+
+            foreach (MeshLayerSettings item in meshLayerInfos.Values)
+            {
+                MeshLayerSettings ms = item;
+                ms.UseVisualEquality = useEquality;
+                meshLayerInfos[item.LayerId] = ms;
+            }
         }
+
         /// <summary>
         /// Changes the gridShape of the layer. The entire layer will have to be redrawn
         /// </summary>
@@ -822,7 +899,7 @@ namespace GridMapMaker
         {
             foreach (GridChunk chunk in sortedChunks.Values)
             {
-                Bounds chunkBounds = chunk.GetDefaultLayerBounds();
+                Bounds chunkBounds = chunk.ChunkLocalBounds;
 
                 chunkBounds.center += transform.position;
 
@@ -851,7 +928,7 @@ namespace GridMapMaker
         {
             foreach (GridChunk chunk in sortedChunks.Values)
             {
-                Bounds chunkBounds = chunk.GetDefaultLayerBounds();
+                Bounds chunkBounds = chunk.ChunkLocalBounds;
 
                 if (!bounds.Intersects(chunkBounds))
                 {
@@ -882,7 +959,7 @@ namespace GridMapMaker
         /// <param timerName="gridPosition"></param>
         public void UpdatePosition(Vector2Int gridPosition)
         {
-            GridChunk chunk = GetHexChunk(gridPosition);
+            GridChunk chunk = GetGridChunk(gridPosition);
 
             if (chunk != null)
             {
@@ -898,7 +975,7 @@ namespace GridMapMaker
         /// <param name="layerId"></param>
         public void UpdatePosition(Vector2Int gridPosition, string layerId = USE_DEFAULT_LAYER)
         {
-            GridChunk chunk = GetHexChunk(gridPosition);
+            GridChunk chunk = GetGridChunk(gridPosition);
 
             if (chunk != null)
             {
@@ -907,14 +984,24 @@ namespace GridMapMaker
         }
 
         /// <summary>
-        /// Update the local position of all chunks. Call this when you have set or changed the defaultLayer
+        /// Will redraw the layer with the new settings. Note that a redraw will take place.
         /// </summary>
-        private void ValidateChunkPositions()
+        /// <param name="modifiedSettings"></param>
+        public void ModifyLayerSettings(MeshLayerSettings modifiedSettings)
         {
+            string layerId = modifiedSettings.LayerId;
+
+            if (meshLayerInfos.ContainsKey(layerId))
+            {
+                meshLayerInfos[layerId] = modifiedSettings;
+            }
+
             foreach (GridChunk chunk in sortedChunks.Values)
             {
-                chunk.ValidateLocalPosition();
+                chunk.InitializeLayer(modifiedSettings);
             }
+
+            RedrawLayer(layerId);
         }
 
         /// <summary>
@@ -937,17 +1024,6 @@ namespace GridMapMaker
             }
 
             SortMeshLayers();
-        }
-        private void ValidateGridBounds()
-        {
-            Vector2Int min = Vector2Int.zero;
-            Vector2Int max = gridSize;
-
-            GridShape shape = null;
-
-            sortedChunks.Values.First().TryGetLayerShape(baseLayerId, out shape);
-
-            localBounds = shape.GetGridBounds(min, max);
         }
 
         /// <summary>
@@ -1073,7 +1149,7 @@ namespace GridMapMaker
 
             GridShape shape = null;
 
-            GridChunk chunk = GetHexChunk(gridPosition);
+            GridChunk chunk = GetGridChunk(gridPosition);
 
             if (chunk != null)
             {
@@ -1087,7 +1163,7 @@ namespace GridMapMaker
         {
             ValidateLayerId(ref layerId);
 
-            GridChunk chunk = GetHexChunk(localPosition, layerId);
+            GridChunk chunk = GetGridChunk(localPosition, layerId);
 
             GridShape shape = null;
 
@@ -1115,7 +1191,7 @@ namespace GridMapMaker
                 localPosition = new Vector3(localPosition.x, 0, localPosition.z);
             }
 
-            return localBounds.Contains(localPosition);
+            return LocalBounds.Contains(localPosition);
         }
 
         public bool ContainsWorldPosition(Vector3 worldPosition)
@@ -1145,7 +1221,7 @@ namespace GridMapMaker
         {
             ValidateLayerId(ref layerId);
 
-            GridChunk chunk = GetHexChunk(localPosition, layerId);
+            GridChunk chunk = GetGridChunk(localPosition, layerId);
 
             Vector2Int gridPosition = Vector2Int.left;
 
@@ -1213,7 +1289,7 @@ namespace GridMapMaker
         {
             ValidateLayerId(ref layerId);
 
-            GridChunk chunk = GetHexChunk(gridPosition);
+            GridChunk chunk = GetGridChunk(gridPosition);
 
             if (chunk != null)
             {
@@ -1235,7 +1311,7 @@ namespace GridMapMaker
         {
             ValidateLayerId(ref layerId);
 
-            GridChunk chunk = GetHexChunk(gridPosition);
+            GridChunk chunk = GetGridChunk(gridPosition);
 
             if (chunk != null)
             {
@@ -1579,8 +1655,11 @@ namespace GridMapMaker
         /// <summary>
         /// The distance between each layer. This is used to determine the order in which the layers are drawn. So layers are drawn this value away or closer to each other.
         /// </summary>
-        public static float SortStep = 0.01f;
+        public static readonly float SortStep = 0.01f;
 
+        /// <summary>
+        /// Once this is set, it can never be changed. This is the unique identifier for a layer
+        /// </summary>
         [SerializeField]
         private string layerId;
 
@@ -1597,8 +1676,8 @@ namespace GridMapMaker
         private Vector2 shapeSize;
 
         [SerializeField]
-        [HideInInspector]
-        private string shapeId;
+        private bool includeMeshCollider;
+
         public GridShape Shape
         {
             get
@@ -1608,10 +1687,8 @@ namespace GridMapMaker
             set
             {
                 shape = value;
-                shapeId = shape.UniqueShapeName;
             }
         }
-
         public Vector2 ShapeSize
         {
             get
@@ -1620,36 +1697,31 @@ namespace GridMapMaker
             }
             set { shapeSize = value; }
         }
-
-        public string ShapeId
-        {
-            get
-            {
-                return shapeId;
-            }
-        }
-        public string LayerId { get => layerId; private set => layerId = value; }
+        public string LayerId { get => layerId; }
+        public string ShapeId { get => shape.UniqueShapeName; }
         public int OrderInLayer { get => orderInLayer; set => orderInLayer = value; }
         public bool UseVisualEquality { get => useVisualEquality; set => useVisualEquality = value; }
-        public MeshLayerSettings(string layerId, GridShape shape, Vector2 shapeSize, bool useVisualEquality = false, int orderInLayer = 0)
+        public bool IncludeMeshCollider { get => includeMeshCollider; set => includeMeshCollider = value; }
+
+        public MeshLayerSettings(string layerId, int orderInLayer, bool useVisualEquality,
+                                GridShape shape, Vector2 shapeSize, bool includeMeshCollider)
         {
             this.layerId = layerId;
-
-            this.shape = shape;
-            shapeId = shape.UniqueShapeName;
-            this.shapeSize = shapeSize;
-
             this.orderInLayer = orderInLayer;
             this.useVisualEquality = useVisualEquality;
+            this.shape = shape;
+            this.shapeSize = shapeSize;
+            this.includeMeshCollider = includeMeshCollider;
         }
 
-        /// <summary>
-        /// Makes sure the shapeId is set.
-        /// This will need to be done if the shapeId is set via the inspector
-        /// </summary>
-        public void Validate()
+        public MeshLayerSettings(string layerId)
         {
-            shapeId = shape.UniqueShapeName;
+            this.layerId = layerId;
+            orderInLayer = 0;
+            useVisualEquality = false;
+            shape = null;
+            shapeSize = Vector2.zero;
+            includeMeshCollider = false;
         }
 
         public override int GetHashCode()
@@ -1657,6 +1729,11 @@ namespace GridMapMaker
             return LayerId.GetHashCode();
         }
 
+        /// <summary>
+        /// Two layers are equal if they have the same layerId
+        /// </summary>
+        /// <param name="obj"></param>
+        /// <returns></returns>
         public override bool Equals(object obj)
         {
             if (obj.GetType() == typeof(MeshLayerSettings))

@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Linq;
 using UnityEngine;
 
 namespace GridMapMaker
@@ -399,7 +400,7 @@ namespace GridMapMaker
         */
 
         /// <summary>
-        /// Given two positions, get the bounds such that if a square where to be made of such positions, with the min position being bottom left and the max position being top right, the bounds of said  square will be returned. This method should work with all shapes, but you can override it if you want to make it faster. This method is This is generally used to get the bounds of a layer, chunk or grid. You might also want to use this to see if a specific position is within the bounds of two positions.
+        /// Given two positions, get the bounds that encapsulates the grid that results from drawing from min to max position. This method should work with all shapes, but you can override it if you want, perhaps to make it faster. This method is generally used to get the bounds of a layer, chunk or grid. You might also want to use this to see if a specific position is within the bounds of two positions.
         /// </summary>
         /// <param name="minGridPosition"></param>
         /// <param name="maxGridPosition"></param>
@@ -407,30 +408,69 @@ namespace GridMapMaker
         public virtual Bounds GetGridBounds(Vector2Int minGridPosition,
                                 Vector2Int maxGridPosition)
         {
-            // we have to get the tesselatedPosition on the map,
-            // we must also account for the gridOffset, that is the current basePosition of the grid. A cell at 0,0 will have a tesselated basePosition of 0,0, but if the entire grid is shifted 5 units to the right, then the tesselated basePosition of the cell at 0,0 will be 5,0
+            // This method works my crawling the edges of the shape clock wise and getting the leftmost, rightmost, topmost and bottommost points of the shape.
 
-            Vector3 botTes = GetTesselatedPosition(minGridPosition);
-            Vector3 topTes = GetTesselatedPosition(maxGridPosition);
+            float left = 0;
+            float right = 0;
+            float top = 0;
+            float bottom = 0;
 
-            // we then offset the tesselated positions by the Shape edge positions to give us the precise positions of the edge
-            Vector3 min;
-            Vector3 max;
-
-            float maxOffset = .01f;
-            if (shapeOrientation == Orientation.XZ)
+            // Walk from bot left to top left
+            for (int y = minGridPosition.y; y <= maxGridPosition.y; y++)
             {
-                min = new Vector3(botTes.x + svb.leftF, 0, botTes.z + svb.botF);
-                max = new Vector3(topTes.x + svb.rightF, maxOffset, topTes.z + svb.topF);
-            }
-            else
-            {
-                min = new Vector3(botTes.x + svb.leftF, botTes.y + svb.botF, 0);
-                max = new Vector3(topTes.x + svb.rightF, topTes.y + svb.topF, maxOffset);
+                Vector3 pos = GetTesselatedPosition(new Vector2Int(minGridPosition.x, y));
+
+                pos += new Vector3(svb.leftF, 0);
+
+                if(pos.x < left)
+                {
+                    left = pos.x;
+                }
             }
 
-            Bounds b1 = new Bounds((min + max) / 2, max - min);
-            
+            // Walk top left to top right
+            for (int x = minGridPosition.x; x <= maxGridPosition.x; x++)
+            {
+                Vector3 pos = GetTesselatedPosition(new Vector2Int(x, maxGridPosition.y));
+
+                pos += new Vector3(0, svb.topF);
+
+                if (pos.y > top)
+                {
+                    top = pos.y;
+                }
+            }
+
+            // Walk top right to bottom right
+            for (int y = maxGridPosition.y; y >= minGridPosition.y; y--)
+            {
+                Vector3 pos = GetTesselatedPosition(new Vector2Int(maxGridPosition.x, y));
+                pos += new Vector3(svb.rightF, 0);
+                if (pos.x > right)
+                {
+                    right = pos.x;
+                }
+            }
+
+            // Walk bottom right to bottom left
+            for (int x = maxGridPosition.x; x >= minGridPosition.x; x--)
+            {
+                Vector3 pos = GetTesselatedPosition(new Vector2Int(x, minGridPosition.y));
+                pos += new Vector3(0, svb.botF);
+                if (pos.y < bottom)
+                {
+                    bottom = pos.y;
+                }
+            }
+
+            Vector2 min = new Vector2(left, bottom);
+            Vector2 max = new Vector2(right, top);
+
+            Vector2 size = max - min;
+            Vector2 center = min + size / 2f;
+
+            Bounds b1 = new Bounds(center, size);
+
             return b1;
         }
 
