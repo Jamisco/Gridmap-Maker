@@ -10,8 +10,6 @@ using static GridMapMaker.MeshLayer;
 using static GridMapMaker.GridChunk;
 
 
-
-
 #if UNITY_EDITOR
 using UnityEditor;
 #endif
@@ -71,6 +69,16 @@ namespace GridMapMaker
         /// </summary>
         public BoundsInt GridBounds => gridBounds;
 
+        /// <summary>
+        /// Checks if the given grid position is within the bounds of the grid. This is useful for checking if a grid position is valid or not.
+        /// </summary>
+        /// <param name="gridPosition"></param>
+        /// <returns></returns>
+        public bool WithinGridBounds(Vector2Int gridPosition)
+        {
+            return gridBounds.Contains((Vector3Int)gridPosition);
+        }
+
         public enum ColliderType
         {
             None,
@@ -81,13 +89,62 @@ namespace GridMapMaker
             // TODO : Figure out how to convert mesh to polygon collider
         }
 
+
+
+        private string baseLayerId;
+
+        /// <summary>
+        /// This is the default layer in which modifications will be made if no layer is specified.
+        /// Additionally, this layer is used to determine the bounds of the map
+        /// </summary>
+        public string BaseLayer { get { return baseLayerId; } }
+
+        /// <summary>
+        /// The gap between cells
+        /// </summary>
+        public Vector2 cellGap;
+
+
+        private static ShapeVisualData _colorVisualData;
+
+        /// <summary>
+        /// The ColorVisualData is what is used When inserting/displaying Colors. That is, when you use ShapeVisualData.RenderMode.MeshColors.
+        /// </summary>
+        public static ShapeVisualData DefaultColorVisualData
+        {
+            get
+            {
+                if (_colorVisualData == null)
+                {
+                    _colorVisualData = new ColorVisualData(Color.white);
+                }
+                return _colorVisualData;
+            }
+            set
+            {
+                if (value != null)
+                {
+                    _colorVisualData = value;
+                }
+            }
+        }
+
+
+
+        /// <summary>
+        /// The map can be displayed in different orientations. The default orientation is XY.
+        /// If you changed the orientation, be sure to call the ValidateOrientation method for your changes to take effect
+        /// </summary>
+        [SerializeField]
+        public GridShape.Orientation MapOrientation = GridShape.Orientation.XY;
+
         /// <summary>
         /// Note Colliders only work for the base layer. 
-        /// Colliders take into account the entire grid, so if you have a grid bounds, regardless of whether or not chunk or tiles have been placed or not.
+        /// Colliders take into account the entire grid regardless of whether or not chunk or tiles have been placed or not.
         /// Also note that the Grid itself does not have nor does it need a collider. 
-        /// All Colliders are added to GridChunk only.
+        /// All Colliders are added to GridChunks only.
         /// Note that if you display the map on the XZ plane, then you cannot use 2D colliders.
-        /// Note that certain shapes, such as hexes will have gaps between them. Thus, the colliders will not be accurate. You can use a mesh collider to get around this, but not mesh colliders are more expensive.
+        /// Note that certain shapes, such as hexes will have gaps between them. Thus, the colliders will not be accurate. You can use a mesh collider to get around this, but note mesh colliders are more expensive.
         /// Use MeshCollider_Convex if you want complete accuracy with better performance. This will create a convex mesh collider that is more expensive than a box collider but less expensive than a mesh collider.
         /// </summary>
         /// 
@@ -109,69 +166,6 @@ namespace GridMapMaker
                 }
             }
         }
-
-        private string baseLayerId;
-
-        /// <summary>
-        /// This is the default layer in which modifications will be made if no layer is specified.
-        /// Additionally, this layer is used to determine the bounds of the map
-        /// </summary>
-        public string BaseLayer { get { return baseLayerId; } }
-
-        /// <summary>
-        /// The gap between cells
-        /// </summary>
-        public Vector2 cellGap;
-
-
-        /// <summary>
-        /// This is a shader that will instruct a shape to be drawn with a color only.
-        /// This shader is required and must be set. You are provided a shader called "MeshColorShader", if you dont have a color shader. You can also use Unity's Sprites default shader. This shader will also serve as the default shader for all shapes if you do not provide a default visual data.
-        /// </summary>
-        [SerializeField]
-        private Shader colorShader;
-        /// <summary>
-        /// Every gridmanager must have a color shader. A color shader will be used to render shapes with a specified color when the shape has no visualData You are provided a color shader called "MeshColorShader", I recommend you use that.
-        /// </summary>
-        public Shader ColorShader { get => colorShader; set => colorShader = value; }
-
-        [SerializeField]
-        [HideInInspector]
-        private ShapeVisualData defaultVisualData;
-
-        public Color DefaultColor = Color.white;
-
-        /// <summary>
-        /// The default visual data to use when no visual data is specified,
-        /// If no default visual data is set, then a color visual data with the default shader and color white is used
-        /// </summary>
-        public ShapeVisualData DefaultVisualData
-        {
-            get
-            {
-                if (defaultVisualData == null)
-                {
-                    // you can change the color to whatever else you want
-                    defaultVisualData = new ColorVisualData(ColorShader, DefaultColor);
-                }
-
-                return defaultVisualData;
-            }
-            set
-            {
-                defaultVisualData = value;
-            }
-        }
-
-        /// <summary>
-        /// The map can be displayed in different orientations. The default orientation is XY.
-        /// If you changed the orientation, be sure to call the ValidateOrientation method for your changes to take effect
-        /// </summary>
-        [SerializeField]
-        public GridShape.Orientation MapOrientation = GridShape.Orientation.XY;
-
-        [SerializeReference]
-        private MapVisualContainer visualContainer;
 
         private HashSet<ShapeVisualData> visualDatas = new HashSet<ShapeVisualData>();
 
@@ -247,6 +241,7 @@ namespace GridMapMaker
         /// Bottom Left to Top Right, Horizontally
         /// </summary>
         private Dictionary<int, GridChunk> sortedChunks = new Dictionary<int, GridChunk>();
+
         /// <summary>
         /// Given a chunk gridPosition, gets the start gridPosition of the chunk said chunk will be in
         /// </summary>
@@ -275,6 +270,11 @@ namespace GridMapMaker
             chunk = Instantiate(prefab, transform, false);
 
             // the transform is always relative to the parent such that if the parent is moved, the child moves with it
+
+            // this is required. The reason I have this is to initialize the property.
+            // We need to this init the property because if the default value is not set, the property will try and find the sprites/default shader. However, Shader.Find can only work from the mainthread. So if you use a multithreaded approach, it will cause an error.
+            _colorVisualData = null;
+            ShapeVisualData d = DefaultColorVisualData;
 
             chunk.Initialize(this, chunkBounds, gridChunkCollider);
 
@@ -367,19 +367,13 @@ namespace GridMapMaker
         #endregion
 
         #region Grid Manipulation
-        public void SetVisualContainer(MapVisualContainer container)
-        {
-            visualContainer = container;
-        }
 
         /// <summary>
         /// This is used to simply store the color shader for serialization and deserialization purposes
         /// </summary>
         [SerializeField]
         [HideInInspector]
-        private string colorShaderName;
         private const string spriteDefault = "Sprites/Default";
-        private const string gmmColorShader = "GridMapMaker/ColorShader";
         /// <summary>
         /// Initializes the grid with its current settings. This method assumes the settings have been set from the editor. Be advised, most settings of the grid manager are used to determine how the grid is displayed. Thus, if you change any of these settings, after the grid has been initialized, it will have no effect or cause errors. For example, setting the chunkSize, or gridSize or cellGap will have no effect on a map that is already created. However, it will cause various errors if you were to do bounds checking or grid positioning etc.
         /// </summary>
@@ -402,27 +396,6 @@ namespace GridMapMaker
             //transform.localScale = Vector3.one;
 
             CreateGridChunks();
-
-            if(colorShader == null)
-            {
-                colorShader = Shader.Find(gmmColorShader);
-
-                if(colorShader == null)
-                {
-                    colorShader = Shader.Find(spriteDefault);
-                }
-               
-                if(colorShader == null)
-                {
-                    colorShaderName = "";
-
-                    Debug.LogError("No color shader found. Please provide a color shader. Make sure you add your color shader to the build list in your editor settings so they can be used via build");
-                    return;
-                }
-
-                colorShaderName = colorShader.name;
-
-            }
         }
 
         /// <summary>
@@ -467,7 +440,7 @@ namespace GridMapMaker
                     layerInfo.ShapeSize = Vector2.one;
                 }
 
-                gridShape.size = layerInfo.ShapeSize;
+                gridShape.scale = layerInfo.ShapeSize;
 
                 gridShape.UpdateShape();
 
@@ -573,7 +546,6 @@ namespace GridMapMaker
                     offset *= dir;
                 }
 
-
                 foreach (GridChunk chunk in sortedChunks.Values)
                 {
                     chunk.SortLayer(layer.LayerId, layerSortAxis, offset);
@@ -642,7 +614,7 @@ namespace GridMapMaker
 
             if (chunk != null)
             {
-                ColorVisualData data = new ColorVisualData(ColorShader, color);
+                ColorVisualData data = new ColorVisualData(color);
 
                 chunk.InsertVisualData(gridPosition, data, layerId);
                 visualDatas.Add(data);
@@ -777,8 +749,7 @@ namespace GridMapMaker
 
 
         /// <summary>
-        /// Removes the visual data at the given chunk position from the given layer.
-        /// Note removing a visualData will cause the cell at that position to be drawn with the defaultVisualData. If you wish for the entire cell to be empty, use the DeletePosition method
+        /// Removes the visual data at the given chunk position from all layers. There will be nothing displayed at that position after this operation.
         /// </summary>
         /// <param timerName="gridPosition"></param>
         /// <param timerName="LayerId"></param>
@@ -793,7 +764,7 @@ namespace GridMapMaker
         }
 
         /// <summary>
-        /// Removes the visual data at the given chunk position from all layers.Note removing a visualData will cause the cell at that position to be drawn with the defaultVisualData. If you wish for the entire cell to be empty, use the DeletePosition method
+        /// Removes the visual data at the given chunk position from all layers. There will be nothing displayed at that position after this operation.
         /// </summary>
         /// <param timerName="gridPosition"></param>
         public void RemoveVisualData(Vector2Int gridPosition)
@@ -803,37 +774,6 @@ namespace GridMapMaker
             if (chunk != null)
             {
                 chunk.RemoveVisualData(gridPosition);
-            }
-        }
-
-        /// <summary>
-        /// Will delete the position from the grid. This means there will be no mesh at that cells position
-        /// </summary>
-        /// <param name="gridPosition"></param>
-        public void DeletePosition(Vector2Int gridPosition)
-        {
-            ValidateLayerId(ref baseLayerId);
-
-            foreach (GridChunk chunk in sortedChunks.Values)
-            {
-                chunk.DeletePosition(gridPosition);
-            }
-        }
-
-        /// <summary>
-        /// Delete the position at that specific layer. This means there will be no mesh at that cells position
-        /// </summary>
-        /// <param name="gridPosition"></param>
-        /// <param name="layerId"></param>
-        public void DeletePosition(Vector2Int gridPosition, string layerId = USE_DEFAULT_LAYER)
-        {
-            ValidateLayerId(ref layerId);
-
-            GridChunk chunk = GetGridChunk(gridPosition);
-
-            if (chunk != null)
-            {
-                chunk.DeletePosition(gridPosition, layerId);
             }
         }
 
@@ -1001,7 +941,7 @@ namespace GridMapMaker
                 chunk.InitializeLayer(modifiedSettings);
             }
 
-            RedrawLayer(layerId);
+            DrawLayer(layerId);
         }
 
         /// <summary>
@@ -1055,10 +995,10 @@ namespace GridMapMaker
         }
 
         /// <summary>
-        /// Simply redraws a layer. Call this when you have made changes to a layer and want to see those changes take effect
+        /// Simply draws a specific layer. Call this when you have made changes to a layer and want to see those changes take effect
         /// </summary>
         /// <param name="layerId"></param>
-        public void RedrawLayer(string layerId = USE_DEFAULT_LAYER)
+        public void DrawLayer(string layerId = USE_DEFAULT_LAYER)
         {
             ValidateLayerId(ref layerId);
 
@@ -1075,24 +1015,7 @@ namespace GridMapMaker
         /// </summary>
         public void Clear()
         {
-            int index = 0;
-
-            List<GridChunk> chunks = new List<GridChunk>();
-
-            while (index < transform.childCount)
-            {
-                Transform child = transform.GetChild(index);
-
-                if(child.GetComponent<GridChunk>() != null)
-                {
-                    GridChunk chunk = child.GetComponent<GridChunk>();
-                    chunks.Add(chunk);
-                }
-
-                index++;
-            }
-
-            foreach (GridChunk chunk in chunks)
+            foreach (GridChunk chunk in sortedChunks.Values)
             {
                chunk.Clear();
             }
@@ -1101,6 +1024,19 @@ namespace GridMapMaker
             visualDatas.Clear();
             meshLayerInfos.Clear();
             gridShapes.Clear();
+
+            // loop throught children and remove any object with gridchunk componenet
+
+            // loop in reverse
+
+            for (int i = transform.childCount - 1; i >= 0; i--)
+            {
+                Transform child = transform.GetChild(i);
+                if (child.GetComponent<GridChunk>() != null)
+                {
+                    DestroyImmediate(child.gameObject);
+                }
+            }
         }
         #endregion 
 
@@ -1321,182 +1257,6 @@ namespace GridMapMaker
             return null;
         }
 
-        /// <summary>
-        /// Will update the visualHash of all the hashes in the map.
-        /// Do not call unless you need to. Make sure to disable updateOnVisual change in the meshlayer class
-        /// </summary>
-        public void ValidateAllVisualHashes()
-        {
-            foreach (ShapeVisualData vp in visualDatas)
-            {
-                vp.ValidateVisualHash();
-            }
-        }
-
-        #endregion
-
-        #region Saving and Loading Map
-
-        /// <summary>
-        /// Will return a string that represents the current state of the map. This string can be saved and loaded at a later time. This used the current visualContainer to serialize the map. If you wish to load the map, you must have the same visualContainer that was used to serialize the map. Any modifications to the visualContainer will cause the map to not load correctly.
-        /// </summary>
-        /// <returns></returns>
-        public string GetSerializeMap()
-        {
-            if(visualContainer == null)
-            {
-                Debug.LogError("Cannot serialize map. No visual container found");
-                return "";
-            }
-            SavedMap savedMap = new SavedMap(this);
-
-            string json = JsonUtility.ToJson(savedMap, true);
-
-            return json;
-        }
-
-        /// <summary>
-        /// Given a string which contains a serialized map, This method will deserialize the map and load it into the grid. In order for this to work, this gridManager must have the appropriate visualContainer which was used to serialize the map
-        /// </summary>
-        /// <param name="json"></param>
-        public void DeserializeMap(string json)
-        {
-            SavedMap savedMap = JsonUtility.FromJson<SavedMap>(json);
-
-            savedMap.DeserializeVisualProps(visualContainer);
-
-            visualDatas = savedMap.visualDatas.ToHashSet();
-
-            LoadMap(savedMap);
-
-            Debug.Log("Map Loaded");
-        }
-        private void LoadMap(SavedMap savedMap)
-        {
-            foreach (GridChunk chunk in sortedChunks.Values)
-            {
-                chunk.Clear();
-            }
-
-            gridSize = savedMap.gridSize;
-            chunkSize = savedMap.chunkSize;
-            cellGap = savedMap.cellGap;
-
-            // transforms
-            transform.localPosition = savedMap.position;
-            transform.localEulerAngles = savedMap.eulerAngle;
-            transform.localScale = savedMap.scale;
-
-            MapOrientation = savedMap.mapOrientation;
-            layerSortAxis = savedMap.layerSortAxis;
-
-            UseMultithreading = savedMap.useMultiThreading;
-            RedrawOnVisualHashChanged = savedMap.redrawOnV;
-
-            baseLayerId = savedMap.baseLayerId;
-            colorShaderName = savedMap.colorShaderName;
-
-            defaultVisualData = savedMap.defaultVisualData;
-            colorShader = Shader.Find(colorShaderName);
-
-            Initialize();
-
-            if (sortedChunks.Count > 0)
-            {
-                for (int i = 0; i < savedMap.layerSettings.Count; i++)
-                {
-                    MeshLayerSettings item = savedMap.layerSettings[i];
-                    item.Shape = visualContainer.GetGridShape(item.ShapeId);
-
-                    CreateLayer(item, item.LayerId == savedMap.baseLayerId);
-                }
-
-                Dictionary<Guid, ShapeVisualData> savedDatas = new Dictionary<Guid, ShapeVisualData>();
-
-                foreach (ShapeVisualData vData in savedMap.visualDatas)
-                {
-                    savedDatas.TryAdd(vData.VisualId, vData);
-                }
-
-                if (savedMap.useMultiThreading)
-                {
-                    InsertChunk_Fast();
-                }
-                else
-                {
-                    InsertChunk();
-                }
-
-                DrawGrid();
-
-                void InsertChunk()
-                {
-                    foreach (SerializedGridChunk item in savedMap.serializedChunks)
-                    {
-                        GridChunk chunk = null;
-                        ColorVisualData defaultVData = new ColorVisualData(ColorShader, DefaultColor);
-
-                        if (sortedChunks.TryGetValue(item.startPosition.GetHashCode_Unique(), out chunk))
-                        {
-                            foreach (SerializedMeshLayer sml in item.serializedLayers)
-                            {
-                                List<ShapeVisualData> data = new List<ShapeVisualData>();
-
-                                for (int i = 0; i < sml.visualDatas.Count; i++)
-                                {
-                                    Vector2Int pos = sml.gridPositions[i];
-                                    Guid id = Guid.Parse(sml.visualDatas[i]);
-
-                                    if (!savedDatas.TryGetValue(id, out ShapeVisualData v))
-                                    {
-                                        v = defaultVData;
-                                    }
-
-                                    chunk.QuickInsertVisualData(pos, v, sml.layerId);
-                                    visualDatas.Add(v);
-                                }
-                            }
-                        }
-                    }
-                }
-
-                void InsertChunk_Fast()
-                {
-                    ColorVisualData defaultVData = new ColorVisualData(ColorShader, DefaultColor);
-
-                    Parallel.ForEach(savedMap.serializedChunks, item =>
-                    {
-                        if (sortedChunks.TryGetValue(item.startPosition.GetHashCode_Unique(), out GridChunk chunk))
-                        {
-                            foreach (SerializedMeshLayer sml in item.serializedLayers)
-                            {
-                                List<ShapeVisualData> data = new List<ShapeVisualData>();
-
-                                for (int i = 0; i < sml.visualDatas.Count; i++)
-                                {
-                                    Vector2Int pos = sml.gridPositions[i];
-                                    Guid id = Guid.Parse(sml.visualDatas[i]);
-
-                                    if (!savedDatas.TryGetValue(id, out ShapeVisualData v))
-                                    {
-                                        v = defaultVData;
-                                    }
-
-                                    chunk.QuickInsertVisualData(pos, v, sml.layerId);
-
-                                    visualDatas.Add(v); // ConcurrentBag handles thread-safety
-                                }
-                            }
-                        }
-                    });
-                }
-            }
-        }
-        /// <summary>
-        /// Will get all the unique visual Data being used in the map. 
-        /// Uniqueness is determined by the visualIDHash not visualHash
-        /// </summary>
-        /// <returns></returns>
         public List<ShapeVisualData> GetUniqueVisualIds()
         {
             return visualDatas.ToList();
@@ -1520,121 +1280,6 @@ namespace GridMapMaker
             return uniqueVisuals.ToList();
         }
 
-        /// <summary>
-        /// A saved map is a serialized struct that holds the state of the grid. This struct can be serialized and deserialized to save and load the grid
-        /// </summary>
-
-        [Serializable]
-        public struct SavedMap
-        {
-            public Vector2Int gridSize;
-            public Vector2Int chunkSize;
-            public Vector2 cellGap;
-
-            // transform
-            public Vector3 eulerAngle;
-            public Vector3 position;
-            public Vector3 scale;
-
-            public GridShape.Orientation mapOrientation;
-            public SortAxis layerSortAxis;
-
-            public bool useMultiThreading;
-            public bool redrawOnV;
-
-            public string baseLayerId;
-            public string colorShaderName;
-
-            [SerializeReference]
-            public ShapeVisualData defaultVisualData;
-
-            [SerializeReference]
-            public List<ShapeVisualData> visualDatas;
-
-            [SerializeField]
-            public List<MeshLayerSettings> layerSettings;
-
-            [SerializeField]
-            public List<SerializedGridChunk> serializedChunks;
-
-            public SavedMap(GridManager gridManager)
-            {
-                gridSize = gridManager.GridSize;
-
-                chunkSize = gridManager.ChunkSize;
-                cellGap = gridManager.cellGap;
-                mapOrientation = gridManager.MapOrientation;
-                layerSortAxis = gridManager.LayerSortAxis;
-                useMultiThreading = gridManager.UseMultithreading;
-                redrawOnV = gridManager.RedrawOnVisualHashChanged;
-                baseLayerId = gridManager.BaseLayer;
-                colorShaderName = gridManager.colorShaderName;
-
-                eulerAngle = gridManager.T_EulerAngles;
-                position = gridManager.T_Position;
-                scale = gridManager.T_Scale;
-
-                layerSettings = gridManager.meshLayerInfos.Values.ToList();
-
-                visualDatas = gridManager.visualDatas.ToList();
-
-                defaultVisualData = gridManager.DefaultVisualData;
-
-                serializedChunks = new List<SerializedGridChunk>();
-
-                bool result = SerializeVisualProps(gridManager.visualContainer);
-
-                if(result == false)
-                {
-                    Debug.LogError("Could not serialize map. Please Make sure ALL instance and reference data is added into the visual data. This includes but is not limited to, shaders, materials, all UNITY game objects etc..");
-
-                    return;
-                }
-
-                foreach (GridChunk item in gridManager.sortedChunks.Values)
-                {
-                    serializedChunks.Add(item.GetSerializedChunk());
-                }
-            }
-
-            public bool SerializeVisualProps(MapVisualContainer container)
-            {
-                bool def = defaultVisualData.SerializeVisualData(container);
-
-                if(def == false)
-                {
-                    Debug.LogError("Could not serialize data. Default Visual Data properties not found in the visual container.");
-                    return false;
-                }
-
-                foreach (ShapeVisualData visual in visualDatas)
-                {
-                    bool result = visual.SerializeVisualData(container);
-
-                    if(result == false)
-                    {
-                        Debug.LogError("Could not serialize data. Visual Data properties not found in the visual container.");
-                        return false;
-                    }
-                }
-
-                return true;
-            }
-
-            public void DeserializeVisualProps(MapVisualContainer container)
-            {
-                defaultVisualData.DeserializeVisualData(container);
-
-                List<ShapeVisualData> deserializedVData = new List<ShapeVisualData>();
-
-                foreach (ShapeVisualData visual in visualDatas)
-                {
-                    deserializedVData.Add(visual.DeserializeVisualData(container));
-                }
-
-                visualDatas = deserializedVData;
-            }
-        }
         #endregion
         public string GetMapDescription()
         {
@@ -1673,7 +1318,7 @@ namespace GridMapMaker
         private GridShape shape;
 
         [SerializeField]
-        private Vector2 shapeSize;
+        private Vector2 shapeScale;
 
         [SerializeField]
         private bool includeMeshCollider;
@@ -1693,9 +1338,9 @@ namespace GridMapMaker
         {
             get
             {
-                return shapeSize;
+                return shapeScale;
             }
-            set { shapeSize = value; }
+            set { shapeScale = value; }
         }
         public string LayerId { get => layerId; }
         public string ShapeId { get => shape.UniqueShapeName; }
@@ -1710,7 +1355,7 @@ namespace GridMapMaker
             this.orderInLayer = orderInLayer;
             this.useVisualEquality = useVisualEquality;
             this.shape = shape;
-            this.shapeSize = shapeSize;
+            this.shapeScale = shapeSize;
             this.includeMeshCollider = includeMeshCollider;
         }
 
@@ -1720,7 +1365,7 @@ namespace GridMapMaker
             orderInLayer = 0;
             useVisualEquality = false;
             shape = null;
-            shapeSize = Vector2.zero;
+            shapeScale = Vector2.zero;
             includeMeshCollider = false;
         }
 

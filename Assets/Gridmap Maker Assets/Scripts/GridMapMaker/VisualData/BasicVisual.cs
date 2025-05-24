@@ -10,67 +10,43 @@ namespace GridMapMaker
     /// </summary>
     [Serializable]
     public class BasicVisual : ShapeVisualData
-    {    
-        public BasicVisual(Shader shader, Texture2D texture, Color color)
+    {
+        [SerializeField]
+        public Texture2D mainTexture;
+
+        [SerializeField]
+        private Color mainColor = Color.white;
+        public BasicVisual(Material mat, Texture2D texture, Color color)
         {
-            base.shader = shader;
-            base.material = null;
+            sharedMaterial = mat;
             mainTexture = texture;
             mainColor = color;
 
-            VisualHash = GetVisualHash();
+            VisualColor = mainColor;
 
-            PropertyBlock = new MaterialPropertyBlock();
+            propertyBlock = null;
         }
 
-        public BasicVisual(Material material, Shader shader, Texture2D texture, Color color)
+        protected override void SetMaterialPropertyBlock()
         {
-            base.material = material;
-            base.shader = shader;
-            mainTexture = texture;
-            mainColor = color;
-
-            VisualHash = GetVisualHash();
-
-            PropertyBlock = new MaterialPropertyBlock();
-        }
-
-        public override void SetMaterialPropertyBlock()
-        {
-            if (PropertyBlock == null)
+            if (propertyBlock == null)
             {
-                PropertyBlock = new MaterialPropertyBlock();
+                propertyBlock = new MaterialPropertyBlock();
             }
 
-            PropertyBlock.Clear();
+            propertyBlock.Clear();
 
             if (mainTexture != null)
             {
-                PropertyBlock.SetTexture(mainTexProperty, mainTexture);
+                propertyBlock.SetTexture(_mainTex, mainTexture);
             }
 
-            PropertyBlock.SetColor(mainColorProperty, mainColor);
-        }
-        public override ShapeVisualData DeepCopy()
-        {
-            BasicVisual clone = new BasicVisual(shader, mainTexture, mainColor);
-            return clone;
-        }
-        public override int GetVisualHash()
-        {
-            int mt = mainTexture != null ? mainTexture.GetHashCode() : 0;
-            unchecked
-            {
-                int hash = 17;
-                hash = hash * 23 + mt;
-                hash = hash * 23 + mainColor.GetHashCode();
-                return hash;
-            }
+            propertyBlock.SetColor(_mainColor, mainColor);
         }
 
-        protected override void OnVisualDataChanged(ShapeVisualData sender)
+        public override int CalculateVisualHash()
         {
-            base.OnVisualDataChanged(sender);
+            return HashCode.Combine(sharedMaterial, mainTexture, mainColor);
         }
     }
 }

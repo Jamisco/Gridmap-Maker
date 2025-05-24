@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using UnityEditor;
 using UnityEngine;
@@ -14,7 +15,7 @@ namespace GridMapMaker.Tutorial
         [SerializeField]
         List<BiomeSettings> biomeSettings;
 
-        public Shader mainShader;
+        public Material mainMaterial;
 
         [SerializeField]
         [Range(0, 1)]
@@ -29,30 +30,26 @@ namespace GridMapMaker.Tutorial
 #if UNITY_EDITOR
         Texture2D[] GetTexturesFromPath()
         {
-            Texture2D[] textures = AssetDatabase.LoadAllAssetsAtPath(TexturePath).OfType<Texture2D>().ToArray();
+            string[] guids = AssetDatabase.FindAssets("t:Texture2D", new[] { TexturePath });
+            Texture2D[] textures = guids
+                .Select(guid => AssetDatabase.LoadAssetAtPath<Texture2D>(
+                    AssetDatabase.GUIDToAssetPath(guid)))
+                .ToArray();
 
             return textures.ToArray();
         }
 #endif
 
-        Texture2D[] defaultTextures;
+        public Texture2D[] defaultTextures;
         public void ValidateWithDefault()
         {
             biomeSettings.Clear();
 
-            try
+            if(defaultTextures.Length == 0)
             {
-#if UNITY_EDITOR
-                defaultTextures = GetTexturesFromPath();
-#else
-                defaultTextures = null;
-#endif
+                Debug.LogError("No Textures found, please drag textures from Tutorials/Textures into the list.");
             }
-            catch (Exception)
-            {
-                Debug.LogError("Texture folder path is inaccurate. Please update the folder path in Biosphere script updating with default values");
-                defaultTextures = null;
-            }
+
 
             int c = 0;
 
@@ -104,7 +101,7 @@ namespace GridMapMaker.Tutorial
         {
             if (land < landCutOff)
             {
-                return new ColorVisualData(mainShader, oceanColor);
+                //return new ColorVisualData(mainShader, oceanColor);
             }
 
             temp = temp * 100;
@@ -140,7 +137,7 @@ namespace GridMapMaker.Tutorial
                 }
             }
 
-            BasicVisual bv = new BasicVisual(mainShader, biome2Use.texture, biome2Use.averageColor);
+            BasicVisual bv = new BasicVisual(mainMaterial, biome2Use.texture, biome2Use.averageColor);
             bv.DataRenderMode = ShapeVisualData.RenderMode.Material;
 
             return bv;
@@ -151,7 +148,8 @@ namespace GridMapMaker.Tutorial
         }
         public Color GetBiomeColor(Vector2Int pos)
         {
-            return biomeData[pos].mainColor;
+            //return biomeData[pos].mainColor;
+            return Color.white;
         }
 
         public (List<Vector2Int>, List<ShapeVisualData>) GetBiomeData()

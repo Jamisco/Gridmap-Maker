@@ -34,7 +34,6 @@ namespace GridMapMaker.Tutorial
 
                 // Camera Drag
 
-
                 if (Input.GetMouseButtonDown(0))
                 {
                     dragOrigin = Input.mousePosition;

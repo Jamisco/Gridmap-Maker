@@ -10,15 +10,12 @@ using UnityEditor;
 namespace GridMapMaker.Tutorial
 {
     /// <summary>
-    /// A script used to test the GridManager and its subsequent classes and functions in editor.
+    /// A script used to test the GridManager and its subsequent classes and functions in editor. 
     /// </summary>
     public class GridTester : MonoBehaviour
     {
         [SerializeField]
         public GridManager gridManager;
-
-        [SerializeReference]
-        private MapVisualContainer visualContainer;
 
         [SerializeField]
         public bool DisableUnseenChunk = false;
@@ -95,7 +92,7 @@ namespace GridMapMaker.Tutorial
 
                 gridManager.InsertPositionBlock(data.Item1, data.Item2, layer2Add.LayerId);
 
-                gridManager.RedrawLayer(layer2Add.LayerId);
+                gridManager.DrawLayer(layer2Add.LayerId);
             }       
         }
 
@@ -117,9 +114,12 @@ namespace GridMapMaker.Tutorial
 
             gridManager.CreateLayer(baseLayer);
 
-            gridManager.SetVisualContainer(visualContainer);
-
+            TimeLogger.StopTimer(8491, "Generate Grid");
+            // we stop the timer here because it has nothing to do with the gridmap maker
             mapData = GenerateRandomMap(generateOnlyColors);
+
+            TimeLogger.StartTimer(8491, "Generate Grid");
+
 
             gridManager.InsertPositionBlock(mapData.Item1, mapData.Item2, baseLayer.LayerId);
 
@@ -141,30 +141,6 @@ namespace GridMapMaker.Tutorial
         {
             gridManager.Clear();
         }
-
-        public void SaveMap()
-        {
-            string save = gridManager.GetSerializeMap();
-
-            // check if path is a file or directory
-
-            if (Directory.Exists(savePath))
-            {
-                Debug.LogError("The path provided is a directory not a file. Please make sure the path also includes the name of the file.");
-
-                return;
-            }
-
-            File.WriteAllText(savePath, save);
-
-            Debug.Log("Map Saved");
-        }
-        public void LoadMap()
-        {
-            string json = System.IO.File.ReadAllText(savePath);
-
-            gridManager.DeserializeMap(json);
-        }
         
         public void DisableUnseenChunks()
         {
@@ -177,8 +153,8 @@ namespace GridMapMaker.Tutorial
         {
             BasicVisual data = gridManager.GetVisualData(Vector2Int.zero, baseLayer.LayerId) as BasicVisual;
 
-            data = data.DeepCopy() as BasicVisual;
-            data.mainColor = Color.green;
+            //data = data.DeepCopy() as BasicVisual;
+            //data.mainColor = Color.green;
             data.ValidateVisualHash();
             
             gridManager.InsertVisualData(InputHex, data, baseLayer.LayerId);
@@ -193,9 +169,9 @@ namespace GridMapMaker.Tutorial
         //}
         public void Miscellaneous()
         {
-            ShapeVisualData data = gridManager.GetVisualData(InputHex, baseLayer.LayerId);
+            BasicVisual data = (BasicVisual) gridManager.GetVisualData(InputHex, baseLayer.LayerId);
 
-            data.mainTexture = visualContainer.GetRandomObject<Texture2D>();
+            data.mainTexture = textures[Random.Range(0, textures.Count)];
 
             data.ValidateVisualHash();
         }
@@ -206,11 +182,11 @@ namespace GridMapMaker.Tutorial
             gridManager.ValidateOrientation();
         }
 
-        private void DeleteShape()
+        private void DeletePosition()
         {
             Vector2Int gridPos = InputHex;
 
-            gridManager.DeletePosition(gridPos);
+            gridManager.RemoveVisualData(gridPos);
             gridManager.UpdatePosition(gridPos);
 
             Debug.Log("Deleted Pos: " + gridPos);
@@ -222,13 +198,13 @@ namespace GridMapMaker.Tutorial
 
             ShapeVisualData vData = gridManager.GetVisualData(gridPos, baseLayer.LayerId);
 
-            Texture2D old = vData.mainTexture;
+            //Texture2D old = vData.mainTexture;
 
-            vData.mainTexture = visualContainer.GetRandomObject<Texture2D>();
+            //vData.mainTexture = visualContainer.GetRandomObject<Texture2D>();
 
             vData.ValidateVisualHash();
 
-            Debug.Log("Texture Changed: " + old + " -- " + vData.mainTexture);
+            //Debug.Log("Texture Changed: " + old + " -- " + vData.mainTexture);
         }
 
         public void MouseClick(int c)
@@ -273,7 +249,7 @@ namespace GridMapMaker.Tutorial
         {
             Vector2Int gridPos = InputHex;
 
-            gridManager.DeletePosition(gridPos);
+            gridManager.RemoveVisualData(gridPos);
             gridManager.UpdatePosition(gridPos);
 
             Debug.Log("Removed Visual: " + gridPos);
@@ -288,15 +264,14 @@ namespace GridMapMaker.Tutorial
         /// <summary>
         /// The default shader MUST BE PRESENT in the VISUAL CONTRAINER you are using
         /// </summary>
-        public Shader defaultShader;
+        public Material defaultMat;
+        public List<Texture2D> textures;
         public (List<Vector2Int>, List<ShapeVisualData>) GenerateRandomMap(bool colorOnly = false)
         {
             List<Vector2Int> positions = new List<Vector2Int>();
             List<ShapeVisualData> visualData = new List<ShapeVisualData>();
 
             BasicVisual data;
-
-            Shader shader = visualContainer.GetShader(defaultShader.name);
 
             for (int x = 0; x < gridManager.GridSize.x; x++)
             {
@@ -322,14 +297,13 @@ namespace GridMapMaker.Tutorial
 
                 if (texture)
                 {
-                    Texture2D T = visualContainer.GetRandomObject<Texture2D>();
-
-                    data = new BasicVisual(shader, T, Color.white);
+                    Texture2D T = textures[UnityEngine.Random.Range(0, textures.Count)];
+                    data = new BasicVisual(defaultMat, T, Color.white);
                 }
                 else
                 {
                     Color C = UnityEngine.Random.ColorHSV();
-                    data = new BasicVisual(shader, null, C);
+                    data = new BasicVisual(defaultMat, null, C);
 
                     data.DataRenderMode = ShapeVisualData.RenderMode.MeshColor;
                 }
@@ -382,16 +356,6 @@ namespace GridMapMaker.Tutorial
                 if (GUILayout.Button("Clear Grid"))
                 {
                     exampleScript.ClearGrid();
-                }
-
-                if (GUILayout.Button("Save Map"))
-                {
-                    exampleScript.SaveMap();
-                }
-
-                if (GUILayout.Button("Load Map"))
-                {
-                    exampleScript.LoadMap();
                 }
             }
         }

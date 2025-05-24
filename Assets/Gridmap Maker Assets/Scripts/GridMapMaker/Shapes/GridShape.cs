@@ -30,10 +30,11 @@ namespace GridMapMaker
 
         [SerializeField]
         private List<int> baseTriangles;
+
         /// <summary>
-        /// The size of the Shape. This is set by the gridManager. You do not have to use this at all.
+        /// The scale of the Shape. This scale the dimensions of the shapes vertices. This is set by the gridManager. You have to multiply your shapes (height and width) or vertices by this value if you plan on scaling the shape. If not, you can ignore this value.
         /// </summary>
-        public virtual Vector2 size { get; set; } = Vector2.one;
+        public virtual Vector2 scale { get; set; } = Vector2.one;
 
         /// <summary>
         /// This value will be set by the gridManager. You do not have to use this at all.
@@ -64,6 +65,11 @@ namespace GridMapMaker
 
         [SerializeField]
         private Orientation baseOrientation;
+
+        [SerializeField]
+        [ShowOnlyField]
+        [Tooltip("This is the size of the shape in world space. This is for editor display purposes only. This value is not used or to be used any calculations.")]
+        protected Vector2 ShapeWorldSize;
 
         private Orientation shapeOrientation;
         /// <summary>
@@ -172,7 +178,24 @@ namespace GridMapMaker
             
             return orientedVertices;
         }
-  
+
+        /// <summary>
+        // This is for editor display purposes only.
+        // This way you know a rough idea of the size of the shape in world space.
+        // If your sprite/image has a PPU of 100 and the shapeworldsize is 1x1, then the image will fit exactly within the shape bounds
+        /// </summary>
+        protected virtual void SetWorldSpaceSize()
+        {
+            try
+            {
+                SetBounds();
+                ShapeWorldSize = new Vector2(shapeBounds.size.x, shapeBounds.size.y);
+            }
+            catch (Exception)
+            {
+            }
+        }
+
         private void SetShapeMeshData()
         {
             MeshData meshData = new MeshData();
@@ -209,6 +232,7 @@ namespace GridMapMaker
             SetShapeMeshData();
             // updating orientation will set the shapeMesh
             UpdateOrientation();
+
         }
 
         /// <summary>

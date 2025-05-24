@@ -8,23 +8,29 @@ namespace GridMapMaker
     [CreateAssetMenu(fileName = "HexagonalShape", menuName = MenuName + "Hexagon")]
     public class HexagonalShape : GridShape
     {
-        public float Width { get => size.x; }
-        public float Depth { get => size.y; }
-        
+        public float Width { get => 1 * scale.x; }
+        public float Depth { get => 1 * scale.y; }
         private void OnValidate()
         {
+            // create one giant mesh rendered and just add invidual shapes too it.
+            // it will be likle a pesudo mesh layer.
+            // we will use sprites default and just change the color of the shapes directly.
+            // we can use the shape mesh fuser as our guide
             SetBaseValues();
+
+            SetWorldSpaceSize();
         }
 
         float xTesselationConstant;
         float yTesselationConstant;
+
         protected override void SetBaseValues()
         {
             SetBaseVertices();
             SetBaseTriangles();
             SetBaseUVs();
             
-            BaseOrientation = Orientation.XZ;
+            //BaseOrientation = Orientation.XZ;
 
             xTesselationConstant = (Width / 2.0f);
             yTesselationConstant = (Depth - Depth / 4.0f);

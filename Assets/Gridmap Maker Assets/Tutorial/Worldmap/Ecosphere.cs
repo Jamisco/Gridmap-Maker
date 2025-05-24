@@ -1,5 +1,4 @@
-﻿using Assets.Worldmap.VisualDatas;
-using System;
+﻿using System;
 using System.Collections.Generic;
 using UnityEditor;
 using UnityEngine;
@@ -149,7 +148,7 @@ namespace GridMapMaker.Tutorial
                     return usedVData[rt.GetHashCode()];
                 }
 
-                LandVisualData v = new LandVisualData(temp, rain, lProps.landShader);
+                LandVisualData v = new LandVisualData(lProps.landShader, temp, rain);
 
                 usedVData.Add(rt.GetHashCode(), v);
 
@@ -166,11 +165,6 @@ namespace GridMapMaker.Tutorial
             return snowBiomeData[pos.GetHashCode_Unique()];
         }
 
-        public Color GetBiomeColor(Vector2Int pos)
-        {
-            return biomeData[pos.GetHashCode_Unique()].mainColor;
-        }
-
         public BiomeBlockValues GetBiomeData()
         {
             return bbv;
@@ -181,9 +175,9 @@ namespace GridMapMaker.Tutorial
         {
             public Material oceanMaterial;
 
-            public Shader snowShader;
-            public Shader landShader;
-            public Shader lavaVisualData;
+            public Material snowShader;
+            public Material landShader;
+            public Material lavaVisualData;
 
             public float waterThreshold;
             public float snowThreshhold;

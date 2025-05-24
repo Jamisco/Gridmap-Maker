@@ -145,6 +145,7 @@ namespace GridMapMaker.Tutorial
 
             if (GUILayout.Button("Generate Both Maps"))
             {
+                myScript.ClearGrid();
                 myScript.Init();
                 myScript.GeneratePlanet_UTM();
                 myScript.GeneratePlanet_GMM();

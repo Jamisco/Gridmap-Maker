@@ -1,7 +1,8 @@
-﻿using System;
+﻿using GridMapMaker;
+using System;
 using UnityEngine;
 
-namespace GridMapMaker
+namespace GridMapMaker.Tutorial
 {
     [Serializable]
     /// <summary>
@@ -16,26 +17,6 @@ namespace GridMapMaker
             DataRenderMode = RenderMode.MeshColor;
 
         }
-
-        /// <summary>
-        /// If you wont be calling from main thread, please pass a shader
-        /// </summary>
-        /// <param name="mainColor"></param>
-        /// <param name="defShader"></param>
-        public ColorVisualData(Color mainColor, Shader defShader = null)
-        {
-            if (defShader == null)
-            {
-                defShader = Shader.Find("Sprites/Default");
-            }
-            sharedMaterial = new Material(defShader);
-            VisualColor = mainColor;
-            DataRenderMode = RenderMode.MeshColor;
-
-        }
-
-
-
         protected override void SetMaterialPropertyBlock()
         {
             propertyBlock = new MaterialPropertyBlock();

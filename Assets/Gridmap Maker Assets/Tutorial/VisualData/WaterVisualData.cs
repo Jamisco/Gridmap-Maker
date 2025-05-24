@@ -1,21 +1,20 @@
 ﻿using GridMapMaker;
 using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 using UnityEngine;
 
-namespace Assets.Worldmap.VisualDatas
+namespace GridMapMaker.Tutorial
 {
     [Serializable]
     public class WaterVisualData : ShapeVisualData
     {
         [SerializeField]
+        public Color mainColor;
+
+        [SerializeField]
         public Color secondaryColor;
         public WaterVisualData(Material material)
         {
-            this.material = material;
+            this.sharedMaterial = material;
 
             try
             {
@@ -26,23 +25,21 @@ namespace Assets.Worldmap.VisualDatas
             {
                 Debug.LogError("Material does not have the required properties for WaterVisualData. Verify that the material is correct.");
             }
-
-            this.VisualHash = GetVisualHash();
         }
-        public override void SetMaterialPropertyBlock()
+        protected override void SetMaterialPropertyBlock()
         {
-            if (PropertyBlock == null)
+            if (propertyBlock == null)
             {
-                PropertyBlock = new MaterialPropertyBlock();
+                propertyBlock = new MaterialPropertyBlock();
             }
 
-            PropertyBlock.Clear();
+            propertyBlock.Clear();
 
             // set mainColor and secondaryColor
             try
             {
-                PropertyBlock.SetColor("_MainColor", mainColor);
-                PropertyBlock.SetColor("_SecondColor", secondaryColor);
+                propertyBlock.SetColor("_MainColor", mainColor);
+                propertyBlock.SetColor("_SecondColor", secondaryColor);
             }
             catch (Exception)
             {
@@ -50,14 +47,9 @@ namespace Assets.Worldmap.VisualDatas
             }
         }
 
-        public override int GetVisualHash()
+        public override int CalculateVisualHash()
         {
-            return material.GetHashCode();
-        }
-
-        public override ShapeVisualData DeepCopy()
-        {
-            return new WaterVisualData(material);
+            return HashCode.Combine(sharedMaterial, mainColor, secondaryColor);
         }
     }
 }

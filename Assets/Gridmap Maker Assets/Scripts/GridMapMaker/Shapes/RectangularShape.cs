@@ -8,12 +8,13 @@ namespace GridMapMaker
     [CreateAssetMenu(fileName = "RectangularShape", menuName = MenuName + "Rectangle")]
     public class RectangularShape : GridShape
     {
-        public float Width { get => size.x; }
-        public float Height { get => size.y; }
+        public float Width { get => 1 * scale.x; }
+        public float Height { get => 1 * scale.y; }
 
         private void OnValidate()
         {
             SetBaseValues();
+            SetWorldSpaceSize();
         }
 
         protected override void SetBaseValues()
@@ -22,7 +23,7 @@ namespace GridMapMaker
             SetBaseTriangles();
             SetBaseUVs();
 
-            BaseOrientation = Orientation.XZ;
+            //BaseOrientation = Orientation.XY;
         }
         private void SetBaseVertices()
         {

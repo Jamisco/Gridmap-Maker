@@ -23,8 +23,6 @@ namespace GridMapMaker.Tutorial
         public Text generateTime;
         public InputField camText;
 
-        public Button saveBtn;
-        public Button loadBtn;
 
         public Text fpsText;
 
@@ -34,8 +32,6 @@ namespace GridMapMaker.Tutorial
             Application.targetFrameRate = -1;
             QualitySettings.vSyncCount = 0;
             button.onClick.AddListener(OnButtonClick);
-            saveBtn.onClick.AddListener(grid.SaveMap);
-            loadBtn.onClick.AddListener(grid.LoadMap);
 
             cam = Camera.main;
         }

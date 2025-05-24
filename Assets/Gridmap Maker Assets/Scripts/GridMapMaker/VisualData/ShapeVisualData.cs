@@ -7,134 +7,134 @@ namespace GridMapMaker
 {
     /// <summary>
     /// A base class for all visual data. This class is used to create visuals for shapes.
+    /// Dont modify the base fields from editor. 
     /// </summary>
     [Serializable]
     public abstract class ShapeVisualData : IEquatable<ShapeVisualData>
     {
-        [ShowOnlyField]
-        [SerializeField]
-        private string visualName = "";
 
+        public const string _mainTex = "_MainTex";
+        public const string _mainColor = "_Color";
         /// <summary>
-        /// The reason we have this is because unity cannot serialize System.guid. So we have to convert it to a string and then back to a guid during serialization/deserialization.
+        /// A custom name you can use to identify the visual data. This is not used for anything and is just a custom name you can use to identify the visual data.
         /// </summary>
         [SerializeField]
         [HideInInspector]
-        private string visualIdString;
+        private string visualName = "";
+
+        /// <summary>
+        /// A custom name you can use to identify the visual data. This is not used for anything and is just a custom name you can use to identify the visual data.
+        /// </summary>
+        public string VisualName
+        {
+            get => visualName;
+            protected set => visualName = value;
+        }
+
+        /// <summary>
+        /// The name of the material this visual data is using.
+        /// </summary>
+        public string MaterialName
+        {
+            get
+            {
+                if (sharedMaterial == null)
+                {
+                    return "";
+                }
+
+                return sharedMaterial.name;
+            }
+        }
+
+        /// <summary>
+        /// This color will be used when rendermode is set to MeshColor. Note that this will not use nor set the color property of the material instead it will set the color directly into the vertices of the shape.
+        /// </summary>
+        public Color VisualColor { get; protected set; } = Color.white;
 
         [SerializeField]
-        private int visualHash;
-
+        [HideInInspector]
+        private int visualHash = defaultHash;
+        private const int defaultHash = -111111;
         /// <summary>
-        /// For faster comparison, Generate a visual hash code such that if two visual data are equal, they should have the same hash code.
-        /// This Should return a hash code such that 2 visual data that look thesame should have thesame hash. Make sure the hashcode is unique only for a specific visual look.
-        /// </summary>
-        /// 
-        public virtual string VisualName
+        /// The VisualHash is used to identify if 2 visual Data are thesame. That is, if 2 visualdata have thesame material and thesame properties, they should have thesame hash. It is Highly recommended you override the GetVisualHash method and cache the hashcode in this variable.
+        public int VisualHash
         {
-            get => visualName; protected set => visualName = value;
+            get
+            {
+                if(visualHash == defaultHash)
+                {
+                    visualHash = CalculateVisualHash();
+                }
+
+                return visualHash;
+            }
         }
-        public int VisualHash { get => visualHash; protected set => visualHash = value; }
 
-        /// <summary>
-        /// Similar to getHashCode, if 2 visuals have thesame reference, they should be equal. This is a unique identifier for a visual data during serialization/deserilization
-        /// </summary>
-        public Guid VisualId { get; private set; }
-
-        /// <summary>
-        /// The hashcode of the visualID, cached for performance during insertion/comparisons.
-        /// This is not persistent and will change per session.
-        /// </summary>
-        ///  
-        public int VisualIdHash { get; private set; }
-
-        public delegate void VisualDataChanged(ShapeVisualData sender);
         public delegate void MaterialPropertyChanged(ShapeVisualData sender);
 
-        public event VisualDataChanged VisualDataChange;
         public event MaterialPropertyChanged MaterialPropertyChange;
-        protected virtual MaterialPropertyBlock PropertyBlock { get; set; }
 
         [SerializeField]
-        protected Shader shader;
+        [HideInInspector]
+        protected MaterialPropertyBlock propertyBlock = null;
+        public virtual MaterialPropertyBlock PropertyBlock
+        {
+            get => propertyBlock;
+            protected set
+            {
+                propertyBlock = value;
+                OnMaterialPropertyChanged(this);
+            }
+        }
 
         [SerializeField]
-        protected Material material;
+        [HideInInspector]
+        protected Material sharedMaterial;
 
-        [SerializeField]
-        public Color mainColor;
-
-        [SerializeField]
-        public Texture2D mainTexture;
+        public Material SharedMaterial
+        {
+            get => sharedMaterial;
+            protected set
+            {
+                sharedMaterial = value;
+            }
+        }
 
         [SerializeField]
         [HideInInspector]
         private RenderMode dataRenderMode = RenderMode.Material;
         public RenderMode DataRenderMode { get => dataRenderMode; set => dataRenderMode = value; }
         /// <summary>
-        /// The render mode of the visual data. This will determine where we should used a material or a color the render the shape. For example, the ColorVisualData has its renderMode set to MeshColor. Generally, you should use Material render mode. If you want to use a color, you should use the ColorVisualData class provided.
+        /// The render mode of the visual data. This will determine whether  we should use a material or a color to render the shape. For example, the ColorVisualData has its renderMode set to MeshColor. Generally, you should use Material render mode. If you want to use only a color, you should use the ColorVisualData class provided. Note that when you use meshcolor, the color is set directly into the vertices of the shape, It will not be set by the material
         /// </summary>
         public enum RenderMode { Material, MeshColor };
 
-        /// <summary>
-        /// The default name of a texture property in ALL unity shaders
-        /// </summary>
-        public static string mainTexProperty = "_MainTex";
-        /// <summary>
-        /// The default name of a color property in ALL unity shaders
-        /// </summary>
-        public static string mainColorProperty = "_Color";
-
-        public const int DEFAULT_VISUAL_HASH = -1111111111;
-        public ShapeVisualData()
-        {
-            VisualId = Guid.NewGuid();
-
-            visualIdString = VisualId.ToString();
-            VisualIdHash = visualIdString.GetHashCode();
-
-            visualHash = DEFAULT_VISUAL_HASH;
-        }
 
         /// <summary>
-        /// Set the material properties of your shader in this method. This will be called when the visual data is being used to render a Shape. Be advised that changing the material properties will not take effect until the encapsulating shape is drawn or redraw. If you wish to update the material properties immediately, you should call the OnMaterialPropertyChanged method.
+        /// Set the material properties of your material in this method. You should call this on your own accord. Be advised that changing the material properties will not take effect until the encapsulating shape is drawn or redrawn. If you wish to update the material properties immediately, you should call the OnMaterialPropertyChanged method.
         /// </summary>
         /// 
-        public abstract void SetMaterialPropertyBlock();
+        protected abstract void SetMaterialPropertyBlock();
 
-         /// <summary>
-        /// Will check if the visual hash has changed. If the hash hash changed, it will raise OnVisualDataChanged event and then update the visual hash.
+        /// <summary>
+        /// This will call SetMaterial properties and then calculates and sets the visual hash. This is useful when you want to update the material properties before rendering.
         /// </summary>
         public void ValidateVisualHash()
         {
-            int oldHash = visualHash;
-            int newHash = GetVisualHash();
-
-            if (oldHash != newHash)
-            {
-                OnVisualDataChanged(this);
-                visualHash = newHash;
-            }
-        }
-        protected virtual void OnVisualDataChanged(ShapeVisualData sender)
-        {
-            VisualDataChange?.Invoke(this);
+            SetMaterialPropertyBlock();
+            InvalidateVisualData();
         }
 
+        /// <summary>
+        /// Call this method when you want to invoke the MaterialPropertyChange event. This is useful when you want to update the material properties and notify the listeners that the material properties have changed. Recommended to use this method instead at the end of SetMaterialPropertyBlock.
+        /// </summary>
+        /// <param name="sender"></param>
         protected virtual void OnMaterialPropertyChanged(ShapeVisualData sender)
         {
             MaterialPropertyChange?.Invoke(this);
         }
 
-        /// <summary>
-        /// Will call the SetMaterialPropertyBlock method and then return a new ShapeRenderData object
-        /// </summary>
-        /// <returns></returns>
-        public virtual ShapeRenderData GetShapeRenderData()
-        {
-            SetMaterialPropertyBlock();
-            return new ShapeRenderData(material, shader, PropertyBlock, visualName);
-        }
         /// <summary>
         /// Will return a shallow copy of the visual data. This is useful when you want to create a new visual data that looks thesame as the original and pass it around. The returned visual data will STILL SHARE REFERENCES. 
         /// </summary>
@@ -144,180 +144,73 @@ namespace GridMapMaker
         {
             return (T)MemberwiseClone();
         }
+
+        private void InvalidateVisualData()
+        {
+            // this is used to invalidate the visual data. This will cause the visual data to be recalculated and the hash to be updated the next time visualHash is accessed.
+            // this is useful when you want to update the visual data without having to call ValidateVisualData
+            visualHash = -111111;
+        }
+
         /// <summary>
-        /// This gets and combines the properties from the shader in order to get a unique hash.
+        /// This gets and combines the properties from the material in order to get a unique hash.
         /// This is an expensive operation and it is recommended you override and create your own hash code based on your visual data.
         /// </summary>
         /// <returns></returns>
-        public int GetVisualHash_Expensive()
+        protected int CalculateVisualHash_Expensive()
         {
-            ShapeRenderData data = GetShapeRenderData();
-            return data.GetVisualHash();
+            SetMaterialPropertyBlock();
+            int hash = HashCode.Combine(sharedMaterial);
+
+            foreach (MaterialPropertyType propType in
+                                          Enum.GetValues(typeof(MaterialPropertyType)))
+            {
+                string[] propertyNames = sharedMaterial.GetPropertyNames(propType);
+
+                foreach (string propertyName in propertyNames)
+                {
+                    object value = propertyBlock.GetValue(propertyName, propType);
+                    hash = HashCode.Combine(hash, value);
+                }
+            }
+
+            return hash;
         }
 
         /// <summary>
-        /// Returns the visual hash of the visualData. Do not forget to call this when you create a new visual data. I recommend you override this method and call it in your constructor.
+        /// Sets the shared material of the visual data. This is useful when you want to have a seperate material that is no longer shared with the original material. Be sure to pass a new reference of the material and also modify the properties of the material.
+        /// </summary>
+        /// <param name="newMat"></param>
+        public virtual void SetMaterial(Material newMat)
+        {
+            sharedMaterial = newMat;
+            InvalidateVisualData();
+        }
+
+        /// <summary>
+        /// This is used to get a unique hash for the visual data. Such that if 2 visuals have thesame material and properties, they will have thesame hash.
+        /// By default, this is the same as GetVisualHash_Expensive. It is recommended you override this and create your own hash code based on your material properties.
+        /// For example, if you have a texture and a color, you can do Hash.combine(Material, texture, color) to get a unique hash.
         /// </summary>
         /// <returns></returns>
-        public virtual int GetVisualHash()
+        public virtual int CalculateVisualHash()
         {
-            return DEFAULT_VISUAL_HASH;
+            return CalculateVisualHash_Expensive();
         }
 
         /// <summary>
-        /// The hashcode is simply the hashcode of the visual id. This is used to quickly compare visuals. If 2 visuals have thesame reference, they should be equal.
+        /// The hashcode simply calls the GetVisualHash method. Thus it is hihgly recommended you override GetVisualHash().
         /// </summary>
         /// <returns></returns>
         public override int GetHashCode()
         {
-            return VisualIdHash;
+            return sharedMaterial.GetHashCode();
         }
-        /// <summary>
-        /// Does a deep copy by serializing and deserializing the visual data. This is useful when you want to create a new visual data that looks thesame as the original. The returned visual data will NOT SHARE REFERENCES.
-        /// </summary>
-        /// <typeparam name="T"></typeparam>
-        /// <param name="container"></param>
-        /// <returns></returns>
-        public virtual ShapeVisualData DeepCopy(MapVisualContainer container)
-        {
-            ShapeVisualData copy = MemberwiseClone() as ShapeVisualData;
 
-            bool s = copy.SerializeVisualData(container);
-
-            if(s == false)
-            {
-                return null;
-            }
-
-            copy.DeserializeVisualData(container);
-
-            return copy;
-        }
-        public abstract ShapeVisualData DeepCopy();
 
         public virtual bool Equals(ShapeVisualData other)
         {
-            return VisualIdHash == other.VisualIdHash;
-        }
-        /// <summary>
-        /// Returns true if 2 visuals look thesame. This is a very expensive operation than the default equality check and should be used sparingly.
-        /// Highly recommended to implement this if you also want to draw shapes that look the same as one. If implemented properly could significantly increase performance.
-        /// If you implement this, you should also implement GetVisualEqualityHash too. 
-        /// </summary>
-        /// <param timerName="other"></param>
-        /// <returns></returns>
-        public bool VisuallyEquals(ShapeVisualData other)
-        {
-            return visualHash == other.visualHash;
-        }
-
-
-        private static string instStr = "instanceID";
-
-        [SerializeField]
-        [HideInInspector]
-        protected string SerializedData;
-
-        /// <summary>
-        /// Will serialize the data by storing the data into the SerializeData variable and then looping through the data and replacing the instanceID with a guid from the visual container.
-        /// </summary>
-        /// <param name="visualContainer"></param>
-        /// <returns> Returns true or false depending on fail or success </returns>
-        public virtual bool SerializeVisualData(MapVisualContainer visualContainer = null)
-        {
-            // reset the data or else it would show up in the allLines variable list.
-            // might be best to cache it and store it back into the data variable if this methods crashes
-            string sd = SerializedData;
-
-            try
-            {
-                SerializedData = "";
-                string data = JsonUtility.ToJson(this, true);
-
-                if (visualContainer == null)
-                {
-                    SerializedData = data;
-                    return false;
-                }
-
-                List<string> allLines = data.Split('\n').ToList();
-
-                // find all lines that contain instance ID and modify them to contain the guid of the texture
-
-                for (int i = 0; i < allLines.Count; i++)
-                {
-                    if (allLines[i].Contains(instStr))
-                    {
-                        string instanceValue = allLines[i].Split(' ').Last();
-
-                        int instanceID = -1;
-
-                        // if it doesnt parse, this means the instanceID is actually a field and not a value
-                        if (int.TryParse(instanceValue, out instanceID))
-                        {
-                            if (instanceID == 0)
-                            {
-                                //value is null
-                                continue;
-                            }
-                            string gid = visualContainer.GetGuid(instanceID).ToString();
-                            //string gid = Guid.NewGuid().ToString();
-                            allLines[i] = allLines[i].Replace(instanceValue, gid);
-                        }
-                    }
-                }
-
-                // combine list back to one string
-
-                SerializedData = string.Join("\n", allLines);
-                return true;
-            }
-            catch (Exception)
-            {
-                // the process failed, restore the data
-                SerializedData = sd;
-                return false;
-            }
-        }
-
-        /// <summary>
-        /// Returns a deserialized version of the visual data.
-        /// It is recommended you override this and create your own deserialization method in order to avoid boxing and unboxing of the data.
-        /// </summary>
-        /// <param name="visualContainer"></param>
-        /// <returns></returns>
-        public virtual ShapeVisualData DeserializeVisualData(MapVisualContainer visualContainer = null)
-        {
-            List<string> allLines = SerializedData.Split('\n').ToList();
-
-            // find all lines that contain instance ID and modify them to contain the guid of the texture
-
-            for (int i = 0; i < allLines.Count; i++)
-            {
-                if (allLines[i].Contains(instStr))
-                {
-                    string instanceValue = allLines[i].Split(' ').Last();
-
-                    Guid gid = Guid.Empty;
-
-                    // if it doesnt parse, this means the instanceID is actually a field and not a value
-                    if (Guid.TryParse(instanceValue, out gid))
-                    {
-                        int id = visualContainer.GetObjectId(gid);
-                        //string gid = Guid.NewGuid().ToString();
-                        allLines[i] = allLines[i].Replace(instanceValue, id.ToString());
-                    }
-                }
-            }
-
-            string data = string.Join("\n", allLines);
-
-            ShapeVisualData vData = JsonUtility.FromJson(data, GetType()) as ShapeVisualData;
-
-            vData.VisualId = Guid.Parse(vData.visualIdString);
-            vData.VisualIdHash = vData.visualIdString.GetHashCode();
-
-            return vData;
+            return VisualHash == other.VisualHash;
         }
 
         /// <summary>
@@ -331,11 +224,25 @@ namespace GridMapMaker
             {
                 if (UseVisualHash == true)
                 {
-                    return x.VisuallyEquals(y);
+                    if (x.VisualHash == y.VisualHash)
+                    {
+                        return true;
+                    }
+                    else
+                    {
+                        return false;
+                    }
                 }
                 else
                 {
-                    return x.Equals(y);
+                    if (x.sharedMaterial == y.sharedMaterial)
+                    {
+                        return true;
+                    }
+                    else
+                    {
+                        return false;
+                    }
                 }
             }
             public int GetHashCode(ShapeVisualData obj)
@@ -346,7 +253,7 @@ namespace GridMapMaker
                 }
                 else
                 {
-                    return obj.VisualIdHash;
+                    return obj.GetHashCode();
                 }
             }
         }

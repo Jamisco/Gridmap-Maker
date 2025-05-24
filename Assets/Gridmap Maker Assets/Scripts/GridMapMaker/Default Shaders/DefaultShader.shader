@@ -13,6 +13,10 @@
     {
        Tags { "RenderType" = "Transparent" "RenderPipeline" = "UniversalPipeline" }
         
+                // Key settings for transparency
+        Blend SrcAlpha OneMinusSrcAlpha
+       // ZWrite Off
+
         Pass
         {
 
@@ -52,15 +56,10 @@
             }
 
             fixed4 frag(v2f i) : SV_Target 
-            {                     
-                if(all(_Color == float3(1,1,1)))
-				{
-                     fixed4 col =  tex2D(_MainTex, i.uv);
+            {              
+                fixed4 col =  tex2D(_MainTex, i.uv);
                      
-                     return col;
-				}
-
-                return _Color;
+                return col * _Color;
             }   
             
             ENDHLSL

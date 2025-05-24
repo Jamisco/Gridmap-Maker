@@ -99,10 +99,7 @@ namespace GridMapMaker
         public Dictionary<int, ShapeVisualData> CellVisualDatas
                           = new Dictionary<int, ShapeVisualData>();
 
-        private ShapeVisualData defaultVisualData;
-
         public Dictionary<int, Vector2Int> CellGridPositions = new Dictionary<int, Vector2Int>();
-
 
         public Bounds LayerBounds
         {
@@ -160,7 +157,7 @@ namespace GridMapMaker
 
         private void OnValidate()
         {
-
+            //ColorVisualGroup.InsertPosition(0, Vector2Int.zero, Color.white);
         }
 
         /// <summary>
@@ -211,21 +208,10 @@ namespace GridMapMaker
 
             ColorVisualGroup = new ShapeMeshFuser(layerGridShape, chunkOffset);
 
-            defaultVisualData = chunk.GridManager.DefaultVisualData;
         }
         private void ValidateAllSettings()
         {
             chunkOffset = layerGridShape.GetTesselatedPosition(gridChunk.StartPosition);
-        }
-        void SetEvent(ShapeVisualData visualProp)
-        {
-            visualProp.VisualDataChange += VisualIdChanged;
-            visualProp.MaterialPropertyChange += MaterialPropertyChanged;
-        }
-        void RemoveEvent(ShapeVisualData visualProp)
-        {
-            visualProp.VisualDataChange -= VisualIdChanged;
-            visualProp.MaterialPropertyChange -= MaterialPropertyChanged;
         }
 
         public void InsertVisualData(Vector2Int gridPosition,
@@ -239,8 +225,8 @@ namespace GridMapMaker
             // 36% of the time is spent here
             if (reInsertMode == false)
             {
-                // the delete method will remove the position if it exists. So we dont have to check if the gridPositions exist before deleting
-                DeleteShape(gridPosition);
+                // will remove the position if it exists. So we dont have to check if the gridPositions exist before deleting
+                RemoveVisualData(gridPosition);
 
                 CellVisualDatas.Add(hash, visualProp);
                 CellGridPositions.Add(hash, gridPosition);
@@ -250,14 +236,20 @@ namespace GridMapMaker
             // This is because we can draw all the color meshes in one draw call by simply painting the mesh vertices themselves
             if (visualProp.DataRenderMode == ShapeVisualData.RenderMode.MeshColor)
             {
-                ColorVisualGroup.InsertPosition(hash, gridPosition, visualProp.mainColor);
+                ColorVisualGroup.InsertPosition(hash, gridPosition, visualProp.VisualColor);
                 return;
             }
 
             // 10.2% of the time is spent here
             ShapeMeshFuser meshFuser = null;
 
-            MaterialVisualGroup.TryGetValue(visualProp, out meshFuser);
+            bool success = MaterialVisualGroup.TryGetValue(visualProp, out meshFuser);
+            
+            // doesnt already exist
+            if(!success)
+            {
+                visualProp.ValidateVisualHash();
+            }
 
             if (meshFuser == null)
             {
@@ -265,8 +257,6 @@ namespace GridMapMaker
                 meshFuser = new ShapeMeshFuser(LayerGridShape, chunkOffset);
 
                 MaterialVisualGroup.Add(visualProp, meshFuser);
-
-                SetEvent(visualProp);
             }
 
             // 20% of the time is spent here
@@ -277,43 +267,6 @@ namespace GridMapMaker
 
         public void RemoveVisualData(Vector2Int gridPosition)
         {
-            // removing a visual vData is thesame as inserting a default visual vData
-            InsertVisualData(gridPosition, defaultVisualData);
-        }
-
-        private void DeleteShape(int hash)
-        {
-            // We will straight up delete the mesh at the grid position. No visual data will be inserted
-
-            ShapeVisualData existing = null;
-
-            CellVisualDatas.TryGetValue(hash, out existing);
-
-            if (existing != null)
-            {
-                if (MaterialVisualGroup.ContainsKey(existing))
-                {
-                    MaterialVisualGroup[existing].RemovePosition(hash);
-
-                    if (MaterialVisualGroup[existing].IsEmpty)
-                    {
-                        MaterialVisualGroup.Remove(existing);
-                        RemoveEvent(existing);
-                    }
-                }
-                else
-                {
-                    ColorVisualGroup.RemovePosition(hash);
-                }
-
-                CellVisualDatas.Remove(hash);
-                CellGridPositions.Remove(hash);
-            }
-        }
-        public void DeleteShape(Vector2Int gridPosition)
-        {
-            // We will straight up delete the mesh at the grid position
-
             int hash = gridPosition.GetHashCode_Unique();
             ShapeVisualData existing = null;
 
@@ -332,13 +285,48 @@ namespace GridMapMaker
                 if (mf.IsEmpty && isMat)
                 {
                     MaterialVisualGroup.Remove(existing);
-                    RemoveEvent(existing);
                 }
 
                 CellVisualDatas.Remove(hash);
                 CellGridPositions.Remove(hash);
             }
         }
+
+        /// <summary>
+        /// Removes all visual data from the layer. This effectively clears the layer and removes all meshes associated with it. You can use this to reset the layer and then re-insert visual data without the need for reinitializing the layer.
+        /// </summary>
+        public void RemoveAllVisualData()
+        {
+            if (MaterialVisualGroup != null)
+            {
+                foreach (ShapeMeshFuser item in MaterialVisualGroup.Values)
+                {
+                    item.Clear();
+                }
+            }
+
+            foreach (GameObject item in layerMeshObjs)
+            {
+                MeshFilter mf = item.GetComponent<MeshFilter>();
+
+#if UNITY_EDITOR
+
+                DestroyImmediate(mf.sharedMesh);
+                DestroyImmediate(item);
+#else
+                Destroy(mf.sharedMesh);
+                Destroy(item);
+#endif
+            }
+
+            layerMeshObjs.Clear();
+            MaterialVisualGroup.Clear();
+            CellVisualDatas.Clear();
+            ColorVisualGroup.Clear();
+            CellGridPositions.Clear();
+        }
+
+
         public bool HasVisualData(Vector2Int gridPosition)
         {
             return CellVisualDatas.ContainsKey(gridPosition.GetHashCode_Unique());
@@ -352,84 +340,6 @@ namespace GridMapMaker
 
             return existing;
         }
-        public void VisualIdChanged(ShapeVisualData sender)
-        {
-            ShapeVisualData changedProp = MaterialVisualGroup.Keys.FirstOrDefault
-                            (x => visualDataComparer.Equals(x, sender));
-
-            // make sure the changedProp exists
-            // if it doesn't, it means that the visual vData was never inserted in the first place or has been removed
-            if (changedProp != null)
-            {
-                // When a visual prop has changed, we need to see if there is another visual prop that looks like it
-
-                ShapeVisualData identicalData = MaterialVisualGroup.Keys.FirstOrDefault
-                            (x => visualDataComparer.Equals(x, changedProp));
-
-                // if there is a identicalData, combine it with the old vData
-                if (identicalData != null)
-                {
-                    // if there is a identicalData, combine the fused meshes
-                    ShapeMeshFuser prePositions = MaterialVisualGroup[identicalData];
-                    ShapeMeshFuser changedPositions = MaterialVisualGroup[changedProp];
-
-                    // remove the old fused mesh
-                    prePositions.CombineFuser(changedPositions);
-
-                    MaterialVisualGroup.Remove(changedProp);
-
-                    MaterialVisualGroup[identicalData] = prePositions;
-                }
-
-                // if we are in editor, the event was most likely raised during a serialization process, and we can't update the mesh during serialization. So we wait until the serialization process is done, then update the mesh. 
-
-                if (gridChunk.GridManager.RedrawOnVisualHashChanged)
-                {
-#if UNITY_EDITOR
-                    EditorApplication.delayCall += () =>
-                    {
-                        DrawLayer();
-                        return;
-                    };
-#endif
-                    DrawLayer();
-                }
-            }
-            else
-            {
-                RemoveEvent(sender);
-                // this visualData does not exist in this layer, remove it
-                // this should never occur so as long as we are removing the event whenever we delete a position
-            }
-        }
-        public void MaterialPropertyChanged(ShapeVisualData sender)
-        {
-            ShapeVisualData changedProp = MaterialVisualGroup.Keys.FirstOrDefault
-                (x => visualDataComparer.Equals(x, sender));
-
-            // make sure the changedProp exists
-            // if it doesn't, it means that the visual vData was never inserted in the first place or has been removed
-            if (changedProp != null)
-            {
-                foreach (GameObject go in layerMeshObjs)
-                {
-                    MeshRenderer ren =
-                            go.GetComponent<MeshRenderer>();
-
-                    for (int i = 0; i < vDataMats.Count; i++)
-                    {
-                        ShapeVisualData vd = vDataMats[i].Item1;
-
-                        if (vd == changedProp)
-                        {
-                            MaterialPropertyBlock mpb = vd.GetShapeRenderData().PropertyBlock;
-
-                            ren.SetPropertyBlock(mpb, i);
-                        }
-                    }
-                }
-            }
-        }
 
         private List<GameObject> layerMeshObjs = new List<GameObject>();
         public void FusedMeshGroups()
@@ -441,7 +351,17 @@ namespace GridMapMaker
 
             foreach (ShapeVisualData vData in MaterialVisualGroup.Keys)
             {
-                ShapeMeshFuser m = MaterialVisualGroup[vData];
+                ShapeMeshFuser m;
+
+                try
+                {
+                    m = MaterialVisualGroup[vData];
+                }
+                catch (Exception)
+                {
+                    m = null;
+                }
+
                 List<MeshData> tempMeshes;
 
                 if (useMultiThread)
@@ -474,7 +394,7 @@ namespace GridMapMaker
 
             for (int i = 0; i < colorMeshes.Count; i++)
             {
-                smallMeshes.Add(new SmallMesh(defaultVisualData, colorMeshes[i]));
+                smallMeshes.Add(new SmallMesh(GridManager.DefaultColorVisualData, colorMeshes[i]));
             }
 
             smallMeshes.Sort((x, y) => x.VertexCount.CompareTo(y.VertexCount));
@@ -559,12 +479,12 @@ namespace GridMapMaker
 
                 foreach (ShapeVisualData vData in m.vDatas)
                 {
-                    ShapeRenderData srd = vData.GetShapeRenderData();
+                    //vData.ValidateVisualData();
 
-                    sharedMats.Add(srd.SharedMaterial);
-                    matProps.Add(srd.PropertyBlock);
+                    sharedMats.Add(vData.SharedMaterial);
+                    matProps.Add(vData.PropertyBlock);
 
-                    vDataMats.Add((vData, srd.SharedMaterial));
+                    vDataMats.Add((vData, vData.SharedMaterial));
                     // for each visual data creating matching material
                 }
 
@@ -599,36 +519,6 @@ namespace GridMapMaker
             return meshHold;
         }
 
-        // This method is much faster, about 5x the time it takes to fuse and draw the mesh, but it is buggy, I havent figured it out yet...
-        //public void ChangeOrientation()
-        //{
-        //    List<MeshData> meshDatas = new List<MeshData>();
-
-        //    foreach (GameObject item in layerMeshes)
-        //    {
-        //        MeshFilter mf = item.GetComponent<MeshFilter>();
-        //        meshDatas.Add(new MeshData(mf.sharedMesh));
-        //    }
-
-        //    // convert to normal for
-
-        //    foreach (MeshData data in meshDatas)
-        //    {
-        //        for (int x = 0; x < data.vertexCount; x++)
-        //        {
-        //            data.Vertices[x] = data.Vertices[x].SwapYZ();
-        //        }
-        //    }
-
-        //    for (int i = 0; i < layerMeshes.Count; i++)
-        //    {
-        //        GameObject item = layerMeshes[i];
-        //        MeshFilter mf = item.GetComponent<MeshFilter>();
-        //        mf.sharedMesh = meshDatas[i].GetMesh();
-        //    }
-
-        //    meshDatas.Clear();
-        //}
         /// <summary>
         /// This will modify various properties of the shape mesh fusers such that when we fuse the meshes, they will be oriented correctly
         /// </summary>
@@ -703,8 +593,6 @@ namespace GridMapMaker
                 Vector2Int gridPosition = CellGridPositions[hash];
                 ShapeVisualData visual = CellVisualDatas[hash];
 
-                RemoveEvent(visual);
-
                 InsertVisualData(gridPosition, visual);
             }
 
@@ -718,12 +606,6 @@ namespace GridMapMaker
 
             DrawFusedMesh();
         }
-
-        public SerializedMeshLayer GetSerializedLayer()
-        {
-            return new SerializedMeshLayer(this);
-        }
-
         public void Clear()
         {
             if (MaterialVisualGroup != null)
@@ -752,6 +634,7 @@ namespace GridMapMaker
             MaterialVisualGroup = null;
             layerGridShape = null;
         }
+
 
         /// <summary>
         /// This struct is used to group/add meshes until the max vertices is reached
@@ -814,35 +697,6 @@ namespace GridMapMaker
             {
                 vData = this.vData;
                 fuser = this.smallMesh;
-            }
-        }
-
-        /// <summary>
-        /// A serialized version of the MeshLayer class. This is used when saving the map
-        /// </summary>
-        [Serializable]
-        public struct SerializedMeshLayer
-        {
-            [SerializeField]
-            public string layerId;
-
-            [SerializeField]
-            public List<Vector2Int> gridPositions;
-
-            [SerializeField]
-            public List<string> visualDatas;
-
-            public SerializedMeshLayer(MeshLayer layer)
-            {
-                layerId = layer.LayerId;
-                gridPositions = new List<Vector2Int>();
-                visualDatas = new List<string>();
-
-                foreach (int hash in layer.CellVisualDatas.Keys)
-                {
-                    gridPositions.Add(layer.CellGridPositions[hash]);
-                    visualDatas.Add(layer.CellVisualDatas[hash].VisualId.ToString());
-                }
             }
         }
     }

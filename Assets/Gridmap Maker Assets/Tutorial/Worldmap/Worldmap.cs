@@ -151,20 +151,6 @@ namespace GridMapMaker.Tutorial
                 exampleScript.GenerateGrid();
             }
 
-            if (GUILayout.Button("Save Grid"))
-            {
-                string s = exampleScript.gridManager.GetSerializeMap();
-                File.WriteAllText(exampleScript.saveLocation, s);
-                Debug.Log("Map Saved");
-            }
-
-            if (GUILayout.Button("Load Grid"))
-            {
-                string s = File.ReadAllText(exampleScript.saveLocation);
-                exampleScript.gridManager.DeserializeMap(s);
-                Debug.Log("Map Loaded");
-            }
-
             if (GUILayout.Button("Clear Grid"))
             {
                 exampleScript.gridManager.Clear();

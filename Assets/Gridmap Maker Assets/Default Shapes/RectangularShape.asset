@@ -24,4 +24,5 @@ MonoBehaviour:
   - {x: 1, y: 0}
   - {x: 0, y: 0}
   baseTriangles: 000000000100000002000000000000000200000003000000
-  baseOrientation: 1
+  baseOrientation: 0
+  ShapeWorldSize: {x: 1, y: 1}

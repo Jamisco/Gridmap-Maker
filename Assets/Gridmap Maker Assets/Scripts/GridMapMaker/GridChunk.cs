@@ -99,6 +99,7 @@ namespace GridMapMaker
 
             chunkColliderType = col;
 
+
             // a chunk local position is simply the position of the first cell in the chunk
             // thus, the chunk position can only be known after a layer has been added
             // see updatelocalposition method
@@ -203,30 +204,6 @@ namespace GridMapMaker
             }
         }
 
-        /// <summary>
-        /// Delete the cell at the given grid position from all layers
-        /// </summary>
-        /// <param name="gridPosition"></param>
-        public void DeletePosition(Vector2Int gridPosition)
-        {
-            foreach (MeshLayer layer in ChunkLayers.Values)
-            {
-                layer.DeleteShape(gridPosition);
-            }
-        }
-
-        /// <summary>
-        /// Deletes the cell at the given grid position from the given layer 
-        /// </summary>
-        /// <param name="gridPosition"></param>
-        /// <param name="layerId"></param>
-        public void DeletePosition(Vector2Int gridPosition, string layerId)
-        {
-            if (ChunkLayers.ContainsKey(layerId))
-            {
-                ChunkLayers[layerId].DeleteShape(gridPosition);
-            }
-        }
 
         /// <summary>
         /// Removes all visual data from all layers at the specified grid position
@@ -237,6 +214,14 @@ namespace GridMapMaker
             foreach (MeshLayer layer in ChunkLayers.Values)
             {
                 layer.RemoveVisualData(gridPosition);
+            }
+        }
+
+        public void RemoveAllVisualData(string layerId)
+        {
+            if (ChunkLayers.ContainsKey(layerId))
+            {
+                ChunkLayers[layerId].RemoveAllVisualData();
             }
         }
 
@@ -519,6 +504,8 @@ namespace GridMapMaker
 
         public void ValidateLocalPosition()
         {
+            // you need this because chunk position are by default 0,0,
+            // chunks local position is the position of the first cell in the chunk
             GridShape shape = ChunkLayers[GridManager.BaseLayer].LayerGridShape;
 
             Vector3 localPos = shape.GetTesselatedPosition(startPosition);
@@ -588,34 +575,6 @@ namespace GridMapMaker
 #else
             Destroy(transform.gameObject);
 #endif
-        }
-        public SerializedGridChunk GetSerializedChunk()
-        {
-            SerializedGridChunk serializedChunk = new SerializedGridChunk(this);
-            return serializedChunk;
-        }
-
-        /// <summary>
-        /// A serialized version of the GridChunk class. Used to save and load grid chunks
-        /// </summary>
-        [Serializable]
-        public struct SerializedGridChunk
-        {
-            [SerializeField]
-            public Vector2Int startPosition;
-
-            [SerializeField]
-            public List<SerializedMeshLayer> serializedLayers;
-            public SerializedGridChunk(GridChunk chunk)
-            {
-                startPosition = chunk.StartPosition;
-                serializedLayers = new List<SerializedMeshLayer>();
-
-                foreach (MeshLayer item in chunk.ChunkLayers.Values)
-                {
-                    serializedLayers.Add(item.GetSerializedLayer());
-                }
-            }
         }
     }
 }
