@@ -777,6 +777,18 @@ namespace GridMapMaker
             }
         }
 
+        public void RemoveAllVisualData(string layerId = USE_DEFAULT_LAYER)
+        {
+            ValidateLayerId(ref layerId);
+
+            foreach (GridChunk chunk in sortedChunks.Values)
+            {
+                chunk.RemoveAllVisualData(layerId);
+            }
+            // we also remove the visual data from the visualDatas set
+            visualDatas.Clear();
+        }
+
         /// <summary>
         /// Set whether to use visual equality at the given layer. Note, This is an expensive operation as it requires that all positions be regrouped and redrawn.
         /// </summary>
