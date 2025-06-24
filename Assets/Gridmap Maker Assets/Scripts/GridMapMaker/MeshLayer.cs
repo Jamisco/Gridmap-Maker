@@ -3,11 +3,6 @@ using System.Collections.Generic;
 using System.Linq;
 using UnityEngine;
 using static GridMapMaker.ShapeVisualData;
-using static UnityEditor.Progress;
-using static GridMapMaker.EdgeHelpers;
-
-
-
 
 #if UNITY_EDITOR
 using UnityEditor;

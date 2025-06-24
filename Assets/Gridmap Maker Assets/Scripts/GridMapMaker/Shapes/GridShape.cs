@@ -434,10 +434,14 @@ namespace GridMapMaker
         {
             // This method works my crawling the edges of the shape clock wise and getting the leftmost, rightmost, topmost and bottommost points of the shape.
 
-            float left = 0;
-            float right = 0;
-            float top = 0;
-            float bottom = 0;
+            Vector2 minTesPos = GetTesselatedPosition(minGridPosition);
+            Vector2 maxTesPos = GetTesselatedPosition(maxGridPosition);
+
+            float left = minTesPos.x;
+            float bottom = minTesPos.y;
+
+            float right = maxTesPos.x;
+            float top = maxTesPos.y;
 
             // Walk from bot left to top left
             for (int y = minGridPosition.y; y <= maxGridPosition.y; y++)

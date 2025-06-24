@@ -131,7 +131,40 @@ namespace GridMapMaker.Tutorial
 
             TimeLogger.Log(8491);
             TimeLogger.ClearTimers();
+
+            AddPolyCollider();
+
         }
+
+
+        private PolygonCollider2D polygonCollider;
+        public void AddPolyCollider()
+        {
+            Bounds mapBounds = gridManager.LocalBounds;
+
+            polygonCollider = gameObject.GetComponent<PolygonCollider2D>();
+
+            if (polygonCollider == null)
+            {
+                polygonCollider = gameObject.AddComponent<PolygonCollider2D>();
+            }
+
+            Vector2 min = mapBounds.min;
+            Vector2 max = mapBounds.max;
+
+            // Create the four corners in clockwise or counter-clockwise order
+            Vector2[] points = new Vector2[]
+            {
+                new Vector2(min.x, min.y), // Bottom Left
+                new Vector2(max.x, min.y), // Bottom Right
+                new Vector2(max.x, max.y), // Top Right
+                new Vector2(min.x, max.y)  // Top Left
+            };
+
+            // Assign the path to the collider
+            polygonCollider.SetPath(0, points);
+        }
+
         public void UpdateMap()
         {
             gridManager.DrawGrid();
@@ -232,6 +265,10 @@ namespace GridMapMaker.Tutorial
 
             Vector3 worldPos = gridManager.GridToWorldPostion(gridPos);
 
+            bool hasGrid = gridManager.ContainsGridPosition(gridPos);
+
+            Debug.Log("Has Pos: " + hasGrid);
+
             gridManager.InsertVisualData(gridPos, cc);
             gridManager.UpdatePosition(gridPos);
 
@@ -243,7 +280,7 @@ namespace GridMapMaker.Tutorial
                         "World Position:\t\t" + worldPos + "\n" +
                         "Distance:\t\t" + distance;
 
-            Debug.Log(data);
+            //Debug.Log(data);
         }
         public void RemoveVisualData()
         {

@@ -29,7 +29,7 @@ namespace GridMapMaker.Tutorial
             {
                 // Camera Zoom
                 float scrollInput = Input.GetAxis("Mouse ScrollWheel");
-                float zoomAmount = scrollInput * zoomSpeed * Time.deltaTime;
+                float zoomAmount = scrollInput * zoomSpeed;
                 mainCamera.orthographicSize = Mathf.Clamp(mainCamera.orthographicSize - zoomAmount, minZoomDistance, maxZoomDistance);
 
                 // Camera Drag
