@@ -4,5 +4,8 @@
 EditorBuildSettings:
   m_ObjectHideFlags: 0
   serializedVersion: 2
-  m_Scenes: []
+  m_Scenes:
+  - enabled: 1
+    path: Assets/Gridmap Maker Assets/Tutorial/Scenes/GridTester.unity
+    guid: e10a5cfbbfa4ac9459abe8ffd5ca0ed6
   m_configObjects: {}

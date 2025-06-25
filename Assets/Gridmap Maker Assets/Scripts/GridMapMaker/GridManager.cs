@@ -6,8 +6,6 @@ using Debug = UnityEngine.Debug;
 using System.Collections.Concurrent;
 using System.Threading.Tasks;
 using static GridMapMaker.ShapeVisualData;
-using static GridMapMaker.MeshLayer;
-using static GridMapMaker.GridChunk;
 
 
 #if UNITY_EDITOR

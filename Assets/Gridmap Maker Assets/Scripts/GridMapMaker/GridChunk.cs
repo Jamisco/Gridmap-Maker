@@ -2,8 +2,6 @@
 using System.Collections.Generic;
 using UnityEngine;
 using static GridMapMaker.GridManager;
-using static GridMapMaker.MeshLayer;
-using static UnityEditor.PlayerSettings;
 
 namespace GridMapMaker
 {

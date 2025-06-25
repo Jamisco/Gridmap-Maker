@@ -1,6 +1,5 @@
 ﻿using System;
 using UnityEngine;
-using static GridMapMaker.ShapeVisualData;
 
 namespace GridMapMaker
 {
