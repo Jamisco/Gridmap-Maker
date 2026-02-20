@@ -15,3 +15,6 @@ Long Showcase here: https://www.youtube.com/watch?v=o6yxsw304pM
 
 This is an extremely sophisticated but easy to use map maker, for those who want more dynamic control of their map as compared to Unity's Tilemap maker.
 Perfect for procedural generation, large or heavily customized maps. You can manipulate individual tiles, you use user textures, and shaders on individual or multiple tiles etc.
+
+You can reference this website for deep documentation and how to use. 
+https://deepwiki.com/Jamisco/Gridmap-Maker
